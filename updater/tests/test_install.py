@@ -1,8 +1,10 @@
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -32,6 +34,7 @@ class InstallationDocker:
 
 class InstallationTests(unittest.TestCase):
     def setUp(self):
+        self.ownership = self.enterContext(patch("noted_updater.install.os.chown", create=True))
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
@@ -60,6 +63,8 @@ class InstallationTests(unittest.TestCase):
 
     def test_install_pulls_immutable_images_and_keeps_owner_secrets_out_of_files(self):
         self.installer().run()
+        if os.name != "nt":
+            self.ownership.assert_called_once_with(self.root / "updater/requests", 1000, 1000)
         self.assertEqual(self.docker.events[0], ("image", self.data["release"]["backend_image"]))
         self.assertEqual(self.docker.events[1], ("image", self.data["release"]["web_image"]))
         self.assertEqual(self.docker.owner["password"], self.data["password"])
