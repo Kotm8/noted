@@ -1,0 +1,126 @@
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: var(--text-primary);
+  font-size: calc(13px * var(--text-scale, 1));
+  font-weight: 500;
+}
+
+input,
+select {
+  width: 100%;
+  height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-primary);
+  background: var(--surface-main);
+  font-size: calc(14px * var(--text-scale, 1));
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+label > small {
+  color: var(--text-muted);
+  font-size: calc(12px * var(--text-scale, 1));
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0009;
+}
+
+.modal-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 101;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh / var(--ui-zoom, 1) - 40px);
+  padding: 24px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--surface-floating);
+  box-shadow: 0 8px 24px #0004;
+  transform: translate(-50%, -50%);
+}
+
+.modal-title {
+  margin: 0 28px 8px 0;
+  font-size: calc(19px * var(--text-scale, 1));
+  font-weight: 600;
+}
+
+.modal-description {
+  margin: 0 0 22px;
+  color: var(--text-secondary);
+  font-size: calc(13px * var(--text-scale, 1));
+  line-height: 1.6;
+}
+
+.modal-close {
+  position: absolute;
+  top: 19px;
+  right: 17px;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+[data-radix-popper-content-wrapper]:has(> .dropdown-content) {
+  zoom: calc(1 / var(--ui-zoom, 1));
+}
+
+.dropdown-content {
+  zoom: var(--ui-zoom, 1);
+  z-index: 120;
+  min-width: 185px;
+  max-width: calc(100vw / var(--ui-zoom, 1) - 20px);
+  padding: 5px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-floating);
+  box-shadow: 0 4px 14px #0004;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  outline: none;
+  color: var(--text-secondary);
+  font-size: calc(13px * var(--text-scale, 1));
+  cursor: pointer;
+}
+
+.dropdown-item[data-highlighted] {
+  color: var(--text-primary);
+  background: var(--surface-selected);
+}
+
+.text-danger {
+  color: var(--danger);
+}

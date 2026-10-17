@@ -1,0 +1,78 @@
+.rail-brand-trigger {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.debug-dialog {
+  width: min(560px, calc(100vw / var(--ui-zoom, 1) - 32px));
+}
+
+.debug-toolbar,
+.debug-checks > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.debug-toolbar {
+  margin: 18px 0 8px;
+  color: var(--text-muted);
+  font-size: calc(13px * var(--text-scale, 1));
+}
+
+.debug-checks > div {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: calc(13px * var(--text-scale, 1));
+}
+
+.debug-checks dt {
+  color: var(--text-secondary);
+}
+
+.debug-checks dd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.debug-checks svg {
+  flex-shrink: 0;
+}
+
+.debug-checks [data-state="warning"] svg {
+  color: var(--accent);
+}
+
+.debug-checks [data-state="error"] {
+  color: var(--danger);
+}
+
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0 16px;
+}
+
+.debug-actions .ui-button,
+.debug-toolbar .ui-button {
+  gap: 7px;
+}
+
+.debug-footnote {
+  color: var(--text-muted);
+  font-size: calc(12px * var(--text-scale, 1));
+  line-height: 1.6;
+  margin-top: 16px;
+}

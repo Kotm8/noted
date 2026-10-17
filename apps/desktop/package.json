@@ -1,0 +1,14 @@
+{
+  "name": "@noted/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tauri build",
+    "build:debug": "tauri build --debug --no-bundle",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.3"
+  }
+}

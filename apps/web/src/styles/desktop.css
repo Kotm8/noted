@@ -1,0 +1,11 @@
+.desktop-server-address {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+}
+
+.desktop-switch-server {
+  margin-top: 16px;
+}
+.desktop-setup-button {
+  margin-top: 12px;
+}

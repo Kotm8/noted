@@ -1,0 +1,216 @@
+.workspace-button img {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  object-fit: fill;
+}
+.sidebar-settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 17px 18px;
+  border: 0;
+  color: var(--text-secondary);
+  background: var(--surface-header);
+  text-align: left;
+  font-size: calc(13px * var(--text-scale, 1));
+}
+.sidebar-settings:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.note-time {
+  flex-shrink: 0;
+  width: 38px;
+  padding-top: 4px;
+  color: var(--text-faint);
+  font-size: calc(10px * var(--text-scale, 1));
+  font-variant-numeric: tabular-nums;
+}
+.edited-label {
+  color: var(--text-muted);
+  font-size: calc(11px * var(--text-scale, 1));
+}
+.note[data-highlighted="true"] {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.note-attachments {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+}
+.image-attachment {
+  display: block;
+  max-width: min(480px, 100%);
+}
+.image-attachment img {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  border-radius: 5px;
+  object-fit: contain;
+}
+.file-attachment,
+.pending-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  background: var(--surface-input);
+  color: var(--text-secondary);
+}
+.file-attachment {
+  width: 340px;
+}
+.file-attachment > span,
+.pending-file > span {
+  flex: 1;
+  min-width: 0;
+}
+.file-attachment strong,
+.pending-file strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(13px * var(--text-scale, 1));
+  font-weight: 500;
+}
+.file-attachment small,
+.pending-file small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: calc(11px * var(--text-scale, 1));
+}
+.file-attachment:hover {
+  border-color: var(--border-default);
+}
+.video-attachment {
+  width: 480px;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-input);
+}
+.video-frame {
+  position: relative;
+  display: grid;
+  aspect-ratio: 16 / 9;
+  background: #111212;
+}
+.video-frame video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: absolute;
+  inset: 0;
+  object-fit: contain;
+}
+.video-frame video[hidden] {
+  display: none;
+}
+.video-play-button,
+.video-buffering {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  transform: translate(-50%, -50%);
+  border: 1px solid #ffffff26;
+  border-radius: 50%;
+  color: #f5f5f0;
+  background: #171818d9;
+}
+.video-play-button svg {
+  margin-left: 3px;
+}
+.video-play-button:hover {
+  background: #303131;
+  border-color: var(--accent);
+}
+.video-buffering {
+  pointer-events: none;
+}
+.video-caption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.video-caption > span {
+  flex: 1;
+  min-width: 0;
+}
+.video-caption strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: calc(13px * var(--text-scale, 1));
+  font-weight: 500;
+}
+.video-caption small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: calc(11px * var(--text-scale, 1));
+}
+.video-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 16px;
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: calc(13px * var(--text-scale, 1));
+}
+.video-error small {
+  color: var(--text-muted);
+}
+.video-error button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--surface-input);
+}
+.pending-files {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 10px;
+  overflow-x: auto;
+}
+.pending-file {
+  flex: 0 0 220px;
+  padding: 10px;
+}
+.attach-button {
+  flex-shrink: 0;
+  margin: 7px 0 7px 6px;
+}
+.composer textarea {
+  padding-left: 0;
+  line-height: 1.5;
+}
+.markdown {
+  color: var(--text-primary);
+}

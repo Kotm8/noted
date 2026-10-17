@@ -1,0 +1,167 @@
+.notes-list .note {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.note-group-start:not(.note-day-start) {
+  margin-top: 22px;
+}
+.note-minute-marker {
+  display: block;
+  margin: 10px 26px 4px;
+  color: var(--text-faint);
+  font-size: calc(10px * var(--text-scale, 1));
+  font-variant-numeric: tabular-nums;
+}
+.note-day-start > .note-minute-marker,
+.note-group-start > .note-minute-marker {
+  margin-top: 0;
+}
+.layout-minute .note > .note-time,
+.layout-connected .note > .note-time {
+  display: none;
+}
+.layout-connected .note-entry {
+  position: relative;
+}
+.layout-connected .note-entry::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 24px;
+  width: 1px;
+  background: var(--border-default);
+}
+.layout-connected .note-day-start::before {
+  top: 39px;
+}
+.layout-connected .note {
+  padding-left: 42px;
+}
+.layout-connected .note-minute-marker {
+  margin-left: 44px;
+}
+.layout-quiet .note-group-follow .note-time {
+  visibility: hidden;
+}
+.layout-quiet .note:hover .note-time,
+.layout-quiet .note:focus-within .note-time {
+  visibility: visible;
+}
+.layout-rows .note > .note-time {
+  order: 1;
+  width: auto;
+  margin-left: auto;
+  padding-left: 12px;
+  text-align: right;
+}
+.layout-rows .note-main {
+  max-width: none;
+}
+.layout-rows .note-group-start:not(.note-day-start) {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.appearance-save-status {
+  min-height: 17px;
+  margin: -12px 0 0 !important;
+  font-size: calc(11px * var(--text-scale, 1)) !important;
+}
+.message-layout-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.message-layout-option {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.message-layout-option:hover {
+  background: var(--surface-hover);
+}
+.message-layout-option:has(input:checked) {
+  border-color: var(--accent);
+}
+.message-layout-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.message-layout-option strong {
+  font-size: calc(12px * var(--text-scale, 1));
+  font-weight: 500;
+}
+.message-layout-description {
+  color: var(--text-muted);
+  font-size: calc(11px * var(--text-scale, 1));
+  line-height: 1.5;
+}
+.message-layout-sample {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  height: 64px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--surface-main);
+}
+.sample-time {
+  color: var(--text-faint);
+  font-size: 8px;
+  line-height: 1;
+}
+.sample-line {
+  width: 75%;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--text-secondary);
+  opacity: 0.35;
+}
+.sample-short {
+  width: 48%;
+}
+.sample-connected {
+  border-left: 1px solid var(--text-faint);
+}
+.sample-quiet {
+  position: relative;
+  padding-left: 37px;
+}
+.sample-quiet .sample-time {
+  position: absolute;
+  top: 16px;
+  left: 7px;
+}
+.sample-rows {
+  position: relative;
+}
+.sample-rows .sample-time {
+  position: absolute;
+  top: 16px;
+  right: 7px;
+}
+@media (max-width: 760px) {
+  .note-minute-marker {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+  .layout-connected .note-entry::before {
+    left: 12px;
+  }
+  .layout-connected .note {
+    padding-left: 28px;
+  }
+  .layout-connected .note-minute-marker {
+    margin-left: 30px;
+  }
+}
+@media (max-width: 400px) {
+  .message-layout-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

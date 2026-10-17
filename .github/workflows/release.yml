@@ -1,0 +1,194 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  android:
+    name: Sign Android APK
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - run: chmod +x apps/android/gradlew
+      - name: Restore signing key
+        env:
+          ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
+        run: |
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          value = os.environ.get("ANDROID_SIGNING_KEYSTORE", "")
+          if not value:
+              raise SystemExit("Add ANDROID_SIGNING_KEYSTORE and ANDROID_SIGNING_PASSWORD in repository Actions secrets first.")
+          path = Path(os.environ["RUNNER_TEMP"]) / "noted-release.jks"
+          path.write_bytes(base64.b64decode(value, validate=True))
+          path.chmod(0o600)
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write(f"NOTED_ANDROID_KEYSTORE={path}\n")
+          PY
+      - name: Build signed APK
+        env:
+          NOTED_ANDROID_KEY_ALIAS: noted
+          NOTED_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+          NOTED_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+        run: python scripts/android.py build
+      - name: Verify public certificate matches the server
+        run: |
+          git ls-files --error-unmatch apps/web/public/.well-known/assetlinks.json > /dev/null
+          git diff --exit-code -- apps/web/public/.well-known/assetlinks.json
+      - name: Prepare download
+        run: |
+          version=$(python scripts/release_version.py)
+          mkdir -p .local/release
+          cp apps/android/app/build/outputs/apk/release/app-release.apk ".local/release/Noted_${version}_android.apk"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: signed-android-client
+          path: .local/release/*.apk
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/noted-release.jks"
+
+  images:
+    name: Publish server images
+    needs: [checks, android]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read release identity
+        id: release
+        run: |
+          version=$(python scripts/release_version.py)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "repository=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build backend
+        id: backend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ steps.release.outputs.repository }}-backend:main-${{ github.sha }}
+          build-args: |
+            NOTED_BUILD_COMMIT=${{ github.sha }}
+            NOTED_BUILD_VERSION=${{ steps.release.outputs.version }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      - name: Build web
+        id: web
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ steps.release.outputs.repository }}-web:main-${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+      - name: Save image digests
+        env:
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          directory = Path(".local/release")
+          directory.mkdir(parents=True, exist_ok=True)
+          for name in ("backend", "web"):
+              (directory / f"{name}.json").write_text(json.dumps({"containerimage.digest": os.environ[f"{name.upper()}_DIGEST"]}))
+          PY
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: server-image-metadata
+          path: .local/release/*.json
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  publish:
+    name: Publish coordinated release
+    needs: [checks, android, images]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-backend
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: windows-client
+          path: .local/release/clients
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: signed-android-client
+          path: .local/release/clients
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: server-image-metadata
+          path: .local/release
+      - name: Verify images are publicly downloadable
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          repository = os.environ["GITHUB_REPOSITORY"].lower()
+          for name in ("backend", "web"):
+              digest = json.loads(Path(f".local/release/{name}.json").read_text())["containerimage.digest"]
+              result = subprocess.run(["docker", "manifest", "inspect", f"ghcr.io/{repository}-{name}@{digest}"], stdout=subprocess.DEVNULL)
+              if result.returncode:
+                  raise SystemExit(f"Make the {name} package Public in GitHub Packages, then rerun failed jobs.")
+          PY
+      - name: Publish release and downloads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(python scripts/release_version.py)
+          uv run --project backend python scripts/publish_release.py \
+            --backend-metadata .local/release/backend.json \
+            --web-metadata .local/release/web.json \
+            --version "$version" --clients-directory .local/release/clients

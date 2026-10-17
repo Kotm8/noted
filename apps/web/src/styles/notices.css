@@ -1,0 +1,49 @@
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: calc(13px * var(--text-scale, 1));
+  line-height: 1.6;
+}
+.notice-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-secondary);
+}
+.notice-content {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.notice-content > p {
+  margin: 0;
+}
+.notice-content > p + p,
+.notice-content > strong + p {
+  margin-top: 8px;
+}
+.notice-content > strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.notice-error,
+.notice-warning > .notice-icon,
+.notice-error > .notice-icon {
+  color: var(--danger);
+}
+.server-updates > .notice,
+.host-form > .notice,
+.password-form > .notice,
+.host-progress > .notice {
+  margin-bottom: 0;
+}
+.connection-screen > .notice {
+  max-width: 420px;
+  margin-bottom: 0;
+  text-align: left;
+}

@@ -1,0 +1,78 @@
+name: noted-local
+
+services:
+  db:
+    image: postgres:18.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: noted
+      POSTGRES_USER: noted
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python scripts/dev.py init first}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U noted -d noted']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    command: [postgres, -c, shared_buffers=128MB, -c, max_connections=30, -c, work_mem=4MB]
+
+  migrate:
+    image: noted/backend:0.1.0-local
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment: &backend_environment
+      NOTED_DATABASE_URL: postgresql+psycopg://noted:${POSTGRES_PASSWORD}@db:5432/noted
+      NOTED_APP_ORIGIN: http://localhost:8080
+      NOTED_COOKIE_SECURE: 'false'
+      NOTED_STORAGE_PATH: /data/attachments
+    depends_on:
+      db:
+        condition: service_healthy
+    command: [alembic, upgrade, head]
+    restart: 'no'
+
+  backend:
+    image: noted/backend:0.1.0-local
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment: *backend_environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - attachments:/data/attachments
+
+  web:
+    image: noted/web:0.1.0-local
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8080:8080'
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://localhost:8080/api/v1/health/ready]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  attachments:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,15 @@
+name: Set up backend
+description: Install the pinned Python toolchain and locked backend dependencies
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.14.5'
+    - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      with:
+        version: '0.11.8'
+        enable-cache: true
+        cache-dependency-glob: backend/uv.lock
+    - run: uv sync --locked --project backend
+      shell: bash

@@ -1,0 +1,90 @@
+name: noted
+
+services:
+  db:
+    image: postgres:18.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: noted
+      POSTGRES_USER: noted
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a generated database password}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U noted -d noted']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    command: [postgres, -c, shared_buffers=128MB, -c, max_connections=30, -c, work_mem=4MB]
+
+  migrate:
+    image: ${NOTED_BACKEND_IMAGE:?Set the backend release image}
+    environment: &backend_environment
+      NOTED_DATABASE_URL: postgresql+psycopg://noted:${POSTGRES_PASSWORD}@db:5432/noted
+      NOTED_APP_ORIGIN: https://${NOTED_DOMAIN:?Set the app domain}
+      NOTED_SERVER_NAME: ${NOTED_SERVER_NAME:?Set the server name}
+      NOTED_INSTANCE_ID: ${NOTED_INSTANCE_ID:-development}
+      NOTED_COOKIE_SECURE: 'true'
+      NOTED_STORAGE_PATH: /data/attachments
+      NOTED_UPDATES_DIRECTORY: /run/noted-updater
+    depends_on:
+      db:
+        condition: service_healthy
+    command: [alembic, upgrade, head]
+    restart: 'no'
+
+  backend:
+    image: ${NOTED_BACKEND_IMAGE:?Set the backend release image}
+    restart: unless-stopped
+    environment: *backend_environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - attachments:/data/attachments
+      - type: bind
+        source: ./updater/state
+        target: /run/noted-updater/state
+        read_only: true
+      - type: bind
+        source: ./updater/requests
+        target: /run/noted-updater/requests
+
+  web:
+    image: ${NOTED_WEB_IMAGE:?Set the frontend release image}
+    restart: unless-stopped
+    environment:
+      NOTED_DOMAIN: ${NOTED_DOMAIN:?Set the app domain}
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - type: bind
+        source: ${NOTED_CADDY_CONFIG:-./Caddyfile.production}
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - type: bind
+        source: ./updater/maintenance
+        target: /maintenance
+        read_only: true
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8081/api/v1/health/ready]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  attachments:
+  caddy_data:
+  caddy_config:

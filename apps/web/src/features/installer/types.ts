@@ -1,0 +1,35 @@
+export interface InstallationDraft {
+  serverName: string;
+  host: string;
+  port: string;
+  sshUser: string;
+  sshPassword: string;
+  domain: string;
+  cloudflare: boolean;
+  username: string;
+  password: string;
+  confirmation: string;
+}
+
+export type UpdateInstallation = <Key extends keyof InstallationDraft>(
+  key: Key,
+  value: InstallationDraft[Key],
+) => void;
+
+export interface SetupStepProps {
+  draft: InstallationDraft;
+  update: UpdateInstallation;
+}
+
+export const initialInstallation: InstallationDraft = {
+  serverName: "",
+  host: "",
+  port: "22",
+  sshUser: "root",
+  sshPassword: "",
+  domain: "",
+  cloudflare: true,
+  username: "",
+  password: "",
+  confirmation: "",
+};

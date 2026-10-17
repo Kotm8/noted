@@ -1,0 +1,198 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend and updater
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: noted
+          POSTGRES_USER: noted
+          POSTGRES_PASSWORD: noted-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U noted -d noted"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    env:
+      NOTED_TEST_DATABASE_URL: postgresql+psycopg://noted:noted-ci-only@127.0.0.1:5432/noted
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-backend
+      - name: Check release versions
+        run: python scripts/release_version.py
+      - name: Lint
+        working-directory: backend
+        run: uv run ruff check app tests alembic ../scripts
+      - name: Check formatting
+        working-directory: backend
+        run: uv run ruff format --check app tests alembic ../scripts
+      - name: Type check
+        working-directory: backend
+        run: uv run mypy app
+      - name: Backend tests
+        working-directory: backend
+        run: uv run pytest -q
+      - name: Updater tests
+        run: python -m unittest discover -s updater/tests -v
+      - name: Publisher tests
+        run: uv run --project backend python -m unittest discover -s scripts/tests -v
+
+  web:
+    name: Web client
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.14.0'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  browser:
+    name: Chrome browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: noted
+          POSTGRES_USER: noted
+          POSTGRES_PASSWORD: noted-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U noted -d noted"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    env:
+      NOTED_TEST_DATABASE_URL: postgresql+psycopg://noted:noted-ci-only@127.0.0.1:5432/noted
+      NOTED_APP_ORIGIN: http://localhost:5173
+      NOTED_COOKIE_SECURE: 'false'
+      PLAYWRIGHT_CHANNEL: chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-backend
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.14.0'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm --prefix apps/web ci
+      - name: Install Chrome
+        working-directory: apps/web
+        run: npx playwright install --with-deps chrome
+      - run: mkdir -p .local
+      - name: Browser tests
+        working-directory: backend
+        run: uv run python -m tests.browser_runner
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: chrome-failure-traces
+          path: |
+            apps/web/test-results/
+            .local/screenshots/
+          include-hidden-files: true
+          retention-days: 7
+
+  windows:
+    name: Windows client
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.14.0'
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/desktop/package-lock.json
+      - run: rustup update stable --no-self-update
+      - run: rustup default stable
+      - run: npm --prefix apps/web ci
+      - run: npm --prefix apps/desktop ci
+      - run: npm --prefix apps/desktop run build
+      - run: cargo test --release --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: windows-client
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  android:
+    name: Android client
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - run: chmod +x apps/android/gradlew
+      - run: python scripts/android.py check
+      - name: Upload Android test reports
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: android-test-reports
+          path: apps/android/app/build/reports/
+          retention-days: 7
+
+  upgrade:
+    name: Docker upgrade and restore
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-backend
+      - name: Build initial backend image
+        run: docker build -t noted/backend:0.1.0-local -f backend/Dockerfile .
+      - name: Build initial web image
+        run: docker build -t noted/web:0.1.0-local -f apps/web/Dockerfile .
+      - name: Verify update and backup restore
+        run: uv run --project backend python scripts/test_server_upgrade.py

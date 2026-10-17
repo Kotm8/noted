@@ -1,0 +1,273 @@
+.installer-screen {
+  min-height: calc(100dvh / var(--ui-zoom, 1));
+  background: var(--surface-main);
+}
+.installer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 28px 32px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.installer-header > span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.installer-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 64px;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 48px 32px 60px;
+}
+.installer-navigation h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.installer-navigation > p {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.installer-navigation ol {
+  display: grid;
+  gap: 24px;
+  margin: 38px 0;
+  padding: 0;
+  list-style: none;
+}
+.installer-navigation li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.installer-navigation li > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  font-size: 12px;
+}
+.installer-navigation li[aria-current] {
+  color: var(--text-primary);
+}
+.installer-navigation li[aria-current] > span {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.installer-navigation .installer-memory-note {
+  max-width: 210px;
+  margin-top: 70px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.installer-form {
+  min-width: 0;
+  max-width: 560px;
+}
+.installation-fields {
+  min-width: 0;
+}
+.installation-progress {
+  display: grid;
+  gap: 14px;
+  list-style: none;
+  padding: 0;
+  margin: 28px 0;
+}
+.installation-progress li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.installation-progress li[aria-current] {
+  color: var(--accent);
+}
+.installation-progress svg {
+  flex-shrink: 0;
+}
+.installation-verify {
+  margin-top: 22px;
+}
+.installation-step h1 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.installation-step > p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 30px;
+}
+.installation-step label {
+  margin-bottom: 22px;
+}
+.installation-step input {
+  background: var(--surface-sidebar);
+}
+.setup-address-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 16px;
+}
+.installer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 24px;
+  margin-top: 26px;
+  border-top: 1px solid var(--border-subtle);
+}
+.installer-form .setup-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.setup-checkbox input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+.cloudflare-guide {
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  background: var(--surface-sidebar);
+}
+.cloudflare-guide summary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.cloudflare-guide p,
+.cloudflare-guide ol {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 15px 0;
+}
+.cloudflare-guide ol {
+  padding-left: 18px;
+  list-style: decimal;
+}
+.cloudflare-guide li + li {
+  margin-top: 10px;
+}
+.cloudflare-guide strong {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.dns-example {
+  padding: 9px 12px;
+  background: var(--surface-main);
+  border-radius: 3px;
+}
+.dns-example > div,
+.installation-review > div {
+  display: grid;
+  grid-template-columns: 125px minmax(0, 1fr);
+  gap: 14px;
+  padding: 7px 0;
+  font-size: 12px;
+}
+.dns-example dt,
+.installation-review dt {
+  color: var(--text-muted);
+}
+.dns-example dd,
+.installation-review dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.setup-reference-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.setup-reference-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--link);
+  font-size: 12px;
+}
+.setup-reference-links a:hover {
+  text-decoration: underline;
+}
+.installation-review {
+  margin: 20px 0;
+}
+.installation-review > div {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+.installation-step .setup-help {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .installer-header {
+    padding: 20px;
+  }
+  .installer-header > span {
+    max-width: 105px;
+    text-align: right;
+    line-height: 1.6;
+  }
+  .installer-layout {
+    display: block;
+    padding: 24px 20px 40px;
+  }
+  .installer-navigation h2,
+  .installer-navigation > p {
+    display: none;
+  }
+  .installer-navigation ol {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 32px;
+  }
+  .installer-navigation li {
+    flex-direction: column;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .installer-navigation .installer-memory-note {
+    display: block;
+    max-width: none;
+    margin: 0 0 28px;
+  }
+  .installer-form {
+    max-width: none;
+  }
+  .setup-address-row {
+    grid-template-columns: minmax(0, 1fr) 85px;
+    gap: 12px;
+  }
+  .dns-example > div,
+  .installation-review > div {
+    grid-template-columns: 95px minmax(0, 1fr);
+    gap: 10px;
+  }
+}

@@ -1,0 +1,119 @@
+import { useState } from "react";
+import {
+  Archive,
+  Bell,
+  Cable,
+  LogOut,
+  Monitor,
+  Palette,
+  Server,
+} from "lucide-react";
+import { ConnectionPanel } from "../../desktop/connection-panel";
+import { useDesktopConnection } from "../../desktop/connection-context";
+import { Modal } from "../../../components/ui/dialog";
+import { useLogout } from "../../auth/hooks/use-logout";
+import { AppearancePanel } from "./appearance-panel";
+import { ServerPanel } from "./server-panel";
+import { BackupsPanel } from "../../backups/components/backups-panel";
+import { SessionsPanel } from "./sessions-panel";
+import { NotificationsPanel } from "../../notifications/notifications-panel";
+import { isAndroidApp } from "../../notifications/android";
+import { SwitchServerButton } from "../../desktop/switch-server-button";
+
+export function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<
+    | "appearance"
+    | "server"
+    | "backups"
+    | "sessions"
+    | "connection"
+    | "notifications"
+  >("appearance");
+  const connection = useDesktopConnection();
+  const logout = useLogout();
+
+  return (
+    <Modal
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      className="settings-dialog"
+      title="Settings"
+      description="Your account preferences and connected instance."
+    >
+      <div className="settings-layout">
+        <nav className="settings-navigation" aria-label="Settings sections">
+          <button
+            aria-current={tab === "notifications" ? "page" : undefined}
+            onClick={() => setTab("notifications")}
+          >
+            <Bell size={16} />
+            Notifications
+          </button>
+          <button
+            aria-current={tab === "appearance" ? "page" : undefined}
+            onClick={() => setTab("appearance")}
+          >
+            <Palette size={16} />
+            Appearance
+          </button>
+          <button
+            aria-current={tab === "server" ? "page" : undefined}
+            onClick={() => setTab("server")}
+          >
+            <Server size={16} />
+            Server
+          </button>
+          <button
+            aria-current={tab === "backups" ? "page" : undefined}
+            onClick={() => setTab("backups")}
+          >
+            <Archive size={16} />
+            Backups
+          </button>
+          <button
+            aria-current={tab === "sessions" ? "page" : undefined}
+            onClick={() => setTab("sessions")}
+          >
+            <Monitor size={16} />
+            Sessions
+          </button>
+          <button
+            className="settings-signout"
+            disabled={logout.isPending}
+            onClick={() => logout.mutate()}
+          >
+            <LogOut size={16} />
+            Sign out
+          </button>
+          {connection && (
+            <button
+              aria-current={tab === "connection" ? "page" : undefined}
+              onClick={() => setTab("connection")}
+            >
+              <Cable size={16} />
+              Connection
+            </button>
+          )}
+          {isAndroidApp() && (
+            <SwitchServerButton />
+          )}
+        </nav>
+        {tab === "notifications" ? (
+          <NotificationsPanel />
+        ) : tab === "connection" ? (
+          <ConnectionPanel />
+        ) : tab === "appearance" ? (
+          <AppearancePanel />
+        ) : tab === "server" ? (
+          <ServerPanel />
+        ) : tab === "sessions" ? (
+          <SessionsPanel />
+        ) : (
+          <BackupsPanel />
+        )}
+      </div>
+    </Modal>
+  );
+}

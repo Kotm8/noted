@@ -1,0 +1,153 @@
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 60px 220px minmax(0, 1fr);
+  }
+
+  .workspace-selected::before {
+    left: -11px;
+  }
+
+  .channel-header {
+    padding: 0 20px;
+  }
+
+  .composer-area {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .draft-status {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    display: flex;
+  }
+
+  .workspace-rail {
+    position: fixed;
+    top: 0;
+    left: -61px;
+    width: 60px;
+    height: calc(100dvh / var(--ui-zoom, 1));
+  }
+
+  .channel-sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 244px;
+    height: calc(100dvh / var(--ui-zoom, 1));
+  }
+
+  .mobile-nav-open .workspace-rail {
+    left: 0;
+  }
+  .mobile-nav-open .channel-sidebar {
+    left: 60px;
+  }
+
+  .mobile-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    border: none;
+    background: #0009;
+  }
+
+  .main-panel {
+    width: 100%;
+  }
+
+  .mobile-menu {
+    display: inline-flex;
+    margin-left: -5px;
+  }
+
+  .channel-header {
+    gap: 8px;
+    min-height: 50px;
+    padding: 0 14px;
+  }
+
+  .channel-heading {
+    flex: 1;
+  }
+  .channel-heading h1 {
+    font-size: calc(15px * var(--text-scale, 1));
+  }
+  .channel-intro {
+    padding: 22px 18px;
+  }
+
+  .note {
+    gap: 10px;
+    padding-right: 14px;
+    padding-left: 12px;
+  }
+
+  .markdown {
+    font-size: calc(14px * var(--text-scale, 1));
+  }
+
+  .date-divider {
+    gap: 9px;
+    margin-right: 14px;
+    margin-left: 14px;
+    font-size: calc(10px * var(--text-scale, 1));
+  }
+
+  .note-actions {
+    right: 12px;
+  }
+
+  .composer-area {
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .composer textarea {
+    font-size: calc(15px * var(--text-scale, 1));
+  }
+
+  .composer-footer {
+    font-size: calc(10px * var(--text-scale, 1));
+  }
+
+  .channel-options {
+    display: inline-flex;
+  }
+  .category-actions {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .note-actions {
+    opacity: 1;
+  }
+
+  .note-actions {
+    position: static;
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .note-actions > .icon-button:first-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

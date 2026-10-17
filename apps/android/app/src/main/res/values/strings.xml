@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Noted</string>
+    <string name="reminders_channel">Reminders</string>
+    <string name="reminders_description">Scheduled notes, with Done and Snooze actions</string>
+</resources>
