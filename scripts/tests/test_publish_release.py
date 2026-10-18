@@ -9,7 +9,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit
 
-from scripts import publish_release
+from scripts import publish_release, release_notes, release_version
 
 
 class PublisherTests(unittest.TestCase):
@@ -17,6 +17,9 @@ class PublisherTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
+        self.notes = "### Added\n\n- Notes from the changelog."
+        self.changelog = self.directory / "CHANGELOG.md"
+        self.changelog.write_text(f"# Changelog\n\n## 0.1.0\n\n{self.notes}\n", encoding="utf-8")
         self.commit = "a" * 40
         self.head = self.commit
         self.calls = []
@@ -88,13 +91,21 @@ class PublisherTests(unittest.TestCase):
             ),
             patch("sys.argv", argv),
             patch.object(publish_release, "api", self.api),
-            patch.object(publish_release.subprocess, "check_output", return_value="Release notes"),
+            patch.object(release_notes, "ROOT", self.directory),
+            patch.object(release_version, "release_version", return_value="0.1.0"),
         ):
             publish_release.main()
 
     def test_publishes_only_after_all_server_and_client_assets_are_uploaded(self):
         self.publish()
         self.assertEqual(self.calls[-1][0], "PATCH")
+        created = next(
+            data
+            for method, path, data in self.calls
+            if method == "POST" and path.endswith("/releases")
+        )
+        self.assertEqual(created["body"], self.notes)
+        self.assertEqual(self.calls[-1][2]["body"], self.notes)
         manifest = json.loads(self.uploads["noted-release.json"])
         self.assertEqual(manifest["version"], "0.1.0")
         self.assertEqual(manifest["commit"], self.commit)
@@ -135,6 +146,27 @@ class PublisherTests(unittest.TestCase):
         self.existing_release = {"id": 1, "draft": False}
         self.publish()
         self.assertFalse(any(method != "GET" for method, _, _ in self.calls))
+
+    def test_draft_retries_refresh_release_notes(self):
+        self.existing_release = {"id": 1, "draft": True, "body": "Old commit message"}
+        self.publish()
+        self.assertFalse(
+            any(method == "POST" and path.endswith("/releases") for method, path, _ in self.calls)
+        )
+        self.assertEqual(self.calls[-1][2]["body"], self.notes)
+        self.assertFalse(self.calls[-1][2]["draft"])
+
+    def test_invalid_changelog_stops_before_any_api_calls(self):
+        for content in ("## 0.1.1\nOther version", "## 0.1.0\n", "## 0.1.0\nOne\n## 0.1.0\nTwo"):
+            with self.subTest(content=content):
+                self.changelog.write_text(content, encoding="utf-8")
+                with self.assertRaises(SystemExit):
+                    self.publish()
+                self.assertEqual(self.calls, [])
+        self.changelog.unlink()
+        with self.assertRaises(SystemExit):
+            self.publish()
+        self.assertEqual(self.calls, [])
 
     def test_incomplete_downloads_and_invalid_metadata_fail_before_any_api_call(self):
         apk = self.arguments.clients_directory / "Noted_android.apk"

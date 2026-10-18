@@ -3,7 +3,6 @@ import hashlib
 import io
 import json
 import os
-import subprocess
 import sys
 import tarfile
 import time
@@ -37,6 +36,7 @@ def api(
 
 
 def main() -> None:
+    from scripts.release_notes import release_notes
     from scripts.release_version import release_version
 
     parser = argparse.ArgumentParser()
@@ -47,6 +47,10 @@ def main() -> None:
     arguments = parser.parse_args()
     if arguments.version != release_version():
         raise SystemExit("Release version must match the version in the app project files.")
+    try:
+        notes = release_notes(arguments.version)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     repository = os.environ["GITHUB_REPOSITORY"].lower()
     commit = os.environ["GITHUB_SHA"]
     tag = f"main-{commit}"
@@ -67,9 +71,6 @@ def main() -> None:
         if error.code != 404:
             raise
         error.close()
-        notes = subprocess.check_output(
-            ["git", "log", "-1", "--format=%s%n%n%b", commit], cwd=ROOT, text=True
-        )[:8000]
         release = api(
             api_base,
             {
@@ -98,7 +99,11 @@ def main() -> None:
         != commit
     ):
         raise SystemExit("Main advanced during publishing. Release kept as a draft; run again.")
-    api(f"{api_base}/{release['id']}", {"draft": False, "make_latest": "true"}, "PATCH")
+    api(
+        f"{api_base}/{release['id']}",
+        {"name": f"v{arguments.version}", "body": notes, "draft": False, "make_latest": "true"},
+        "PATCH",
+    )
     url = f"https://github.com/{repository}/releases/tag/{tag}"
     print(f"Published v{arguments.version}: {url}")
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):

@@ -84,4 +84,25 @@ describe("desktop server setup", () => {
     expect(screen.queryByLabelText("SSH password")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check connection and open Noted" })).toBeEnabled();
   });
+
+  it("returns to fresh setup when background cleanup finishes", async () => {
+    const fetcher = vi.fn((path: string) => {
+      if (path.endsWith("/host")) return respond({ hostKey: plan.hostKey, fingerprint: "SHA256:test-fingerprint" });
+      if (path.endsWith("/release")) return respond({ version: "0.1.0", commit: plan.releaseCommit, manifestSha256: plan.manifestSha256 });
+      return respond({ status: "cleaned", phase: "cleanup", detail: "Noted was removed.", plan: null });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(<DesktopSetup initialJob={{ ...waiting, status: "running", phase: "cleanup" }} close={vi.fn()} connected={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Removing Noted from the VPS." })).toBeVisible();
+    await screen.findByRole("heading", { name: "Your server" }, { timeout: 3000 });
+    expect(screen.getByLabelText("SSH password", { exact: true })).toHaveValue("");
+    expect(screen.queryByRole("button", { name: "Clean Noted from VPS" })).not.toBeInTheDocument();
+    await enterServerAndAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    await screen.findByRole("heading", { name: "Review your setup" });
+    const request = fetcher.mock.calls.find(([path]) => path.endsWith("/release"));
+    const options = vi.mocked(fetch).mock.calls.find(([path]) => String(path).endsWith("/release"))?.[1];
+    expect(request).toBeDefined();
+    expect(JSON.parse(String(options?.body))).toEqual({ repository: "kotm8/noted" });
+  });
 });

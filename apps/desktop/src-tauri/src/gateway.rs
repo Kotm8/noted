@@ -216,6 +216,14 @@ pub fn router(state: Arc<Gateway>) -> Router {
             axum::routing::post(crate::installer::check_release),
         )
         .route(
+            "/desktop/setup/cleanup/inspect",
+            axum::routing::post(crate::installer::inspect_cleanup),
+        )
+        .route(
+            "/desktop/setup/cleanup",
+            axum::routing::post(crate::installer::remove_setup),
+        )
+        .route(
             "/desktop/setup/verify",
             axum::routing::post(crate::installer::verify),
         )

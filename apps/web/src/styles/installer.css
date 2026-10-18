@@ -271,3 +271,39 @@
     gap: 10px;
   }
 }
+.installer-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-default);
+}
+
+.installer-danger-zone h3 {
+  color: var(--danger);
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.installer-danger-zone p {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.cleanup-summary {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.cleanup-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cleanup-summary dt { color: var(--text-muted); }
+.cleanup-summary dd { overflow-wrap: anywhere; text-align: right; }

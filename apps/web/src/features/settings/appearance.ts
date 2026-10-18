@@ -41,7 +41,7 @@ export function paletteColors(preset: AppearancePreset) {
 export const messageLayouts = {
   minute: {
     label: "Minute markers",
-    description: "Tight stacks with a small label when the minute changes.",
+    description: "Tight stacks with a small time label at the start of each group.",
   },
   connected: {
     label: "Connected thoughts",
@@ -68,6 +68,7 @@ export interface AppearancePreferences {
   textSize: number;
   zoom: number;
   messageLayout: MessageLayout;
+  messageGroupMinutes: number;
 }
 
 export const defaultAppearance: AppearancePreferences = {
@@ -76,6 +77,7 @@ export const defaultAppearance: AppearancePreferences = {
   textSize: 15,
   zoom: 100,
   messageLayout: "minute",
+  messageGroupMinutes: 2,
 };
 
 export const APPEARANCE_KEY = "noted.appearance.v1";
@@ -108,6 +110,8 @@ export function readAppearance(): AppearancePreferences {
       result.zoom = Math.min(150, Math.max(75, value.zoom));
     if (value.messageLayout && Object.hasOwn(messageLayouts, value.messageLayout))
       result.messageLayout = value.messageLayout;
+    if (typeof value.messageGroupMinutes === "number" && Number.isInteger(value.messageGroupMinutes))
+      result.messageGroupMinutes = Math.min(30, Math.max(1, value.messageGroupMinutes));
     return result;
   } catch {
     return defaultAppearance;

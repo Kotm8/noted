@@ -1,6 +1,6 @@
 # Builds and releases
 
-The current app version is **0.1.0**. Release versions must match in the backend, web, Windows, and Android project files. `scripts/release_version.py` checks them and supplies the release workflow's version automatically.
+The current app version is **0.1.1**. Release versions must match in the backend, web, Windows, and Android project files. `scripts/release_version.py` checks them and supplies the release workflow's version automatically.
 
 ## CI
 
@@ -11,7 +11,7 @@ Pushing to `main` or opening a pull request targeting `main` runs:
 - Chrome browser tests against an isolated database.
 - Windows installer build and Rust tests.
 - Android build, unit tests, and lint.
-- Docker server upgrade and backup restoration tests.
+- Docker server upgrade, backup restoration, and isolated cleanup tests.
 
 CI can also be run from the Actions tab. It does not publish a release or change a VPS. Successful Windows builds are downloadable as workflow artifacts. CI uses disposable databases and test data, without production credentials or signing keys.
 
@@ -34,16 +34,18 @@ Back up `.local/android/signing.json` and its keystore privately. Firebase crede
 
 ## Publish an update
 
-1. Commit and push the finished changes to `main`.
+1. Update the app versions together and add a matching `## 0.1.1` entry to the root `CHANGELOG.md` for a `0.1.1` release. Commit and push the finished changes to `main`.
 2. Open **Actions > Publish release > Run workflow**, choose `main`, and click **Run workflow**.
 3. The workflow runs the complete CI checks, signs the Android APK, builds and uploads both server images, and verifies that the images can be downloaded publicly.
-4. It uploads the server manifest, deployment bundle, updater, Windows installer, Android APK, and `SHA256SUMS` to a draft GitHub Release. Only after every upload succeeds does it publish the release, titled `v0.1.0` for this version.
+4. It uploads the server manifest, deployment bundle, updater, Windows installer, Android APK, and `SHA256SUMS` to a draft GitHub Release. Only after every upload succeeds does it publish the release, titled `v0.1.1` for this version.
 
 GitHub supplies `GITHUB_TOKEN` automatically. No personal publishing token, Docker login command, or VPS credentials are required on your PC. The release job has repository-content write permission, and only the image job has package-write permission. See [GitHub's container publishing guide](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
 
 On the first run, GitHub may create `noted-backend` and `noted-web` as private packages. Open your GitHub profile's **Packages**, open each package's settings, and set its visibility to **Public**. If the public-download check stopped the workflow, use **Re-run failed jobs** after changing both packages. The repository's releases must also be publicly accessible for the desktop installer.
 
-The release tag remains `main-<commit>` because the existing installer and updater verify that relationship. The displayed release title and all app versions use `0.1.0`. Published releases are never overwritten. A changed `main` during publication leaves the release unpublished and requires a new run from the current commit.
+The release tag remains `main-<commit>` because the existing installer and updater verify that relationship. The displayed release title and all app versions use `0.1.1`. Published releases are never overwritten. A changed `main` during publication leaves the release unpublished and requires a new run from the current commit.
+
+Release notes come from the matching version section in [CHANGELOG.md](../CHANGELOG.md), ending at the next level-two heading. Use `## 0.1.1` or `## [0.1.1] - 2026-10-18`, with Markdown subsections such as `### Added` and `### Fixed`. Missing, empty, or duplicate version entries stop publication before any GitHub API calls. Retrying an unpublished draft refreshes its notes from that entry; published releases are left untouched. Keep the newest version first. Commit messages are not used as release notes.
 
 ## Install the update
 

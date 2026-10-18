@@ -19,6 +19,7 @@ from noted_updater.config import Config
 from noted_updater.docker import Docker
 from noted_updater.engine import Engine, verify_http
 from noted_updater.files import read_json, write_json
+from noted_updater.install import OWNER_SCRIPT
 from noted_updater.release import Manifest, Release
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -153,27 +154,14 @@ def run() -> None:
             "sequence": 1,
         }
         password = secrets.token_urlsafe(24)
-        credential_file = directory / "owner-input.json"
-        credential_file.write_text(json.dumps({"username": "upgrade-owner", "password": password}))
-        try:
-            with credential_file.open("rb") as file:
-                docker.compose(
-                    initial,
-                    [
-                        "exec",
-                        "-T",
-                        "backend",
-                        "python",
-                        "-m",
-                        "app.cli",
-                        "create-owner",
-                        "--stdin",
-                    ],
-                    "Test owner",
-                    input_file=file,
-                )
-        finally:
-            credential_file.unlink()
+        docker.compose(
+            initial,
+            ["exec", "-T", "backend", "python", "-c", OWNER_SCRIPT],
+            "Test owner",
+            input_file=io.BytesIO(
+                json.dumps({"username": "upgrade-owner", "password": password}).encode()
+            ),
+        )
         cookies = CookieJar()
         browser = build_opener(HTTPCookieProcessor(cookies))
 

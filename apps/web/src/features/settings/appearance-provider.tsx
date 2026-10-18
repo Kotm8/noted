@@ -24,7 +24,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     refetchInterval: 30000,
     queryFn: async () => {
       const saved = await settingsApi.getAppearance();
-      if (saved) return saved;
+      if (saved) return { ...defaultAppearance, ...saved };
       return settingsApi.saveAppearance(readAppearance(), true);
     },
   });

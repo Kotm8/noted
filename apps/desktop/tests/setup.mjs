@@ -49,6 +49,27 @@ try {
   await page.screenshot({ path: resolve("../../.local/desktop-setup-review.png") });
   const profile = JSON.parse(await readFile(resolve(directory, "profile/connection.json"), "utf8"));
   assert.equal(profile.serverUrl, null);
+  await page.getByRole("checkbox", { name: "I verified this SSH fingerprint with my VPS." }).check();
+  await page.getByRole("button", { name: "Install on server" }).click();
+  await expect(page.getByRole("heading", { name: "Setup needs attention." })).toBeVisible({ timeout: 75000 });
+  await page.getByRole("button", { name: "Clean Noted from VPS" }).click();
+  await page.getByLabel("Root SSH password", { exact: true }).fill("noted-fixture-password");
+  await page.getByRole("button", { name: "Inspect Noted installation" }).click();
+  await expect(page.getByText("Unfinished Noted setup", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Permanently remove Noted" })).toBeDisabled();
+  await page.screenshot({ path: resolve("../../.local/desktop-cleanup.png") });
+  await page.getByRole("checkbox", { name: "I have saved any backup I need and understand that deletion is permanent." }).check();
+  await page.getByLabel("Setup cleanup confirmation").fill("I LOVE VERITY");
+  await page.getByRole("button", { name: "Permanently remove Noted" }).click();
+  await expect(page.getByRole("heading", { name: "Your server", exact: true })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole("alert")).toContainText("Unrelated files remain");
+  await expect(page.getByLabel("SSH password", { exact: true })).toHaveValue("");
+  const cleaned = JSON.parse(await readFile(resolve(directory, "profile/setup.json"), "utf8"));
+  assert.equal(cleaned.status, "cleaned");
+  assert.equal(cleaned.plan, null);
+  assert(!JSON.stringify(cleaned).includes("noted-fixture-password"));
+  await page.screenshot({ path: resolve("../../.local/desktop-cleaned.png") });
+  console.log("PASS: native cleanup inspected and removed the fixture over pinned SSH, required confirmation, retained unrelated files, and reset setup.");
   console.log("PASS: native setup wizard read a real SSH fingerprint, handled an unpublished release before installation, and required host-key confirmation. Review screenshot uses fixture release metadata.");
 } finally {
   await browser.close();

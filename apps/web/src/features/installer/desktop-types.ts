@@ -21,7 +21,7 @@ export interface InstallationPlan {
 }
 
 export interface InstallationJob {
-  status: "" | "running" | "waiting_dns" | "complete" | "failed";
+  status: "" | "running" | "waiting_dns" | "complete" | "failed" | "cleaned";
   phase: string;
   detail: string;
   plan: InstallationPlan | null;

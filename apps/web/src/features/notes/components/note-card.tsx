@@ -5,6 +5,7 @@ import type { Note } from "../types";
 import { Markdown } from "./markdown";
 import { NoteEditor } from "./note-editor";
 import { ReminderMessage } from "../../reminders/components/reminder-message";
+import { CopyNoteButton } from "./copy-note-button";
 
 interface NoteCardProps {
   channelName: string;
@@ -74,6 +75,7 @@ export function NoteCard({
           >
             <Pencil size={14} />
           </button>
+          <CopyNoteButton content={note.content} />
           <Menu
             trigger={
               <button className="icon-button" aria-label="Note options">

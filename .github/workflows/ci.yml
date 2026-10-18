@@ -196,3 +196,5 @@ jobs:
         run: docker build -t noted/web:0.1.0-local -f apps/web/Dockerfile .
       - name: Verify update and backup restore
         run: uv run --project backend python scripts/test_server_upgrade.py
+      - name: Verify isolated server cleanup
+        run: python scripts/test_server_cleanup.py

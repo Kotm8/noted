@@ -1,4 +1,5 @@
 pub mod models;
+mod cleanup;
 mod progress;
 mod release;
 mod ssh;
@@ -119,6 +120,74 @@ pub async fn start(
         if let Err(detail) = worker::install(&state, input).await {
             let phase = state.installer.job.lock().unwrap().phase.clone();
             state.installer.update(&phase, &detail, "failed");
+        }
+    });
+    (StatusCode::ACCEPTED, Json(result)).into_response()
+}
+
+pub async fn inspect_cleanup(
+    State(state): State<Arc<Gateway>>,
+    Json(request): Json<cleanup::CleanupRequest>,
+) -> Response<Body> {
+    let plan = {
+        let job = state.installer.job.lock().unwrap();
+        if !matches!(job.status.as_str(), "failed" | "waiting_dns") {
+            return failure(StatusCode::CONFLICT, "Cleanup is available after a failed or unfinished setup.");
+        }
+        let Some(plan) = job.plan.clone() else {
+            return failure(StatusCode::CONFLICT, "No server setup is available to clean up.");
+        };
+        plan
+    };
+    match cleanup::execute(&plan, &request, false).await {
+        Ok(result) => Json(result).into_response(),
+        Err(detail) => failure(StatusCode::BAD_GATEWAY, &detail),
+    }
+}
+
+pub async fn remove_setup(
+    State(state): State<Arc<Gateway>>,
+    Json(request): Json<cleanup::CleanupRequest>,
+) -> Response<Body> {
+    if let Err(detail) = request.validate(true) {
+        return failure(StatusCode::BAD_REQUEST, &detail);
+    }
+    let plan = {
+        let mut job = state.installer.job.lock().unwrap();
+        if !matches!(job.status.as_str(), "failed" | "waiting_dns") {
+            return failure(StatusCode::CONFLICT, "Wait for setup to stop before cleaning the server.");
+        }
+        let Some(plan) = job.plan.clone() else {
+            return failure(StatusCode::CONFLICT, "No server setup is available to clean up.");
+        };
+        job.status = "running".into();
+        job.phase = "cleanup".into();
+        job.detail = "Removing Noted and its data from this VPS.".into();
+        if let Err(detail) = state.installer.save(&job) {
+            job.status = "failed".into();
+            return failure(StatusCode::INTERNAL_SERVER_ERROR, &detail);
+        }
+        plan
+    };
+    let result = state.installer.job.lock().unwrap().clone();
+    tauri::async_runtime::spawn(async move {
+        match cleanup::execute(&plan, &request, true).await {
+            Ok(result) => {
+                let retained = result["directoryRetained"] == true;
+                let mut job = state.installer.job.lock().unwrap();
+                *job = Job {
+                    status: "cleaned".into(),
+                    phase: if retained { "cleanup_retained" } else { "cleanup" }.into(),
+                    detail: if retained {
+                        "Noted was removed. Unrelated files remain in /opt/noted; move them before starting setup again."
+                    } else { "Noted was removed. You can start setup again." }.into(),
+                    plan: None,
+                };
+                if state.installer.save(&job).is_err() {
+                    job.detail = "Noted was removed, but local setup progress could not be saved. Restart the app before setting up another server.".into();
+                }
+            }
+            Err(detail) => state.installer.update("cleanup", &detail, "failed"),
         }
     });
     (StatusCode::ACCEPTED, Json(result)).into_response()

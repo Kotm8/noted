@@ -50,3 +50,4 @@ class AppearancePreferences(BaseModel):
     text_size: int = Field(default=15, ge=12, le=20, strict=True)
     zoom: int = Field(default=100, ge=75, le=150, strict=True)
     message_layout: Literal["minute", "connected", "quiet", "rows"] = "minute"
+    message_group_minutes: int = Field(default=2, ge=1, le=30, strict=True)

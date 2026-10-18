@@ -4,7 +4,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 from uuid import UUID
 
 from .config import Config
@@ -17,11 +17,16 @@ ACTIVE = {"queued", "running"}
 
 def verify_http(origin: str, commit: str, schema: str, version: str) -> None:
     deadline = time.monotonic() + 120
+    headers = {"User-Agent": "Noted-server-updater"}
     while time.monotonic() < deadline:
         try:
-            with urlopen(f"{origin}/api/v1/health/ready", timeout=5) as response:
+            with urlopen(
+                Request(f"{origin}/api/v1/health/ready", headers=headers), timeout=5
+            ) as response:
                 ready = json.load(response)
-            with urlopen(f"{origin}/api/v1/version", timeout=5) as response:
+            with urlopen(
+                Request(f"{origin}/api/v1/version", headers=headers), timeout=5
+            ) as response:
                 actual = json.load(response)
             if (
                 ready.get("status") == "ready"

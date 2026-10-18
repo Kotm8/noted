@@ -69,8 +69,16 @@ def main() -> None:
                 check=True,
             )
             if "--app" in sys.argv:
+                docker("exec", name, "sh", "-c", f"printf '{'a' * 64}' > /opt/noted/.setup-id")
                 test_app(directory, port)
-            print("PASS: native SSH, pinned host keys, streamed input, and safe VPS preflight.")
+                docker(
+                    "exec",
+                    name,
+                    "sh",
+                    "-c",
+                    "test ! -e /opt/noted/.setup-id && test -f /opt/noted/existing-file",
+                )
+            print("PASS: SSH authentication, pinned keys, streaming, preflight, and safe cleanup.")
         finally:
             subprocess.run(["docker", "rm", "-f", name], capture_output=True, check=False)
             subprocess.run(["docker", "image", "rm", name], capture_output=True, check=False)

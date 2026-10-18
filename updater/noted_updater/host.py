@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 from uuid import UUID
 
 from .docker import OperationError
@@ -226,12 +226,17 @@ class Host:
         job = read_json(self.job_path)
         if job.get("status") != "waiting_dns":
             return
+        headers = {"User-Agent": "Noted-server-updater"}
         try:
-            with urlopen(f"{job['destination']}/api/v1/version", timeout=5) as response:
+            with urlopen(
+                Request(f"{job['destination']}/api/v1/version", headers=headers), timeout=5
+            ) as response:
                 version = json.load(response)
             if version.get("instance_id") != job["instance_id"]:
                 return
-            with urlopen(f"{job['destination']}/api/v1/health/ready", timeout=5) as response:
+            with urlopen(
+                Request(f"{job['destination']}/api/v1/health/ready", headers=headers), timeout=5
+            ) as response:
                 if json.load(response).get("status") != "ready":
                     return
             job.update(

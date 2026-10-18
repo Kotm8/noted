@@ -24,7 +24,7 @@ The Android app opens your server through a Chrome Trusted Web Activity. Each se
 
 Messages and metadata live in PostgreSQL. Attachments use a persistent filesystem volume. Back up both the database and files, or export a portable ZIP through **Settings > Backups**.
 
-See [builds and releases](.github/README.md) for CI, signing the Android APK, and publishing version **0.1.0**. Pushing to `main` runs CI; publishing uses **Actions > Publish release > Run workflow**. Existing servers discover releases automatically and install them when you choose **Settings > Server > Updates > Update server**.
+See [builds and releases](.github/README.md) for CI, signing the Android APK, and publishing version **0.1.1**. Pushing to `main` runs CI; publishing uses **Actions > Publish release > Run workflow**. Existing servers discover releases automatically and install them when you choose **Settings > Server > Updates > Update server**.
 
 ## Run locally for development
 
@@ -135,6 +135,18 @@ npx playwright install chromium
 cd ../..
 python scripts/dev.py test-browser
 ```
+
+Test installation against a published release:
+
+```powershell
+python scripts/test_server_install.py --repository kotm8/noted
+```
+
+This uses a disposable Docker project to check owner creation, interrupted retries, trusted HTTPS sign-in, and updater startup. Systemd registration is simulated; the updater process runs normally. On Linux, run the fixture as root to set volume ownership.
+
+Failed or unfinished desktop setup includes **Danger Zone > Clean Noted from VPS**. Inspect the installation over SSH, acknowledge permanent deletion, and type `I LOVE VERITY` to remove Noted and its data. Cleanup refuses active operations and resources shared with other apps. Completed servers have removal under Settings.
+
+Run `python scripts/test_server_cleanup.py` to verify cleanup against disposable Docker resources, including preservation of an unrelated container and volume.
 
 ## Project structure
 

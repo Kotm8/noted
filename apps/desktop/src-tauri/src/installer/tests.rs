@@ -2,10 +2,47 @@ use super::{
     models::{Host, InstallRequest, Job},
     release,
     ssh::Ssh,
-    Installer, PREPARE,
+    Installer, PACKAGE, PREPARE,
 };
 use serde_json::json;
-use std::io::Write;
+use std::io::{Read, Write};
+
+#[test]
+fn bundled_linux_scripts_use_unix_line_endings() {
+    assert!(!PREPARE.contains('\r'));
+    let mut archive = tar::Archive::new(PACKAGE);
+    let mut scripts = 0;
+    for entry in archive.entries().unwrap() {
+        let mut entry = entry.unwrap();
+        let path = entry.path().unwrap().into_owned();
+        if path.extension().is_some_and(|extension| extension == "sh") {
+            let mut contents = String::new();
+            entry.read_to_string(&mut contents).unwrap();
+            assert!(!contents.contains('\r'), "{}", path.display());
+            scripts += 1;
+        }
+    }
+    assert!(scripts > 0);
+}
+
+#[test]
+fn cleanup_requires_ssh_credentials_a_reviewed_snapshot_and_exact_confirmation() {
+    use super::cleanup::CleanupRequest;
+    let mut request = CleanupRequest {
+        ssh_password: "test-password".into(),
+        confirmation: None,
+        snapshot: None,
+    };
+    assert!(request.validate(false).is_ok());
+    assert!(request.validate(true).is_err());
+    request.confirmation = Some("I LOVE VERITY".into());
+    request.snapshot = Some("c".repeat(64));
+    assert!(request.validate(true).is_ok());
+    request.confirmation = Some("i love verity".into());
+    assert!(request.validate(true).is_err());
+    request.ssh_password.clear();
+    assert!(request.validate(false).is_err());
+}
 
 fn manifest() -> serde_json::Value {
     json!({
@@ -191,5 +228,24 @@ async fn ssh_round_trip_and_preflight() {
     })
     .await
     .unwrap();
+    assert_eq!(preserved, b"untouched");
+    ssh.execute(&format!("printf '{}' > /opt/noted/.setup-id", "a".repeat(64)), &[], 10, |_| {}).await.unwrap();
+    let plan = super::models::Plan {
+        host: host.clone(), host_key: identity.host_key, server_name: "Fixture".into(),
+        domain: "notes.example.com".into(), username: "owner".into(), repository: "owner/noted".into(),
+        release_commit: "a".repeat(40), manifest_sha256: "b".repeat(64),
+    };
+    let mut request = super::cleanup::CleanupRequest {
+        ssh_password: "noted-fixture-password".into(), confirmation: None, snapshot: None,
+    };
+    let inspection = super::cleanup::execute(&plan, &request, false).await.unwrap();
+    assert_eq!(inspection["present"], true);
+    request.snapshot = Some(inspection["snapshot"].as_str().unwrap().into());
+    request.confirmation = Some("I LOVE VERITY".into());
+    let result = super::cleanup::execute(&plan, &request, true).await.unwrap();
+    assert_eq!(result["removed"], true);
+    assert_eq!(result["directoryRetained"], true);
+    let mut preserved = Vec::new();
+    assert_eq!(ssh.execute("cat /opt/noted/existing-file; test ! -e /opt/noted/.setup-id", &[], 10, |chunk| preserved.extend_from_slice(chunk)).await.unwrap(), 0);
     assert_eq!(preserved, b"untouched");
 }

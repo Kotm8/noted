@@ -14,6 +14,7 @@ def test_appearance_is_shared_between_sessions_and_partial_changes_merge(
     initialized = owner.put(f"{path}?initialize=true", json={"accent": "#abcdef"})
     assert initialized.status_code == 200
     assert initialized.json()["messageLayout"] == "minute"
+    assert initialized.json()["messageGroupMinutes"] == 2
     with TestClient(app, base_url="http://localhost", headers={"Origin": TEST_ORIGIN}) as other:
         assert (
             other.post(
@@ -24,9 +25,11 @@ def test_appearance_is_shared_between_sessions_and_partial_changes_merge(
         other.headers["X-CSRF-Token"] = other.cookies["noted_csrf"]
         assert other.get(path).json()["accent"] == "#abcdef"
         assert other.put(path, json={"messageLayout": "connected"}).status_code == 200
+        assert other.put(path, json={"messageGroupMinutes": 5}).status_code == 200
         assert owner.put(path, json={"textSize": 17}).status_code == 200
         saved = other.get(path).json()
         assert saved["messageLayout"] == "connected"
+        assert saved["messageGroupMinutes"] == 5
         assert saved["textSize"] == 17
         assert saved["accent"] == "#abcdef"
         assert other.put(f"{path}?initialize=true", json={"accent": "#000000"}).json() == saved
@@ -40,6 +43,10 @@ def test_appearance_validation_and_access(owner: TestClient, app: FastAPI) -> No
         {"zoom": 1000},
         {"textSize": 1},
         {"textSize": True},
+        {"messageGroupMinutes": 0},
+        {"messageGroupMinutes": 31},
+        {"messageGroupMinutes": 1.5},
+        {"messageGroupMinutes": True},
         {"password": "no"},
     ):
         assert owner.put(path, json=invalid).status_code == 422

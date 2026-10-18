@@ -1,3 +1,4 @@
+import io
 import json
 import subprocess
 from pathlib import Path
@@ -23,9 +24,11 @@ class Docker:
         input_file: BinaryIO | None = None,
     ) -> str:
         try:
+            payload = input_file.read() if isinstance(input_file, io.BytesIO) else None
             result = subprocess.run(
                 ["docker", *arguments],
-                stdin=input_file or subprocess.DEVNULL,
+                stdin=None if payload is not None else input_file or subprocess.DEVNULL,
+                input=payload,
                 stdout=output or subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=timeout,

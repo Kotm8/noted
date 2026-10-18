@@ -4,7 +4,7 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.1.0")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.1.1")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
 SCHEMA_REVISION = "0007_reminders"
 API_VERSION = 1

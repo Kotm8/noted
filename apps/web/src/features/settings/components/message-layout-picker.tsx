@@ -29,8 +29,24 @@ export function MessageLayoutPicker() {
           </label>
         ))}
       </div>
+      <label className="range-control">
+        <span>
+          Message grouping <output>{preferences.messageGroupMinutes} min</output>
+        </span>
+        <input
+          aria-label="Message grouping"
+          type="range"
+          min={1}
+          max={30}
+          step={1}
+          value={preferences.messageGroupMinutes}
+          onChange={(event) => update({ messageGroupMinutes: Number(event.target.value) })}
+        />
+      </label>
       <p className="settings-hint">
-        A pause of more than two minutes starts a new group. Each note stays independently editable.
+        Start a new group after a pause longer than {preferences.messageGroupMinutes}{" "}
+        {preferences.messageGroupMinutes === 1 ? "minute" : "minutes"}. Applies to every layout
+        across your account. Each note stays independently editable.
       </p>
     </fieldset>
   );

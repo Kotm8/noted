@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { desktopRequest } from "../desktop/desktop-request";
 import { AccountStep } from "./components/account-step";
+import { CleanupDialog } from "./components/cleanup-dialog";
 import { DomainStep } from "./components/domain-step";
 import { InstallationProgress } from "./components/installation-progress";
 import { ReviewStep } from "./components/review-step";
@@ -35,8 +36,9 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
   const [release, setRelease] = useState<ServerRelease | null>(null);
   const [trusted, setTrusted] = useState(false);
   const [job, setJob] = useState(initialJob);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialJob?.phase === "cleanup_retained" ? initialJob.detail : null);
   const [busy, setBusy] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
   useEffect(() => { window.scrollTo(0, 0); }, [step]);
   const update: UpdateInstallation = (key, value) => {
     setError(null);
@@ -50,6 +52,11 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
     const poll = window.setInterval(() => {
       void desktopRequest<InstallationJob>("setup").then((next) => {
         if (active) { setJob(next); setError(null); }
+        if (active && next.status === "cleaned") {
+          setJob(null); setStep(0); setRelease(null); setIdentity(null); setTrusted(false);
+          setError(next.phase === "cleanup_retained" ? next.detail : null);
+          setDraft((current) => ({ ...current, sshPassword: "", password: "", confirmation: "" }));
+        }
         if (active && next.status === "waiting_dns") setDraft((current) => ({ ...current, sshPassword: "", password: "", confirmation: "" }));
       }).catch(() => { if (active) setError("Could not read setup progress. Keep the app open and try again shortly."); });
     }, 1000);
@@ -75,8 +82,9 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
   }
 
   async function checkRelease() {
-    const commit = initialJob?.plan?.repository === repository ? initialJob.plan.releaseCommit : undefined;
-    const next = await desktopRequest<ServerRelease>("setup/release", "POST", { repository: repository.trim().toLowerCase(), commit });
+    const normalizedRepository = repository.trim().toLowerCase();
+    const commit = job?.plan?.repository === normalizedRepository ? job.plan.releaseCommit : undefined;
+    const next = await desktopRequest<ServerRelease>("setup/release", "POST", { repository: normalizedRepository, commit });
     setRelease(next);
   }
 
@@ -137,8 +145,15 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
               {step < 3 ? <Button type="submit" disabled={busy}>{busy ? <LoaderCircle size={15} className="animate-spin" /> : <ArrowRight size={15} />}{busy ? "Checking..." : step === 2 ? "Review setup" : "Continue"}</Button> : <Button type="button" disabled={busy || !trusted || !release} onClick={() => { void install(); }}>Install on server{busy && <LoaderCircle size={15} className="animate-spin" />}</Button>}
             </footer>
           </>}
+          {job?.plan && ["failed", "waiting_dns"].includes(job.status) && <section className="installer-danger-zone">
+            <div><h3>Danger Zone</h3><p>Remove Noted and its data to start setup again.</p></div>
+            <Button variant="danger" type="button" disabled={busy} onClick={() => setCleanupOpen(true)}>Clean Noted from VPS</Button>
+          </section>}
         </form>
       </div>
+      {cleanupOpen && job?.plan && <CleanupDialog plan={job.plan} close={() => setCleanupOpen(false)} started={(next) => {
+        setCleanupOpen(false); setJob(next); setStep(4); setError(null);
+      }} />}
     </main>
   );
 }

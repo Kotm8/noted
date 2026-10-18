@@ -20,6 +20,14 @@ interface Props {
 }
 
 export function InstallationProgress({ job, busy, error, verify, retry }: Props) {
+  if (job.phase === "cleanup" && job.status === "running") return (
+    <section className="installation-step">
+      <h1>Removing Noted from the VPS.</h1>
+      <p role="status">{job.detail}</p>
+      <p className="setup-help"><LoaderCircle size={16} className="animate-spin" /> Keep Noted open until cleanup finishes.</p>
+      {error && <Notice tone="error">{error}</Notice>}
+    </section>
+  );
   const current = phases.findIndex(([phase]) => phase === job.phase);
   return (
     <section className="installation-step">

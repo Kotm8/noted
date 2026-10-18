@@ -26,9 +26,10 @@ export function NoteList({
       {notes.map((note, index) => {
         const createdAt = new Date(note.created_at);
         const previousNote = notes[index - 1];
-        const { startsNewDay, startsGroup, startsMinute } = noteGrouping(
+        const { startsNewDay, startsGroup } = noteGrouping(
           note.created_at,
           previousNote?.created_at,
+          preferences.messageGroupMinutes,
         );
         const timeLabel = createdAt.toLocaleTimeString([], {
           hour: "2-digit",
@@ -36,9 +37,8 @@ export function NoteList({
           hour12: false,
         });
         const showMarker =
-          preferences.messageLayout === "minute"
-            ? startsMinute
-            : preferences.messageLayout === "connected" && startsGroup;
+          startsGroup &&
+          (preferences.messageLayout === "minute" || preferences.messageLayout === "connected");
         const dateLabel = createdAt.toLocaleDateString(undefined, {
           weekday: "long",
           month: "long",
