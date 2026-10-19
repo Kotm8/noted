@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 class NotificationSettings(BaseModel):
     snooze_minutes: int = Field(default=10, ge=1, le=10080)
     enabled: bool = True
+    android_enabled: bool = True
+    plan_notice_minutes: Literal[0, 1, 5, 10] = 0
 
 
 class PushTestResult(BaseModel):

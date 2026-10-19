@@ -49,8 +49,12 @@ def rewrite(raw: bytes, update=None, extra=None) -> bytes:
 
 
 def test_backup_roundtrip_preserves_content_files_and_login(
-    owner: TestClient, channel: dict
+    owner: TestClient, channel: dict, app: FastAPI
 ) -> None:
+    server_directory = app.state.settings.storage_path / ".server"
+    server_directory.mkdir(parents=True)
+    private_config = server_directory / "firebase.json"
+    private_config.write_text('{"private_key":"firebase-secret-must-not-leave-the-server"}')
     original = owner.post(
         f"{API}/channels/{channel['id']}/messages/with-files",
         data={"content": "keep this thought"},
@@ -63,6 +67,13 @@ def test_backup_roundtrip_preserves_content_files_and_login(
         "channels": 1,
         "messages": 1,
         "files": 1,
+        "journals": 0,
+        "documents": 0,
+        "activities": 0,
+        "time_sessions": 0,
+        "schedule_plans": 0,
+        "scheduled_messages": 0,
+        "writing_prompts": 0,
     }
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         metadata = json.loads(archive.read("content.json"))
@@ -70,6 +81,7 @@ def test_backup_roundtrip_preserves_content_files_and_login(
         assert "owner_id" not in metadata["workspaces"][0]
         assert "author_id" not in metadata["messages"][0]
         assert TEST_PASSWORD.encode() not in archive.read("content.json")
+        assert b"firebase-secret-must-not-leave-the-server" not in archive.read("content.json")
         assert set(archive.namelist()) == {
             "content.json",
             metadata["attachments"][0]["file"]["path"],
@@ -95,6 +107,7 @@ def test_backup_roundtrip_preserves_content_files_and_login(
     assert notes[0]["created_at"] == original["created_at"]
     assert owner.get(notes[0]["attachments"][0]["download_url"]).content == b"private bytes"
     assert owner.get(f"{API}/auth/session").status_code == 200
+    assert private_config.exists()
     assert owner.post(f"{API}/backups/import", json={"token": token}).status_code == 404
 
 

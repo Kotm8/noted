@@ -4,9 +4,9 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.1.1")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.2.0")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
-SCHEMA_REVISION = "0007_reminders"
+SCHEMA_REVISION = "0014_channel_publishing"
 API_VERSION = 1
 
 
@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     storage_path: Path = Path(__file__).resolve().parents[3] / ".local" / "attachments"
     updates_directory: Path | None = None
     backup_path: Path | None = None
+    maintenance_path: Path | None = None
     instance_id: str = "development"
 
     @field_validator("app_origin")

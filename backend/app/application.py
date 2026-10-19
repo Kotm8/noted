@@ -19,6 +19,7 @@ from app.core.middleware import (
 )
 from app.db.database import create_database_engine
 from app.notifications.worker import notification_worker
+from app.publishing.worker import publishing_worker
 from app.storage.local import LocalFileStorage
 
 
@@ -27,13 +28,17 @@ def build_application(settings: Settings) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        worker = asyncio.create_task(notification_worker(engine, settings.app_origin))
+        worker = asyncio.create_task(notification_worker(engine, settings.app_origin, settings))
+        publisher = asyncio.create_task(publishing_worker(engine, settings))
         try:
             yield
         finally:
             worker.cancel()
+            publisher.cancel()
             with suppress(asyncio.CancelledError):
                 await worker
+            with suppress(asyncio.CancelledError):
+                await publisher
             engine.dispose()
 
     app = FastAPI(title="Noted API", version=VERSION, lifespan=lifespan)

@@ -1,8 +1,13 @@
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError, ValidationError
+from app.journals.models import JournalEntry
+from app.notes.documents.models import ChannelDocument
+from app.notes.models import Message
+from app.publishing.models import ScheduledMessage
 from app.workspaces.models import Channel
 from app.workspaces.repository import ChannelRepository
 from app.workspaces.schemas import ChannelCreate
@@ -62,6 +67,28 @@ class ChannelService:
 
     def update_channel(self, channel_id: UUID, data: ChannelCreate, owner_id: UUID) -> Channel:
         channel = self.get_channel(channel_id, owner_id)
+        self.db.refresh(channel, with_for_update=True)
+        kind = data.kind if "kind" in data.model_fields_set else channel.kind
+        if kind != channel.kind and self.db.scalar(
+            select(ScheduledMessage.id)
+            .where(ScheduledMessage.channel_id == channel_id, ScheduledMessage.status == "pending")
+            .limit(1)
+        ):
+            raise ValidationError(
+                "Cancel this channel's scheduled messages before changing its type."
+            )
+        if kind != channel.kind and {"journal", "document"}.intersection((kind, channel.kind)):
+            notes = self.db.scalar(
+                select(Message.id).where(Message.channel_id == channel_id).limit(1)
+            )
+            entries = self.db.scalar(
+                select(JournalEntry.id).where(JournalEntry.channel_id == channel_id).limit(1)
+            )
+            document = self.db.get(ChannelDocument, channel_id)
+            if notes or entries or document:
+                raise ValidationError(
+                    "Create a new channel to change its type while it contains content."
+                )
         self.validate_category(data.category_id, channel.workspace_id, owner_id)
         channel.name = data.name
         channel.position = data.position

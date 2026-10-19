@@ -41,7 +41,7 @@ class ChannelCreate(BaseModel):
     name: Name
     position: int = Field(default=0, ge=0)
     category_id: uuid.UUID | None = None
-    kind: Literal["note", "reminder"] = "note"
+    kind: Literal["note", "reminder", "journal", "document"] = "note"
 
 
 class ChannelResponse(ChannelCreate):

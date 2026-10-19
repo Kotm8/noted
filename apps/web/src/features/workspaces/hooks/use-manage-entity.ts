@@ -10,7 +10,7 @@ export interface ManagementFormValues {
   icon: string;
   categoryId: string;
   image?: File | null;
-  kind?: "note" | "reminder";
+  kind?: "note" | "reminder" | "journal" | "document";
 }
 
 async function saveEntity(

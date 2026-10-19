@@ -2,5 +2,20 @@
   "format": 1,
   "configuration_version": 1,
   "minimum_updater_version": 2,
-  "supported_source_schemas": ["0001_initial", "0002_media_search", "0003_attachment_order", "0004_session_details", "0005_user_appearance", "0006_channel_banners", "0007_reminders"]
+  "supported_source_schemas": [
+    "0001_initial",
+    "0002_media_search",
+    "0003_attachment_order",
+    "0004_session_details",
+    "0005_user_appearance",
+    "0006_channel_banners",
+    "0007_reminders",
+    "0008_threads_journals",
+    "0009_time_schedule",
+    "0010_android_push",
+    "0011_plan_prompts",
+    "0012_channel_documents",
+    "0013_home_activity",
+    "0014_channel_publishing"
+  ]
 }

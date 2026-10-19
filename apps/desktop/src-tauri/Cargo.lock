@@ -2602,7 +2602,7 @@ dependencies = [
 
 [[package]]
 name = "noted-desktop"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "axum",
  "flate2",
@@ -2621,6 +2621,7 @@ dependencies = [
  "tower",
  "url",
  "webbrowser",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

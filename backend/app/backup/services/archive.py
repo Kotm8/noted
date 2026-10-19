@@ -12,6 +12,7 @@ from starlette.datastructures import Headers, UploadFile
 
 from app.backup.repository import MAX_RECORDS
 from app.backup.schemas import BackupBlob, BackupContent, BackupCounts
+from app.backup.services.tracking import validate_tracking
 from app.core.errors import ContentTooLargeError, ValidationError
 from app.core.storage_limits import MAX_BATCH_SIZE, MAX_FILES
 from app.storage.media import VIDEO_TYPES, detect_video_type, inspect_image
@@ -26,6 +27,13 @@ def counts(data: BackupContent) -> BackupCounts:
         categories=len(data.categories),
         channels=len(data.channels),
         messages=len(data.messages),
+        journals=len(data.journals),
+        documents=len(data.documents),
+        activities=len(data.activities),
+        time_sessions=len(data.time_sessions),
+        schedule_plans=len(data.schedule_plans),
+        scheduled_messages=len(data.scheduled_messages),
+        writing_prompts=len(data.writing_prompts),
         files=len(data.attachments)
         + sum(bool(project.image) for project in data.workspaces)
         + sum(bool(channel.image) for channel in data.channels),
@@ -48,12 +56,23 @@ def validate_graph(data: BackupContent) -> None:
         [item.id for item in data.channels],
         [item.id for item in data.messages],
         [item.id for item in data.attachments],
+        [item.id for item in data.journals],
+        [item.id for item in data.activities],
+        [item.id for item in data.time_sessions],
+        [item.id for item in data.schedule_plans],
+        [item.id for item in data.plan_events],
+        [item.channel_id for item in data.documents],
+        [item.id for item in data.scheduled_messages],
+        [item.id for item in data.writing_prompts],
     ]
-    if sum(len(group) for group in groups) > MAX_RECORDS:
+    if sum(len(group) for group in groups) + len(data.schedule_exceptions) > MAX_RECORDS:
         raise ContentTooLargeError("The backup exceeds the 50,000 record limit.")
     for group in groups:
         if len(set(group)) != len(group):
             raise ValidationError("The backup contains duplicate record IDs.")
+    validate_tracking(data)
+    if len({item.channel_id for item in data.writing_prompts}) != len(data.writing_prompts):
+        raise ValidationError("The backup contains duplicate channel writing prompts.")
     projects = {item.id for item in data.workspaces}
     categories = {item.id: item.workspace_id for item in data.categories}
     channels = {item.id for item in data.channels}
@@ -67,8 +86,49 @@ def validate_graph(data: BackupContent) -> None:
         raise ValidationError("The backup contains an invalid channel category.")
     if any(item.channel_id not in channels for item in data.messages):
         raise ValidationError("The backup contains an unknown channel.")
+    channel_kinds = {item.id: item.kind for item in data.channels}
+    if data.scheduled_messages or data.writing_prompts:
+        if data.version < 6:
+            raise ValidationError("Channel scheduling requires a version 6 backup.")
+        if any(item.channel_id not in channels for item in data.writing_prompts):
+            raise ValidationError("The backup contains a writing prompt outside its channel.")
+        if any(
+            item.channel_id not in channels
+            or (item.status == "pending" and channel_kinds[item.channel_id] != "note")
+            for item in data.scheduled_messages
+        ):
+            raise ValidationError("The backup contains an invalid scheduled message.")
+    messages_by_id = {item.id: item for item in data.messages}
+    for message in data.messages:
+        if channel_kinds[message.channel_id] in {"journal", "document"}:
+            raise ValidationError("Journal and Notes channels cannot contain chat messages.")
+        if message.thread_root_id:
+            root = messages_by_id.get(message.thread_root_id)
+            if (
+                root is None
+                or root.thread_root_id
+                or root.id == message.id
+                or root.channel_id != message.channel_id
+            ):
+                raise ValidationError("The backup contains an invalid thread.")
+    if any(
+        channel_kinds.get(entry.channel_id) != "journal" or not entry.title.strip()
+        for entry in data.journals
+    ):
+        raise ValidationError("The backup contains an invalid journal entry.")
+    if data.version == 1 and (
+        data.journals
+        or any(item.thread_root_id for item in data.messages)
+        or "journal" in channel_kinds.values()
+    ):
+        raise ValidationError("Threads and journals require a version 2 backup.")
     if any(item.message_id not in messages for item in data.attachments):
         raise ValidationError("The backup contains an unknown message.")
+    if data.documents or "document" in channel_kinds.values():
+        if data.version < 5:
+            raise ValidationError("Notes channels require a version 5 backup.")
+        if any(channel_kinds.get(item.channel_id) != "document" for item in data.documents):
+            raise ValidationError("The backup contains a document outside a Notes channel.")
     files = blobs(data)
     if len({item.path for item, _ in files}) != len(files):
         raise ValidationError("The backup contains duplicate file paths.")

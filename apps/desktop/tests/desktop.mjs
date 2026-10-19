@@ -17,7 +17,6 @@ page.on("pageerror", (error) => errors.push(error.message));
 const screenshots = resolve("../../.local");
 
 try {
-  await expect(page.getByRole("heading", { name: /Connect to your server|Welcome back/ })).toBeVisible();
   if (!phase) {
     await page.getByLabel("Server address", { exact: true }).fill("http://example.com");
     await page.getByRole("button", { name: "Connect", exact: true }).click();
@@ -26,11 +25,20 @@ try {
     await page.getByLabel("Server address", { exact: true }).fill("http://localhost:8000");
     await page.getByRole("button", { name: "Connect", exact: true }).click();
   }
-  await expect(page.getByLabel("Username", { exact: true })).toBeVisible();
-  await page.getByLabel("Username", { exact: true }).fill("ilya");
-  await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  if (!phase) {
+    await expect(page.getByLabel("Username", { exact: true })).toBeVisible();
+    await page.getByLabel("Username", { exact: true }).fill("ilya");
+    await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
+    await expect(page.getByRole("checkbox", { name: "Keep me signed in" })).toBeChecked();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  }
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+  const startupStyle = await page.request.get(new URL("/startup.css", page.url()).href);
+  assert.equal(startupStyle.status(), 200);
+  await page.getByRole("button", { name: "Full calendar", exact: true }).click();
+  await expect(page.locator(".schedule-grid")).toBeVisible();
+  await page.locator(".workspace-rail").getByRole("button", { name: "Home", exact: true }).click();
 
   const logo = page.getByRole("button", { name: "Noted", exact: true });
   for (let click = 0; click < 6; click++) await logo.click();
@@ -57,6 +65,7 @@ try {
   }, { path, method, body });
 
   if (phase === "reconnect") {
+    await page.locator(".home-project-navigation").getByRole("button", { name: "Desktop check", exact: true }).click();
     await expect(page.locator(".note").filter({ hasText: "Native desktop persistence" })).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Connection", exact: true }).click();
@@ -66,7 +75,7 @@ try {
     const profile = JSON.parse(await readFile(resolve(temporary, "profile/connection.json"), "utf8"));
     assert.equal(profile.serverUrl, null);
     assert.deepEqual(errors, []);
-    console.log("PASS: native app restart remembered its server, required sign-in, retained notes, and switched servers.");
+    console.log("PASS: native app restart securely restored sign-in, retained notes, and switched servers.");
   } else {
     const origin = new URL(page.url()).origin;
     const unauthenticated = await fetch(`${origin}/api/v1/auth/session`);

@@ -15,18 +15,24 @@ interface NotesTimelineProps {
   channel: Channel;
   targetId?: string;
   onReturnToLatest: () => void;
+  onOpenThread?: (id: string) => void;
 }
 
 export function NotesTimeline({
   channel,
   targetId,
   onReturnToLatest,
+  onOpenThread,
 }: NotesTimelineProps) {
   const { query, notes, createNote, deleteNote } = useNotes(
     channel.id,
     targetId,
   );
-  const scroll = useTimelineScroll(query.data, !targetId);
+  const scroll = useTimelineScroll(
+    query.data,
+    !targetId,
+    targetId ? undefined : channel.id,
+  );
   const highlighted = useRef(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
@@ -118,6 +124,7 @@ export function NotesTimeline({
                 onEdit={setEditingId}
                 onCancelEdit={() => setEditingId(null)}
                 onDelete={setNoteToDelete}
+                onOpenThread={onOpenThread}
               />
               {query.hasPreviousPage && (
                 <div className="load-older">

@@ -122,6 +122,9 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
   await page.getByLabel("Username", { exact: true }).fill("ilya");
   await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
   await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+  await page.locator(".home-project-navigation").getByRole("button", { name: "Programming", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "python", exact: true })).toBeVisible();
   await expect(page.locator(".note")).toHaveCount(1);
 
   await expect(page.getByLabel("Attach files", { exact: true })).not.toBeVisible();

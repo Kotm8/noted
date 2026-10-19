@@ -7,6 +7,8 @@ import { useManageEntity } from "../hooks/use-manage-entity";
 import type { Category, ManagementAction } from "../types";
 import { WorkspaceIconPicker } from "./workspace-icon-picker";
 import { ChannelImagePicker } from "./channel-image-picker";
+import { Select } from "../../../components/ui/select";
+import type { Channel } from "../types";
 
 interface ManagementDialogProps {
   action: ManagementAction;
@@ -17,7 +19,7 @@ interface ManagementDialogProps {
 const descriptions = {
   workspace: "Group related channels in a workspace.",
   category: "Organize channels under a category.",
-  channel: "Notes in a channel appear in chronological order.",
+  channel: "Choose a chat, Markdown notes page, reminder feed, or journal.",
 };
 
 export function ManagementDialog({
@@ -26,7 +28,7 @@ export function ManagementDialog({
   onClose,
 }: ManagementDialogProps) {
   const [name, setName] = useState(action.item?.name ?? "");
-  const [kind, setKind] = useState<"note" | "reminder">(
+  const [kind, setKind] = useState<NonNullable<Channel["kind"]>>(
     action.kind === "channel" ? (action.item?.kind ?? "note") : "note",
   );
   const [icon, setIcon] = useState(
@@ -99,15 +101,19 @@ export function ManagementDialog({
             {action.kind === "channel" && (
               <label>
                 Channel type
-                <select
+                <Select
+                  label="Channel type"
                   value={kind}
-                  onChange={(event) =>
-                    setKind(event.target.value as "note" | "reminder")
+                  onChange={(value) =>
+                    setKind(value as NonNullable<Channel["kind"]>)
                   }
-                >
-                  <option value="note">Notes</option>
-                  <option value="reminder">Reminders</option>
-                </select>
+                  options={[
+                    { value: "note", label: "Chat" },
+                    { value: "document", label: "Notes" },
+                    { value: "reminder", label: "Reminders" },
+                    { value: "journal", label: "Journal" },
+                  ]}
+                />
               </label>
             )}
             {action.kind === "channel" && (

@@ -8,6 +8,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from app.auth.models import LoginSession, User
+from app.core.config import Settings
 from app.core.security import utc_now
 from app.notes.models import Message
 from app.notifications.delivery import send_push
@@ -24,11 +25,9 @@ from app.workspaces.models import Channel, Workspace
 logger = logging.getLogger(__name__)
 
 
-def dispatch_due(engine: Engine, origin: str) -> None:
+def dispatch_due(engine: Engine, origin: str, settings: Settings | None = None) -> None:
     with Session(engine) as db:
         key = db.get(NotificationKey, 1)
-        if key is None:
-            return
         finished_delivery = (
             select(NotificationDelivery.message_id)
             .where(
@@ -118,6 +117,8 @@ def dispatch_due(engine: Engine, origin: str) -> None:
                 ensure_ascii=False,
             )
             for subscription in subscriptions:
+                if subscription.endpoint.startswith("fcm:") and not preferences.android_enabled:
+                    continue
                 identity = (reminder.message_id, subscription.id, reminder.revision)
                 delivery = db.get(NotificationDelivery, identity)
                 if delivery and (
@@ -140,7 +141,9 @@ def dispatch_due(engine: Engine, origin: str) -> None:
                 if desktop_focused and subscription.kind == "mobile":
                     delivery.delivered_at = utc_now()
                     continue
-                result = send_push(subscription, key.private_key, origin, payload)
+                result = send_push(
+                    subscription, key.private_key if key else "", origin, payload, settings=settings
+                )
                 if result == "expired":
                     db.delete(subscription)
                 elif result == "accepted":
@@ -149,10 +152,19 @@ def dispatch_due(engine: Engine, origin: str) -> None:
         db.commit()
 
 
-async def notification_worker(engine: Engine, origin: str) -> None:
+async def notification_worker(
+    engine: Engine, origin: str, settings: Settings | None = None
+) -> None:
+    from app.publishing.delivery import dispatch_writing
+    from app.schedule.prompts.delivery import dispatch_plan_prompts
+
+    started = utc_now()
     while True:
         try:
-            await asyncio.to_thread(dispatch_due, engine, origin)
+            await asyncio.to_thread(dispatch_due, engine, origin, settings)
+            await asyncio.to_thread(dispatch_plan_prompts, engine, origin, settings)
+            if settings and not (settings.maintenance_path and settings.maintenance_path.exists()):
+                await asyncio.to_thread(dispatch_writing, engine, settings, started)
         except Exception:
             logger.exception("Notification delivery cycle failed")
         await asyncio.sleep(5)

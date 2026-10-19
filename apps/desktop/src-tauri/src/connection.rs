@@ -1,5 +1,8 @@
+use crate::session_vault::{now, SavedSession, SessionVault};
+use reqwest::cookie::CookieStore;
 use reqwest::{cookie::Jar, Client};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 use url::Url;
 
@@ -53,6 +56,10 @@ pub struct Connection {
     pub url: Url,
     pub client: Client,
     pub cookies: Arc<Jar>,
+    pub vault: Option<SessionVault>,
+    pub remember: Arc<AtomicBool>,
+    pub auth_lock: Arc<tokio::sync::Mutex<()>>,
+    session_lock: Arc<std::sync::Mutex<()>>,
 }
 
 impl Connection {
@@ -73,7 +80,104 @@ impl Connection {
             url,
             client,
             cookies,
+            vault: None,
+            remember: Arc::new(AtomicBool::new(cfg!(windows))),
+            auth_lock: Arc::new(tokio::sync::Mutex::new(())),
+            session_lock: Arc::new(std::sync::Mutex::new(())),
         })
+    }
+
+    pub fn with_store(url: Url, store: &ProfileStore) -> Result<Self, reqwest::Error> {
+        let vault = SessionVault::new(&store.0, &url);
+        let mut connection = Self::new(url)?;
+        if let Ok(Some(saved)) = vault.load() {
+            let age = saved.expires_at.saturating_sub(now());
+            connection.cookies.add_cookie_str(
+                &format!(
+                    "noted_session={}; Path=/api; Max-Age={age}; HttpOnly",
+                    saved.session
+                ),
+                &connection.url,
+            );
+            connection.cookies.add_cookie_str(
+                &format!("noted_csrf={}; Path=/; Max-Age={age}", saved.csrf),
+                &connection.url,
+            );
+        }
+        connection.vault = Some(vault);
+        Ok(connection)
+    }
+
+    pub fn forget(&self) -> std::io::Result<()> {
+        let _guard = self
+            .session_lock
+            .lock()
+            .map_err(|_| std::io::Error::other("Session storage is unavailable"))?;
+        self.remember.store(false, Ordering::SeqCst);
+        if let Some(vault) = &self.vault {
+            vault.clear()?;
+        }
+        Ok(())
+    }
+
+    pub fn remember_session(&self, enabled: bool) -> std::io::Result<()> {
+        self.forget()?;
+        self.remember.store(enabled, Ordering::SeqCst);
+        Ok(())
+    }
+
+    pub fn save_session(&self, headers: &reqwest::header::HeaderMap) -> std::io::Result<()> {
+        let _guard = self
+            .session_lock
+            .lock()
+            .map_err(|_| std::io::Error::other("Session storage is unavailable"))?;
+        if !self.remember.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+        let Some(vault) = &self.vault else {
+            return Ok(());
+        };
+        let max_age = headers
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .find(|value| value.starts_with("noted_session="))
+            .and_then(|value| {
+                value
+                    .split(';')
+                    .map(str::trim)
+                    .find_map(|part| part.strip_prefix("Max-Age="))
+            })
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "Missing session expiry")
+            })?;
+        let url = self.url.join("api/v1/auth/session").unwrap();
+        let cookies = self.cookies.cookies(&url);
+        let value = cookies
+            .as_ref()
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        let find = |name: &str| {
+            value
+                .split("; ")
+                .find_map(|part| part.strip_prefix(name))
+                .unwrap_or_default()
+                .to_owned()
+        };
+        vault.save(&SavedSession {
+            session: find("noted_session="),
+            csrf: find("noted_csrf="),
+            expires_at: now().saturating_add(max_age),
+        })
+    }
+
+    pub fn clear_cookies(&self) {
+        self.cookies
+            .add_cookie_str("noted_session=; Path=/api; Max-Age=0", &self.url);
+        self.cookies
+            .add_cookie_str("noted_csrf=; Path=/; Max-Age=0", &self.url);
     }
 
     pub async fn verify(&self) -> Result<(), &'static str> {
@@ -105,6 +209,48 @@ impl Connection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn remembered_cookies_restore_and_opting_out_prevents_persistence() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = ProfileStore(directory.path().join("connection.json"));
+        let url = server_url("https://session-test.invalid").unwrap();
+        let connection = Connection::with_store(url.clone(), &store).unwrap();
+        connection
+            .cookies
+            .add_cookie_str("noted_session=test-session; Path=/api", &url);
+        connection
+            .cookies
+            .add_cookie_str("noted_csrf=test-csrf; Path=/", &url);
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            "set-cookie",
+            "noted_session=test-session; Path=/api; Max-Age=3600"
+                .parse()
+                .unwrap(),
+        );
+        connection.remember_session(true).unwrap();
+        connection.save_session(&headers).unwrap();
+        let restored = Connection::with_store(url.clone(), &store).unwrap();
+        let cookies = restored
+            .cookies
+            .cookies(&url.join("api/v1/auth/session").unwrap())
+            .unwrap();
+        assert!(cookies
+            .to_str()
+            .unwrap()
+            .contains("noted_session=test-session"));
+        assert!(cookies.to_str().unwrap().contains("noted_csrf=test-csrf"));
+        connection.remember_session(false).unwrap();
+        connection.save_session(&headers).unwrap();
+        let forgotten = Connection::with_store(url.clone(), &store).unwrap();
+        assert!(forgotten
+            .cookies
+            .cookies(&url.join("api/v1/auth/session").unwrap())
+            .is_none());
+        assert!(!store.0.exists());
+    }
 
     #[test]
     fn origins_require_https_and_reject_credentials_and_paths() {

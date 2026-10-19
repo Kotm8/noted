@@ -15,10 +15,11 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
   const queryClient = useQueryClient();
   const [content, setContent] = useState(note.content);
   const update = useMutation({
-    mutationFn: () => notesApi.update(note.id, content),
+    mutationFn: () => notesApi.update(note.id, content, note.content),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["notes", note.channel_id] });
       await queryClient.invalidateQueries({ queryKey: ["search"] });
+      await queryClient.invalidateQueries({ queryKey: ["thread"] });
       onClose();
     },
     onError: (error) => toast.error(error.message),

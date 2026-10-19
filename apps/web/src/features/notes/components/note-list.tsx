@@ -10,6 +10,7 @@ interface NoteListProps {
   onEdit: (id: string) => void;
   onCancelEdit: () => void;
   onDelete: (note: Note) => void;
+  onOpenThread?: (id: string) => void;
 }
 
 export function NoteList({
@@ -19,6 +20,7 @@ export function NoteList({
   onEdit,
   onCancelEdit,
   onDelete,
+  onOpenThread,
 }: NoteListProps) {
   const { preferences } = useAppearance();
   return (
@@ -38,7 +40,8 @@ export function NoteList({
         });
         const showMarker =
           startsGroup &&
-          (preferences.messageLayout === "minute" || preferences.messageLayout === "connected");
+          (preferences.messageLayout === "minute" ||
+            preferences.messageLayout === "connected");
         const dateLabel = createdAt.toLocaleDateString(undefined, {
           weekday: "long",
           month: "long",
@@ -72,6 +75,9 @@ export function NoteList({
               onEdit={() => onEdit(note.id)}
               onCancelEdit={onCancelEdit}
               onDelete={() => onDelete(note)}
+              onOpenThread={
+                onOpenThread ? () => onOpenThread(note.id) : undefined
+              }
             />
           </div>
         );

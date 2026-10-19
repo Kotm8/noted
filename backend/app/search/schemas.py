@@ -1,10 +1,13 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
 
 
 class SearchResult(BaseModel):
+    kind: Literal["message", "journal", "document"] = "message"
+    thread_root_id: UUID | None = None
     id: UUID
     channel_id: UUID
     workspace_id: UUID

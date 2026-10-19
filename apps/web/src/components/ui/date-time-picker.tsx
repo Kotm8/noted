@@ -17,10 +17,12 @@ export function DateTimePicker({
   value,
   onChange,
   min = localDateTime(new Date()),
+  label = "Choose reminder date",
 }: {
   value: string;
   onChange: (value: string) => void;
   min?: string;
+  label?: string;
 }) {
   const [month, setMonth] = useState(
     () => new Date(`${value.slice(0, 7)}-01T12:00`),
@@ -57,7 +59,7 @@ export function DateTimePicker({
             <button
               type="button"
               className="date-picker-trigger"
-              aria-label="Choose reminder date"
+              aria-label={label}
             >
               <CalendarDays size={16} />
               <span>

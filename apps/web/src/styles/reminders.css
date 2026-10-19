@@ -255,7 +255,8 @@
 .notification-prompt > svg {
   flex-shrink: 0;
 }
-.notification-prompt > button {
+.notification-prompt > button,
+.notification-prompt > a {
   color: var(--accent);
   white-space: nowrap;
 }
@@ -264,12 +265,85 @@
 }
 .notification-enabled {
   display: flex !important;
+  flex-direction: row !important;
   align-items: center;
+  justify-content: flex-start;
   gap: 9px;
 }
 .notification-enabled input {
   width: 16px;
   height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.browser-notification-settings,
+.android-notification-settings {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+.android-notification-settings > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.android-notification-settings > header h3 {
+  margin: 0;
+}
+.android-notification-settings > header > span {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.android-notification-settings > p,
+.android-delivery-settings > p,
+.device-push-controls > p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 10px 0 16px;
+  line-height: 1.6;
+}
+.android-setup-required {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.android-setup-required svg {
+  flex-shrink: 0;
+}
+.android-delivery-settings {
+  margin-top: 20px;
+  min-width: 0;
+}
+.android-delivery-settings:disabled {
+  opacity: 0.4;
+}
+.android-project-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+.android-project-status > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+.android-project-status > span > svg {
+  color: var(--accent);
+}
+.android-project-status strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 .composer {
   align-items: center;

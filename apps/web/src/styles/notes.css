@@ -292,6 +292,12 @@
   accent-color: var(--accent);
 }
 
+.markdown .contains-task-list { list-style: none; padding-left: 2px; }
+.markdown .task-list-item { padding-left: 20px; position: relative; }
+.markdown .task-list-item > input[type="checkbox"],
+.markdown .task-list-item > p > input[type="checkbox"] { margin-left: -20px; }
+.markdown input[type="checkbox"]:not(:disabled) { cursor: pointer; }
+
 .external-image {
   color: var(--text-muted);
   font-size: calc(13px * var(--text-scale, 1));

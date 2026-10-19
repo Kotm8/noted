@@ -1,6 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { useAndroidBackLayer } from "../../lib/android-navigation";
 
 export function Modal({
   open,
@@ -19,6 +20,7 @@ export function Modal({
   className?: string;
   onOpenAutoFocus?: (event: Event) => void;
 }) {
+  useAndroidBackLayer(open, () => onOpenChange(false));
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>

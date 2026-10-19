@@ -27,6 +27,7 @@ services:
       NOTED_COOKIE_SECURE: 'true'
       NOTED_STORAGE_PATH: /data/attachments
       NOTED_UPDATES_DIRECTORY: /run/noted-updater
+      NOTED_MAINTENANCE_PATH: /maintenance/enabled
     depends_on:
       db:
         condition: service_healthy
@@ -47,6 +48,10 @@ services:
       retries: 10
     volumes:
       - attachments:/data/attachments
+      - type: bind
+        source: ./updater/maintenance
+        target: /maintenance
+        read_only: true
       - type: bind
         source: ./updater/state
         target: /run/noted-updater/state

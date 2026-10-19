@@ -7,6 +7,7 @@ import {
   Monitor,
   Palette,
   Server,
+  Timer,
 } from "lucide-react";
 import { ConnectionPanel } from "../../desktop/connection-panel";
 import { useDesktopConnection } from "../../desktop/connection-context";
@@ -19,8 +20,18 @@ import { SessionsPanel } from "./sessions-panel";
 import { NotificationsPanel } from "../../notifications/notifications-panel";
 import { isAndroidApp } from "../../notifications/android";
 import { SwitchServerButton } from "../../desktop/switch-server-button";
+import { TrackingSettings } from "../../time-tracking/components/tracking-settings";
+import type { TrackingTab } from "../../time-tracking/components/tracking-settings";
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({
+  onClose,
+  initialTab = "appearance",
+  trackingTab,
+}: {
+  onClose: () => void;
+  initialTab?: "appearance" | "tracking";
+  trackingTab?: TrackingTab;
+}) {
   const [tab, setTab] = useState<
     | "appearance"
     | "server"
@@ -28,7 +39,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     | "sessions"
     | "connection"
     | "notifications"
-  >("appearance");
+    | "tracking"
+  >(initialTab);
   const connection = useDesktopConnection();
   const logout = useLogout();
 
@@ -44,6 +56,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     >
       <div className="settings-layout">
         <nav className="settings-navigation" aria-label="Settings sections">
+          <button
+            aria-current={tab === "tracking" ? "page" : undefined}
+            onClick={() => setTab("tracking")}
+          >
+            <Timer size={16} />
+            Time tracking
+          </button>
           <button
             aria-current={tab === "notifications" ? "page" : undefined}
             onClick={() => setTab("notifications")}
@@ -96,11 +115,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               Connection
             </button>
           )}
-          {isAndroidApp() && (
-            <SwitchServerButton />
-          )}
+          {isAndroidApp() && <SwitchServerButton />}
         </nav>
-        {tab === "notifications" ? (
+        {tab === "tracking" ? (
+          <TrackingSettings initialTab={trackingTab} />
+        ) : tab === "notifications" ? (
           <NotificationsPanel />
         ) : tab === "connection" ? (
           <ConnectionPanel />

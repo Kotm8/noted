@@ -1,11 +1,20 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
-export function useTimelineScroll(data: unknown, followLatest = true) {
+const positions = new Map<string, { top: number; bottom: boolean }>();
+
+export function useTimelineScroll(
+  data: unknown,
+  followLatest = true,
+  positionKey?: string,
+) {
+  const saved = positionKey ? positions.get(positionKey) : undefined;
+  const restore = useRef(saved?.top ?? null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const previousHeight = useRef<number | null>(null);
-  const stayAtBottom = useRef(followLatest);
-  const [isAtBottom, setIsAtBottom] = useState(followLatest);
+  const stayAtBottom = useRef(saved?.bottom ?? followLatest);
+  const [isAtBottom, setIsAtBottom] = useState(saved?.bottom ?? followLatest);
+  const hasData = Boolean(data);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -19,14 +28,27 @@ export function useTimelineScroll(data: unknown, followLatest = true) {
 
     observer.observe(container);
     if (contentRef.current) observer.observe(contentRef.current);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      if (positionKey && hasData) {
+        positions.set(positionKey, {
+          top: container.scrollTop,
+          bottom: stayAtBottom.current,
+        });
+        if (positions.size > 100)
+          positions.delete(positions.keys().next().value!);
+      }
+    };
+  }, [hasData, positionKey]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    if (previousHeight.current !== null) {
+    if (data && restore.current !== null) {
+      container.scrollTop = restore.current;
+      restore.current = null;
+    } else if (previousHeight.current !== null) {
       container.scrollTop += container.scrollHeight - previousHeight.current;
       previousHeight.current = null;
     } else if (stayAtBottom.current) {
@@ -38,7 +60,8 @@ export function useTimelineScroll(data: unknown, followLatest = true) {
     const container = containerRef.current;
     if (!container) return;
 
-    const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const remaining =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
     const atBottom = remaining < 100;
     stayAtBottom.current = atBottom;
     setIsAtBottom(atBottom);

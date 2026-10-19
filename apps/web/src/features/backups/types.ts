@@ -4,6 +4,13 @@ export interface BackupCounts {
   channels: number;
   messages: number;
   files: number;
+  journals?: number;
+  documents?: number;
+  activities?: number;
+  time_sessions?: number;
+  schedule_plans?: number;
+  scheduled_messages?: number;
+  writing_prompts?: number;
 }
 
 export interface BackupPreview {

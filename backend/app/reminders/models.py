@@ -24,3 +24,4 @@ class Reminder(Base):
     repeat: Mapped[str] = mapped_column(String(16), default="none")
     status: Mapped[str] = mapped_column(String(16), default="active")
     revision: Mapped[int] = mapped_column(default=1)
+    read_revision: Mapped[int] = mapped_column(default=0, server_default="0")

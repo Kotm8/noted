@@ -60,3 +60,18 @@
   color: var(--text-faint);
   font-size: calc(12px * var(--text-scale, 1));
 }
+.auth-form .remember-sign-in {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.auth-form .remember-sign-in input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}

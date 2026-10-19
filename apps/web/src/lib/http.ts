@@ -17,8 +17,13 @@ export class ApiError extends Error {
 }
 
 function readCsrfToken(): string | undefined {
-  const name = import.meta.env.MODE === "desktop" ? `noted_csrf_${window.location.port}` : "noted_csrf";
-  const cookie = document.cookie.split("; ").find((value) => value.startsWith(`${name}=`));
+  const name =
+    import.meta.env.MODE === "desktop"
+      ? `noted_csrf_${window.location.port}`
+      : "noted_csrf";
+  const cookie = document.cookie
+    .split("; ")
+    .find((value) => value.startsWith(`${name}=`));
 
   return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : undefined;
 }
@@ -41,6 +46,7 @@ export async function fetchResponse(
   path: string,
   method: HttpMethod = "GET",
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<Response> {
   const headers = new Headers();
   const csrfToken = readCsrfToken();
@@ -57,9 +63,15 @@ export async function fetchResponse(
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
+    signal,
     headers,
     credentials: "same-origin",
-    body: isFormData || isBlob ? body : body === undefined ? undefined : JSON.stringify(body),
+    body:
+      isFormData || isBlob
+        ? body
+        : body === undefined
+          ? undefined
+          : JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -73,8 +85,24 @@ export async function request<T>(
   path: string,
   method: HttpMethod = "GET",
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetchResponse(path, method, body);
+  let response: Response;
+  try {
+    response = await fetchResponse(path, method, body, signal);
+  } catch (error) {
+    if (signal?.aborted)
+      throw new Error(
+        "The server took too long to respond. Check your connection and try again.",
+        { cause: error },
+      );
+    if (error instanceof TypeError)
+      throw new Error(
+        "Couldn't reach your server. Check your connection and server address.",
+        { cause: error },
+      );
+    throw error;
+  }
   if (response.status === 204) {
     return undefined as T;
   }
@@ -87,7 +115,9 @@ export async function fetchAllPages<T>(path: string): Promise<T[]> {
   const items: T[] = [];
 
   for (let offset = 0; ; offset += pageSize) {
-    const page = await request<T[]>(`${path}?limit=${pageSize}&offset=${offset}`);
+    const page = await request<T[]>(
+      `${path}?limit=${pageSize}&offset=${offset}`,
+    );
     items.push(...page);
 
     if (page.length < pageSize) {

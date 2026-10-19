@@ -1,6 +1,8 @@
 import type { Reminder } from "../reminders/types";
 
 export interface Note {
+  thread_root_id?: string | null;
+  reply_count?: number;
   reminder?: Reminder | null;
   id: string;
   channel_id: string;

@@ -1,7 +1,18 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -30,6 +41,17 @@ class Attachment(Base):
 class Message(Base):
     __tablename__ = "messages"
     __table_args__ = (
+        UniqueConstraint("id", "channel_id", name="uq_messages_id_channel"),
+        ForeignKeyConstraint(
+            ["thread_root_id", "channel_id"],
+            ["messages.id", "messages.channel_id"],
+            ondelete="CASCADE",
+            name="fk_messages_thread_channel",
+        ),
+        CheckConstraint(
+            "thread_root_id IS NULL OR thread_root_id <> id", name="ck_messages_thread_not_self"
+        ),
+        Index("ix_messages_thread_cursor", "thread_root_id", "created_at", "id"),
         CheckConstraint("length(content) BETWEEN 0 AND 40000", name="ck_messages_content_length"),
         Index("ix_messages_channel_cursor", "channel_id", "created_at", "id"),
         Index(
@@ -45,6 +67,7 @@ class Message(Base):
     channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"))
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     content: Mapped[str] = mapped_column(Text)
+    thread_root_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

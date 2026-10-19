@@ -1,4 +1,4 @@
-import { Hash } from "lucide-react";
+import { BookOpen, FileText, Hash, MessageSquare } from "lucide-react";
 import type { SearchResult as Result } from "../types";
 
 function HighlightedExcerpt({ text, query }: { text: string; query: string }) {
@@ -25,7 +25,15 @@ export function SearchResult({
   return (
     <button className="search-result" onClick={() => onSelect(result)}>
       <span className="search-result-channel">
-        <Hash size={14} />
+        {result.kind === "document" ? (
+          <FileText size={14} />
+        ) : result.kind === "journal" ? (
+          <BookOpen size={14} />
+        ) : result.thread_root_id ? (
+          <MessageSquare size={14} />
+        ) : (
+          <Hash size={14} />
+        )}
         <strong>{result.channel_name}</strong>
         <span>{result.workspace_name}</span>
       </span>

@@ -124,7 +124,7 @@ async fn connect(State(state): State<Arc<Gateway>>, Json(input): Json<Connect>) 
         Ok(url) => url,
         Err(detail) => return failure(StatusCode::BAD_REQUEST, detail),
     };
-    let connection = match Connection::new(url) {
+    let connection = match Connection::with_store(url, &state.store) {
         Ok(connection) => connection,
         Err(_) => {
             return failure(
@@ -135,6 +135,14 @@ async fn connect(State(state): State<Arc<Gateway>>, Json(input): Json<Connect>) 
     };
     if let Err(detail) = connection.verify().await {
         return failure(StatusCode::BAD_GATEWAY, detail);
+    }
+    if let Some(previous) = state.connection.read().await.as_ref() {
+        if previous.url.origin() != connection.url.origin() && previous.forget().is_err() {
+            return failure(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Could not forget your previous sign-in.",
+            );
+        }
     }
     let profile = Profile {
         server_url: Some(connection.url.origin().ascii_serialization()),
@@ -151,6 +159,14 @@ async fn connect(State(state): State<Arc<Gateway>>, Json(input): Json<Connect>) 
 }
 
 async fn disconnect(State(state): State<Arc<Gateway>>) -> Response<Body> {
+    if let Some(connection) = state.connection.read().await.as_ref() {
+        if connection.forget().is_err() {
+            return failure(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Could not forget your saved sign-in. Try signing out first.",
+            );
+        }
+    }
     let profile = Profile {
         server_url: None,
         gateway_port: state.port,
@@ -163,6 +179,29 @@ async fn disconnect(State(state): State<Arc<Gateway>>) -> Response<Body> {
     }
     *state.connection.write().await = None;
     Json(profile).into_response()
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RememberSession {
+    remember: bool,
+}
+
+async fn remember_session(
+    State(state): State<Arc<Gateway>>,
+    Json(input): Json<RememberSession>,
+) -> Response<Body> {
+    let connection = state.connection.read().await;
+    let Some(connection) = connection.as_ref() else {
+        return failure(StatusCode::BAD_REQUEST, "Connect to a server first.");
+    };
+    if connection.remember_session(input.remember).is_err() {
+        return failure(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Could not update your saved sign-in. Try again.",
+        );
+    }
+    StatusCode::NO_CONTENT.into_response()
 }
 
 async fn serve(State(state): State<Arc<Gateway>>, request: Request) -> Response<Body> {
@@ -228,6 +267,7 @@ pub fn router(state: Arc<Gateway>) -> Router {
             axum::routing::post(crate::installer::verify),
         )
         .fallback(serve)
+        .route("/desktop/session", axum::routing::put(remember_session))
         .layer(middleware::from_fn_with_state(state.clone(), protect))
         .with_state(state)
 }

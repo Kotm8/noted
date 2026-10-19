@@ -39,13 +39,15 @@ class SearchService:
         return SearchPage(
             items=[
                 SearchResult(
-                    id=record.message.id,
-                    channel_id=record.message.channel_id,
+                    id=record.id,
+                    channel_id=record.channel_id,
+                    thread_root_id=record.thread_root_id,
+                    kind=record.kind,
                     workspace_id=record.workspace_id,
                     channel_name=record.channel_name,
                     workspace_name=record.workspace_name,
-                    excerpt=make_excerpt(record.message.content, query),
-                    created_at=record.message.created_at,
+                    excerpt=make_excerpt(record.content, query),
+                    created_at=record.created_at,
                 )
                 for record in records
             ],

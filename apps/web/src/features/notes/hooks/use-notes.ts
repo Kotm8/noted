@@ -40,6 +40,8 @@ export function useNotes(channelId: string, targetId?: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["notes", channelId] }),
         queryClient.invalidateQueries({ queryKey: ["search"] }),
+        queryClient.invalidateQueries({ queryKey: ["publishing"] }),
+        queryClient.invalidateQueries({ queryKey: ["home-activity"] }),
       ]),
     onError: (error) => toast.error(error.message),
   });

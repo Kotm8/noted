@@ -7,7 +7,7 @@ from app.auth.services.sessions import AuthenticatedSession
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.notes.models import Message
-from app.notes.schemas import MessageCreate, MessagePage, MessageResponse
+from app.notes.schemas import MessageCreate, MessagePage, MessageResponse, MessageUpdate
 from app.notes.services.messages import MessageService
 
 router = APIRouter(tags=["messages"])
@@ -41,7 +41,7 @@ def create_message(
 @router.put("/messages/{message_id}", response_model=MessageResponse)
 def update_message(
     message_id: UUID,
-    data: MessageCreate,
+    data: MessageUpdate,
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> Message:

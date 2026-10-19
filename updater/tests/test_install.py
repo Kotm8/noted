@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from noted_updater.docker import OperationError
 from noted_updater.files import read_json, write_json
 from noted_updater.install import Installer
+from test_android_notifications import fixture
 from test_updater import bundle, manifest_data
 
 
@@ -19,6 +20,7 @@ class InstallationDocker:
         self.events = []
         self.fail = False
         self.owner = None
+        self.firebase = None
 
     def ensure_image(self, image):
         self.events.append(("image", image))
@@ -28,8 +30,13 @@ class InstallationDocker:
     def compose(self, deployment, arguments, label, **options):
         self.events.append(("compose", arguments))
         if arguments[0] == "exec":
-            self.owner = json.load(options["input_file"])
-            assert self.owner["password"] not in " ".join(arguments)
+            value = json.load(options["input_file"])
+            if label == "Android notification configuration":
+                self.firebase = value
+                assert value["service_account"]["private_key"] not in " ".join(arguments)
+            else:
+                self.owner = value
+                assert self.owner["password"] not in " ".join(arguments)
 
 
 class InstallationTests(unittest.TestCase):
@@ -84,6 +91,30 @@ class InstallationTests(unittest.TestCase):
         self.docker.fail = False
         self.installer().run()
         self.assertEqual((self.root / ".env").read_bytes(), environment)
+
+    def test_android_configuration_is_streamed_without_entering_setup_history(self):
+        self.data["android_notifications"] = fixture()
+        self.installer().run()
+        self.assertEqual(self.docker.firebase["client"]["project_id"], "noted-fixture")
+        secret = self.docker.firebase["service_account"]["private_key"]
+        for path in self.root.rglob("*"):
+            if path.is_file():
+                self.assertNotIn(secret, path.read_text())
+                self.assertNotIn("private_key", path.read_text())
+        write_json(self.root / "updater/installed.json", {"commit": self.data["release"]["commit"]})
+        self.docker.events.clear()
+        self.installer().run()
+        self.assertEqual(len(self.docker.events), 1)
+        self.assertEqual(self.docker.events[0][1][0], "exec")
+
+    def test_invalid_android_configuration_stops_before_installation_changes(self):
+        self.data["android_notifications"] = fixture()
+        self.data["android_notifications"]["serviceAccountJson"] = "not-json-private-secret"
+        with self.assertRaises(OperationError) as error:
+            self.installer().run()
+        self.assertNotIn("not-json-private-secret", str(error.exception))
+        self.assertEqual(self.docker.events, [])
+        self.assertFalse((self.root / ".env").exists())
 
     def test_retry_with_different_domain_does_not_touch_existing_installation(self):
         self.installer().run()

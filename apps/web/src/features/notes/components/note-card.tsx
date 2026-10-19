@@ -1,8 +1,8 @@
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MessageSquare, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { NoteAttachments } from "./note-attachments";
 import type { Note } from "../types";
-import { Markdown } from "./markdown";
+import { MessageMarkdown } from "./message-markdown";
 import { NoteEditor } from "./note-editor";
 import { ReminderMessage } from "../../reminders/components/reminder-message";
 import { CopyNoteButton } from "./copy-note-button";
@@ -14,6 +14,7 @@ interface NoteCardProps {
   onEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
+  onOpenThread?: () => void;
 }
 
 export function NoteCard({
@@ -23,6 +24,7 @@ export function NoteCard({
   onEdit,
   onCancelEdit,
   onDelete,
+  onOpenThread,
 }: NoteCardProps) {
   const createdAt = new Date(note.created_at);
   const wasEdited = note.updated_at !== note.created_at;
@@ -31,10 +33,20 @@ export function NoteCard({
       {editing ? (
         <NoteEditor note={note} onClose={onCancelEdit} />
       ) : (
-        <Markdown content={note.content} />
+        <MessageMarkdown note={note} />
       )}
       <NoteAttachments attachments={note.attachments} />
       {wasEdited && !editing && <span className="edited-label">edited</span>}
+      {!!note.reply_count && onOpenThread && (
+        <button
+          className="note-thread-link"
+          type="button"
+          onClick={onOpenThread}
+        >
+          <MessageSquare size={13} />
+          {note.reply_count} {note.reply_count === 1 ? "reply" : "replies"}
+        </button>
+      )}
     </>
   );
 
@@ -76,6 +88,16 @@ export function NoteCard({
             <Pencil size={14} />
           </button>
           <CopyNoteButton content={note.content} />
+          {onOpenThread && !note.thread_root_id && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Open thread"
+              onClick={onOpenThread}
+            >
+              <MessageSquare size={14} />
+            </button>
+          )}
           <Menu
             trigger={
               <button className="icon-button" aria-label="Note options">

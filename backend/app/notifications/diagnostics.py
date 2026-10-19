@@ -44,7 +44,9 @@ def send_phone_test(
     )
     result = PushTestResult()
     for subscription in subscriptions:
-        outcome = send_push(subscription, private_key, settings.app_origin, payload, ttl=60)
+        outcome = send_push(
+            subscription, private_key, settings.app_origin, payload, ttl=60, settings=settings
+        )
         if outcome == "accepted":
             result.accepted += 1
         elif outcome == "expired":

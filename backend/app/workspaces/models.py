@@ -51,6 +51,9 @@ class Category(Base):
 class Channel(Base):
     __tablename__ = "channels"
     __table_args__ = (
+        CheckConstraint(
+            "kind IN ('note', 'reminder', 'journal', 'document')", name="ck_channel_kind"
+        ),
         ForeignKeyConstraint(
             ["category_id", "workspace_id"],
             ["categories.id", "categories.workspace_id"],

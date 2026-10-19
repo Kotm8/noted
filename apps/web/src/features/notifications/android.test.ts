@@ -1,9 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { ApiError, request } from "../../lib/http";
-import { disconnectAndroid, initializeAndroidClient, isAndroidApp } from "./android";
+import {
+  disconnectAndroid,
+  initializeAndroidClient,
+  isAndroidApp,
+} from "./android";
 
 vi.mock("../../lib/http", async (original) => ({
-  ...await original<typeof import("../../lib/http")>(),
+  ...(await original<typeof import("../../lib/http")>()),
   request: vi.fn(),
 }));
 
@@ -16,23 +20,39 @@ afterEach(() => {
 });
 
 it("remembers the Android shell without losing notification action parameters", () => {
-  window.history.replaceState(null, "", "/?client=android&note=123&reminderAction=snooze");
+  window.history.replaceState(
+    null,
+    "",
+    "/?client=android&note=123&reminderAction=snooze",
+  );
   initializeAndroidClient();
   expect(isAndroidApp()).toBe(true);
   expect(new URL(window.location.href).searchParams.has("client")).toBe(false);
-  expect(new URL(window.location.href).searchParams.get("reminderAction")).toBe("snooze");
+  expect(new URL(window.location.href).searchParams.get("reminderAction")).toBe(
+    "snooze",
+  );
   expect(new URL(window.location.href).searchParams.get("note")).toBe("123");
 });
 
 it("unregisters the old server's push subscription before signing out", async () => {
   const unsubscribe = vi.fn().mockResolvedValue(true);
-  vi.stubGlobal("navigator", { serviceWorker: { getRegistration: vi.fn().mockResolvedValue({
-    pushManager: { getSubscription: vi.fn().mockResolvedValue({ unsubscribe }) },
-  }) } });
+  vi.stubGlobal("navigator", {
+    serviceWorker: {
+      getRegistration: vi.fn().mockResolvedValue({
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue({ unsubscribe }),
+        },
+      }),
+    },
+  });
   localStorage.setItem("noted.notification-device", "device-id");
   sessionStorage.setItem("noted.android-client", "browser");
   await disconnectAndroid();
-  expect(request).toHaveBeenNthCalledWith(1, "/notifications/subscriptions/device-id", "DELETE");
+  expect(request).toHaveBeenNthCalledWith(
+    1,
+    "/notifications/subscriptions/device-id",
+    "DELETE",
+  );
   expect(unsubscribe).toHaveBeenCalledOnce();
   expect(request).toHaveBeenNthCalledWith(2, "/auth/logout", "POST");
   expect(isAndroidApp()).toBe(false);

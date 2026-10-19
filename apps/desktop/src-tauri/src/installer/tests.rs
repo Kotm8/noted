@@ -128,7 +128,11 @@ fn setup_state_remembers_recovery_details_without_credentials() {
         "plan": {"host": {"ip": "203.0.113.10", "port": 22}, "hostKey": "ssh-ed25519 fixture",
             "serverName": "My notes", "domain": "notes.example.com", "username": "owner",
             "repository": "owner/noted", "releaseCommit": "a".repeat(40), "manifestSha256": "b".repeat(64)},
-        "sshUser": "root", "sshPassword": "ssh-secret-only", "password": "owner-password-only"
+        "sshUser": "root", "sshPassword": "ssh-secret-only", "password": "owner-password-only",
+        "androidNotifications": {
+            "googleServicesJson": json!({"project_info": {"project_id": "noted-fixture"}, "client": [{"client_info": {"android_client_info": {"package_name": "com.noted.android"}}}]}).to_string(),
+            "serviceAccountJson": json!({"project_id": "noted-fixture", "type": "service_account", "client_email": "test@noted-fixture.iam.gserviceaccount.com", "token_uri": "https://oauth2.googleapis.com/token", "private_key": "-----BEGIN PRIVATE KEY-----\nfirebase-secret-fixture\n-----END PRIVATE KEY-----\n"}).to_string()
+        }
     })).unwrap();
     request.validate().unwrap();
     let temporary = tempfile::tempdir().unwrap();
@@ -144,6 +148,7 @@ fn setup_state_remembers_recovery_details_without_credentials() {
     let saved = std::fs::read_to_string(&path).unwrap();
     assert!(!saved.contains(&request.password));
     assert!(!saved.contains(&request.ssh_password));
+    assert!(!saved.contains("firebase-secret-fixture"));
     let recovered = Installer::new(path);
     let recovered = recovered.job.lock().unwrap();
     assert_eq!(recovered.status, "failed");

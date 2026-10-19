@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.backup.repository import BackupRepository
 from app.backup.schemas import BackupContent
 from app.backup.services.archive import MAX_METADATA
+from app.backup.services.tracking import tracking_document
 from app.core.errors import ConflictError, ContentTooLargeError
 from app.core.storage_limits import MAX_ARCHIVE
 from app.storage.base import FileStorage
@@ -83,6 +84,36 @@ class BackupExporter:
             for message in document["messages"]:
                 if message["id"] in reminders:
                     message["reminder"] = reminders[message["id"]]
+            roots = {
+                row["id"]: row["thread_root_id"]
+                for row in rows["messages"]
+                if row["thread_root_id"]
+            }
+            for message in document["messages"]:
+                if message["id"] in roots:
+                    message["thread_root_id"] = roots[message["id"]]
+            if rows["journals"]:
+                document["journals"] = [
+                    {
+                        key: row[key]
+                        for key in (
+                            "id",
+                            "channel_id",
+                            "title",
+                            "content",
+                            "revision",
+                            "created_at",
+                            "updated_at",
+                        )
+                    }
+                    for row in rows["journals"]
+                ]
+            if (
+                roots
+                or rows["journals"]
+                or any(row["kind"] == "journal" for row in rows["channels"])
+            ):
+                document["version"] = 2
             for row in rows["attachments"]:
                 blob = await self.add_file(archive, row["storage_key"], row["size"], destination)
                 document["attachments"].append(
@@ -92,6 +123,55 @@ class BackupExporter:
                     }
                     | {"filename": row["original_filename"], "file": blob}
                 )
+            tracking = tracking_document(rows, datetime.now(UTC).isoformat())
+            if any(tracking.values()):
+                version = 4 if tracking["schedule_plans"] or tracking["plan_events"] else 3
+                if version == 3:
+                    tracking.pop("plan_events")
+                document.update(tracking)
+                document["version"] = version
+            if rows["documents"] or any(row["kind"] == "document" for row in rows["channels"]):
+                document["version"] = 5
+                document["documents"] = [
+                    {
+                        key: row[key]
+                        for key in ("channel_id", "content", "revision", "created_at", "updated_at")
+                    }
+                    for row in rows["documents"]
+                ]
+            if rows["scheduled_messages"] or rows["writing_prompts"]:
+                document["version"] = 6
+                for name, publishing_fields in (
+                    (
+                        "scheduled_messages",
+                        (
+                            "id",
+                            "channel_id",
+                            "content",
+                            "send_at",
+                            "timezone",
+                            "status",
+                            "revision",
+                            "created_at",
+                        ),
+                    ),
+                    (
+                        "writing_prompts",
+                        (
+                            "id",
+                            "channel_id",
+                            "content",
+                            "start_at",
+                            "timezone",
+                            "frequency",
+                            "weekdays",
+                            "enabled",
+                        ),
+                    ),
+                ):
+                    document[name] = [
+                        {key: row[key] for key in publishing_fields} for row in rows[name]
+                    ]
             raw = json.dumps(document, default=str, ensure_ascii=False).encode()
             if len(raw) > MAX_METADATA:
                 raise ContentTooLargeError("The content metadata exceeds the 16 MB backup limit.")

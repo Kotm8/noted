@@ -1,5 +1,4 @@
-import { LoaderCircle } from "lucide-react";
-import { BrandIcon } from "./ui/brand-icon";
+import { StartupLogo } from "./startup-logo";
 import { SwitchServerButton } from "../features/desktop/switch-server-button";
 import { Button } from "./ui/button";
 import { Notice } from "./ui/notice";
@@ -12,7 +11,7 @@ interface ConnectionScreenProps {
 export function ConnectionScreen({ error, onRetry }: ConnectionScreenProps) {
   return (
     <main className="connection-screen">
-      <BrandIcon />
+      <StartupLogo />
       {error ? (
         <>
           <h1>Let's reconnect.</h1>
@@ -21,8 +20,11 @@ export function ConnectionScreen({ error, onRetry }: ConnectionScreenProps) {
         </>
       ) : (
         <>
-          <LoaderCircle size={23} className="animate-spin" />
-          <p>Finding your space...</p>
+          <div
+            className="startup-progress"
+            role="progressbar"
+            aria-label="Connecting to your server"
+          />
         </>
       )}
       <SwitchServerButton />

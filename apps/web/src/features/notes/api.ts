@@ -39,8 +39,8 @@ export const notesApi = {
     );
   },
 
-  update(id: string, content: string): Promise<Note> {
-    return request<Note>(`/messages/${id}`, "PUT", { content });
+  update(id: string, content: string, expected_content?: string): Promise<Note> {
+    return request<Note>(`/messages/${id}`, "PUT", { content, expected_content });
   },
 
   remove(id: string): Promise<void> {

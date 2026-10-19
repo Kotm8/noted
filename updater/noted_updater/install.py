@@ -6,6 +6,7 @@ import secrets
 import sys
 from pathlib import Path
 
+from .android_notifications import configure, parse_configuration
 from .config import Config
 from .docker import Docker, OperationError
 from .files import read_json, write_file, write_json
@@ -74,10 +75,12 @@ class Installer:
 
     def run(self) -> None:
         identity = self.validate()
+        android_notifications = parse_configuration(self.data.get("android_notifications"))
         installed = self.root / "updater/installed.json"
         if installed.exists():
             if read_json(installed)["commit"] != self.manifest.commit:
                 raise OperationError("The server has been updated. Connect to the existing server.")
+            configure(self.docker, self.deployment, android_notifications, self.phase)
             self.phase("updater", "Checking the installed update service.")
             self.finisher(self.data["repository"])
             self.phase("installed", "Noted is installed. Checking your domain and HTTPS next.")
@@ -126,6 +129,7 @@ class Installer:
             "Owner account provisioning",
             input_file=io.BytesIO(credentials),
         )
+        configure(self.docker, self.deployment, android_notifications, self.phase)
         self.phase("updater", "Enabling daily update checks and click-to-install upgrades.")
         self.finisher(self.data["repository"])
         self.phase("installed", "Noted is installed. Checking your domain and HTTPS next.")
@@ -137,8 +141,8 @@ def report(phase: str, detail: str) -> None:
 
 def main() -> None:
     try:
-        raw = sys.stdin.buffer.read(65537)
-        if len(raw) > 65536:
+        raw = sys.stdin.buffer.read(262145)
+        if len(raw) > 262144:
             raise ValueError("Setup request is too large")
         data = json.loads(raw)
         root = Path("/opt/noted")

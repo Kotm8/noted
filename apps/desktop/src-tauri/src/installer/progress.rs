@@ -40,6 +40,10 @@ fn event(line: &[u8]) -> Option<(&'static str, &'static str)> {
             "Starting PostgreSQL, applying migrations, and starting Noted.",
         )),
         "owner" => Some(("owner", "Creating your owner account.")),
+        "android_notifications" => Some((
+            "android_notifications",
+            "Saving Firebase configuration privately on your VPS.",
+        )),
         "updater" => Some((
             "updater",
             "Enabling daily update checks and click-to-install upgrades.",

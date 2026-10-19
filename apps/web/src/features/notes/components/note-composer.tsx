@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowUp, LoaderCircle, Plus, X, FileText } from "lucide-react";
+import { ArrowUp, Clock3, LoaderCircle, Plus, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatFileSize } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
@@ -8,6 +8,7 @@ import { useDraft } from "../hooks/use-draft";
 import { ScheduleDialog } from "../../reminders/components/schedule-dialog";
 import { noteCommands, parseNoteCommand } from "../../reminders/commands";
 import type { ReminderSchedule } from "../../reminders/types";
+import { ScheduleMessageDialog } from "../../publishing/schedule-message-dialog";
 
 interface NoteComposerProps {
   channel: Channel;
@@ -32,6 +33,7 @@ export function NoteComposer({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [scheduledDraft, setScheduledDraft] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState<{
     content: string;
     draft: string;
@@ -66,7 +68,8 @@ export function NoteComposer({
       (!draft.trim() && !files.length) ||
       isSending ||
       submitting.current ||
-      scheduling
+      scheduling ||
+      scheduledDraft !== null
     )
       return;
     const sentContent = draft;
@@ -198,6 +201,20 @@ export function NoteComposer({
             }
           }}
         />
+        {channel.kind === "note" && (
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Schedule message"
+            title={
+              files.length ? "Send later supports text messages" : "Send later"
+            }
+            disabled={!draft.trim() || files.length > 0 || isSending}
+            onClick={() => setScheduledDraft(draft)}
+          >
+            <Clock3 size={18} />
+          </button>
+        )}
         <Button
           size="icon"
           type="submit"
@@ -249,6 +266,18 @@ export function NoteComposer({
             setScheduling(null);
             onSent?.();
             requestAnimationFrame(() => inputRef.current?.focus());
+          }}
+        />
+      )}
+      {scheduledDraft !== null && (
+        <ScheduleMessageDialog
+          channelId={channel.id}
+          channelName={channel.name}
+          content={scheduledDraft}
+          onClose={() => setScheduledDraft(null)}
+          onSaved={() => {
+            clearSentDraft(scheduledDraft);
+            inputRef.current?.focus();
           }}
         />
       )}

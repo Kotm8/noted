@@ -1,8 +1,12 @@
 # Noted for Android
 
-An installable APK that opens your hosted Noted server through a Chrome Trusted Web Activity. Your server supplies the interface; Chrome handles uploads, downloads, video playback, and background Web Push. Android 8.0 or newer and an up-to-date compatible browser are required. Chrome is recommended.
+An installable APK that opens your hosted Noted server through a Chrome Trusted Web Activity. Your server supplies the interface; Chrome handles uploads, downloads, and video playback. Native Firebase messaging handles Android notifications when configured. Android 8.0 or newer and an up-to-date compatible browser are required. Chrome is recommended.
 
-No server owner needs a Firebase account, service-account key, API key, or notification relay. Firebase JSON files from the earlier client are no longer used. Keep any downloaded private keys private; this build neither packages nor uploads them.
+The desktop setup wizard offers an optional Android notifications step for an owner's Firebase project. It includes console links, the exact Android package name, and import/paste fields for `google-services.json` and a service-account JSON from the same project. The key is sent over verified SSH and stored privately on that owner's VPS, outside content backups and desktop installation history. Existing owners can configure this through **Settings > Notifications > Android setup** over HTTPS. Skipping setup leaves browser Web Push available.
+
+The same APK loads the selected server's public Firebase configuration during authenticated pairing. No rebuild is needed for another server or Firebase project. Private service-account keys stay on the VPS and are never sent to the phone or packaged with the app. FCM itself is free; this flow needs no Cloud Functions, paid Firebase plan, or shared relay.
+
+If setup was skipped, open **Settings > Notifications > Android notifications**. The guide and JSON import fields are available there. Android controls stay greyed out until configuration is saved. After setup, the guide disappears and the connected project is shown instead; **Change project** reopens setup with empty credential fields. **Send notifications to Android** controls native phone delivery separately from browser notifications.
 
 ## For server owners and phone users
 
@@ -11,11 +15,13 @@ No server owner needs a Firebase account, service-account key, API key, or notif
 3. Open Noted and enter your server domain. The app checks the server's public Digital Asset Links file against its installed signing certificate, then opens the server in Chrome without a browser toolbar.
 4. Sign in with your existing username and password.
 5. Tap **Enable** after signing in, or use **Settings > Notifications > Enable notifications**. Accept the Android notification permission. Permission is requested when enabling notifications, not at first launch.
-6. Schedule a reminder, put the phone app in the background, and unfocus Noted on desktop. The notification includes the project, channel, content, and Done/Snooze actions. Those actions open the relevant note and use your authenticated server session.
+6. Schedule a reminder, put the phone app in the background, and unfocus Noted on desktop. Native notifications include the project, channel, content, and Done/Snooze actions that work without opening Chrome. Planned activities offer Start, an inline delay reason, and More options for other delays and activities.
+
+Native pairing issues a restricted device credential bound to your signed-in session. Android stores it encrypted through the Android Keystore. Signing out that session revokes its access. Notifications must match the selected origin, Firebase project, and sender; switching server clears the previous native binding.
 
 The server automatically creates its own VAPID signing key and stores only its own device subscriptions. Each server origin has separate browser cookies, storage, push permission, and subscription encryption keys. A subscription is bound to that server's VAPID key by the push provider. Sending from one VPS does not broadcast to other servers' users.
 
-The VPS sends encrypted Web Push directly to the browser's push provider. On Chrome for Android, this still uses Google's push infrastructure internally, but server owners do not configure Firebase. Network access is required; this is not an offline exact alarm. Force-stopping Chrome or Noted, disabling notifications, or aggressive device battery restrictions can prevent or delay delivery.
+With Firebase configured, the VPS sends directly to FCM using its own service account. Otherwise it sends encrypted Web Push to the browser's push provider. Network access is required; these are not offline exact alarms. Force-stopping the delivery app, disabling notifications, or aggressive device battery restrictions can prevent or delay delivery.
 
 When the browser verifies app/domain association and supports delegation, it displays notifications under Noted. Otherwise browser notifications or a Custom Tab toolbar may be used. The app reports a missing or mismatched server association rather than bypassing HTTPS or verification.
 
@@ -63,10 +69,10 @@ With a phone or emulator connected, use `gradlew.bat :app:connectedDebugAndroidT
 
 - `connection/`: HTTPS origin validation, native server selector, installed app certificate checks.
 - `web/BrowserSession.kt`: the Android Browser Helper TWA session.
-- `notifications/NotedDelegationService.kt`: Chrome notification delegation using its verified browser token.
+- `notifications/`: native Firebase registration, encrypted device credentials, notification actions and retries, plus Chrome notification delegation for Web Push fallback.
 - `MainActivity.kt`: connection lifecycle and safe routing to the selected origin.
 - `scripts/android.py`: release signing, public certificate export, build and validation.
 
-There is no JavaScript-to-native credential bridge. The Android app does not read your Chrome cookies or receive SSH credentials. Authentication stays between the browser and the selected HTTPS server. External links are handled by the browser. The app accepts notification/deep links only for its currently selected origin; a link cannot silently change the configured server.
+The Android app does not read Chrome cookies or receive SSH credentials. Pairing uses a short-lived, single-use ticket from your authenticated web session, checked against the selected HTTPS origin and its app association. External links are handled by the browser. A notification or deep link cannot silently change the configured server.
 
 Reference documentation: [Trusted Web Activities](https://developer.chrome.com/docs/android/trusted-web-activity/), [domain verification](https://developer.chrome.com/docs/android/trusted-web-activity/multi-origin), [notification delegation](https://chromium.googlesource.com/chromium/src/+/HEAD/chrome/android/java/src/org/chromium/chrome/browser/browserservices/permissiondelegation/README.md), and [VAPID](https://www.rfc-editor.org/rfc/rfc8292).

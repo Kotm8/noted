@@ -1,5 +1,6 @@
-pub mod models;
 mod cleanup;
+mod firebase;
+pub mod models;
 mod progress;
 mod release;
 mod ssh;

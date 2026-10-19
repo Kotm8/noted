@@ -5,12 +5,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
 import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.ScrollView
-import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -20,6 +16,9 @@ import com.noted.android.connection.ConnectionStore
 import com.noted.android.connection.ConnectionView
 import com.noted.android.connection.ServerAddress
 import com.noted.android.web.BrowserSession
+import com.noted.android.web.StartupView
+import com.noted.android.notifications.PushRegistration
+import com.noted.android.notifications.PushState
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
@@ -51,6 +50,7 @@ class MainActivity : ComponentActivity() {
         val target = incoming.data
         val origin = store.origin
         if (target?.scheme == "noted" && target.host == "connection") {
+            PushRegistration.forget(this)
             browserLaunched = false
             showConnection()
         } else if (origin == null) {
@@ -77,24 +77,20 @@ class MainActivity : ComponentActivity() {
         if (connecting) return
         connecting = true
         root.removeAllViews()
-        root.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            addView(ProgressBar(context))
-            addView(TextView(context).apply {
-                text = "Connecting to your server…"
-                setTextColor(Color.LTGRAY)
-                setPadding(24, 24, 24, 24)
-            })
-        }, FrameLayout.LayoutParams(-1, -1))
+        root.addView(StartupView(this), FrameLayout.LayoutParams(-1, -1))
         network.execute {
-            val result = runCatching { AppAssociation.verify(this, origin) }
+            val result = runCatching {
+                AppAssociation.verify(this, origin)
+                val old = PushState(this).read()
+                if (old != null && old.optString("origin") != origin) PushRegistration.disconnect(this)
+            }
             runOnUiThread {
                 connecting = false
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 result.onSuccess {
                     store.origin = origin
-                    val url = destination.buildUpon().appendQueryParameter("client", "android").build()
+                    val target = if (intent.getBooleanExtra("notification_setup", false)) Uri.parse("$origin/?notificationSetup=complete") else destination
+                    val url = target.buildUpon().appendQueryParameter("client", "android").appendQueryParameter("nativePush", "1").build()
                     browser.open(url) { browserLaunched = true }
                 }.onFailure { error ->
                     showConnection()

@@ -1,5 +1,7 @@
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { useAndroidBackLayer } from "../../lib/android-navigation";
 
 export function Select({
   label,
@@ -12,8 +14,10 @@ export function Select({
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  useAndroidBackLayer(open, () => setOpen(false));
   return (
-    <Dropdown.Root modal={false}>
+    <Dropdown.Root modal={false} open={open} onOpenChange={setOpen}>
       <Dropdown.Trigger asChild>
         <button type="button" className="select-trigger" aria-label={label}>
           <span>

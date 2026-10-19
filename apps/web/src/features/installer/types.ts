@@ -9,6 +9,9 @@ export interface InstallationDraft {
   username: string;
   password: string;
   confirmation: string;
+  androidNotifications: boolean;
+  googleServicesJson: string;
+  serviceAccountJson: string;
 }
 
 export type UpdateInstallation = <Key extends keyof InstallationDraft>(
@@ -32,4 +35,7 @@ export const initialInstallation: InstallationDraft = {
   username: "",
   password: "",
   confirmation: "",
+  androidNotifications: false,
+  googleServicesJson: "",
+  serviceAccountJson: "",
 };

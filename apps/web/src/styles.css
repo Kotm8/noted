@@ -12,6 +12,12 @@
 @import "./styles/message-layouts.css";
 @import "./styles/reminders.css";
 @import "./styles/debug.css";
+@import "./styles/writing.css";
+
+@import "./styles/time-tracking.css";
+@import "./styles/schedule.css";
+@import "./styles/home.css";
+@import "./styles/publishing.css";
 
 @theme {
   --color-background: var(--surface-main);

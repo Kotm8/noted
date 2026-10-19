@@ -32,10 +32,48 @@ function worker() {
     self,
     URL,
   });
-  return { handlers, showNotification, openWindow, navigate, focus, skipWaiting, claim };
+  return {
+    handlers,
+    showNotification,
+    openWindow,
+    navigate,
+    focus,
+    skipWaiting,
+    claim,
+  };
 }
 
 describe("notification service worker", () => {
+  it("opens writing prompts in their channel without applying reminder actions", async () => {
+    const test = worker();
+    const data = {
+      kind: "writing",
+      writingPromptId: "writing-1",
+      title: "Study / #daily",
+      body: "Write a note",
+      url: "/w/project/c/daily",
+      revision: 2,
+    };
+    const waitUntil = vi.fn();
+    test.handlers.push({ data: { json: () => data }, waitUntil });
+    await waitUntil.mock.calls[0][0];
+    expect(test.showNotification).toHaveBeenCalledWith(
+      data.title,
+      expect.objectContaining({
+        tag: "writing-writing-1",
+        actions: [{ action: "open-channel", title: "Write in channel" }],
+      }),
+    );
+    test.handlers.notificationclick({
+      notification: { data, close: vi.fn() },
+      action: "done",
+      waitUntil,
+    });
+    await waitUntil.mock.calls[1][0];
+    expect(test.navigate).toHaveBeenCalledWith(
+      "https://notes.example.com/w/project/c/daily",
+    );
+  });
   it("activates notification fixes for already open clients", async () => {
     const test = worker();
     const waitUntil = vi.fn();
@@ -48,17 +86,30 @@ describe("notification service worker", () => {
 
   it("displays server diagnostic pushes without reminder actions", async () => {
     const test = worker();
-    const data = { kind: "diagnostic", testId: "test-1", title: "Noted / Push test", body: "Server test", url: "/" };
+    const data = {
+      kind: "diagnostic",
+      testId: "test-1",
+      title: "Noted / Push test",
+      body: "Server test",
+      url: "/",
+    };
     const waitUntil = vi.fn();
     test.handlers.push({ data: { json: () => data }, waitUntil });
     await waitUntil.mock.calls[0][0];
-    expect(test.showNotification).toHaveBeenCalledWith(data.title, expect.objectContaining({ tag: "noted-test-test-1", actions: [] }));
+    expect(test.showNotification).toHaveBeenCalledWith(
+      data.title,
+      expect.objectContaining({ tag: "noted-test-test-1", actions: [] }),
+    );
   });
 
   it("opens the home page when a local diagnostic notification has no data", async () => {
     const test = worker();
     const waitUntil = vi.fn();
-    test.handlers.notificationclick({ notification: { close: vi.fn() }, action: "", waitUntil });
+    test.handlers.notificationclick({
+      notification: { close: vi.fn() },
+      action: "",
+      waitUntil,
+    });
     await waitUntil.mock.calls[0][0];
     expect(test.navigate).toHaveBeenCalledWith("https://notes.example.com/");
   });

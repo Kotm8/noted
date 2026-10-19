@@ -1,13 +1,15 @@
 from uuid import UUID
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.core.errors import NotFoundError, ValidationError
+from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.pagination import decode_message_cursor, encode_message_cursor
 from app.core.security import utc_now
 from app.notes.models import Message
 from app.notes.repository import MessageRepository
-from app.notes.schemas import MessageCreate, MessagePage, MessageResponse
+from app.notes.schemas import MessageCreate, MessagePage, MessageResponse, MessageUpdate
+from app.publishing.repository import complete_writing
 from app.reminders.service import attach_reminder
 from app.workspaces.services.channels import ChannelService
 
@@ -18,8 +20,8 @@ class MessageService:
         self.repository = MessageRepository(db)
         self.channels = ChannelService(db)
 
-    def get_message(self, message_id: UUID, owner_id: UUID) -> Message:
-        message = self.repository.get_for_author(message_id, owner_id)
+    def get_message(self, message_id: UUID, owner_id: UUID, lock: bool = False) -> Message:
+        message = self.repository.get_for_author(message_id, owner_id, lock)
         if message is None:
             raise NotFoundError("Note not found")
         self.channels.get_channel(message.channel_id, owner_id)
@@ -50,7 +52,7 @@ class MessageService:
                 else None
             )
             return MessagePage(
-                items=[MessageResponse.model_validate(message) for message in messages],
+                items=self.responses(messages),
                 next_cursor=None,
                 newer_cursor=newer,
             )
@@ -58,7 +60,7 @@ class MessageService:
         cursor = decode_message_cursor(before) if before is not None else None
         if around is not None:
             anchor = self.get_message(around, owner_id)
-            if anchor.channel_id != channel_id:
+            if anchor.channel_id != channel_id or anchor.thread_root_id is not None:
                 raise NotFoundError("Note not found in this channel")
             cursor = (anchor.created_at, anchor.id)
         messages = self.repository.list_for_channel(
@@ -73,7 +75,7 @@ class MessageService:
             next_cursor = encode_message_cursor(oldest_message.created_at, oldest_message.id)
 
         return MessagePage(
-            items=[MessageResponse.model_validate(message) for message in reversed(messages)],
+            items=self.responses(list(reversed(messages))),
             next_cursor=next_cursor,
             newer_cursor=(
                 encode_message_cursor(messages[0].created_at, messages[0].id)
@@ -83,15 +85,24 @@ class MessageService:
         )
 
     def create_message(self, channel_id: UUID, data: MessageCreate, owner_id: UUID) -> Message:
-        self.channels.get_channel(channel_id, owner_id)
+        channel = self.channels.get_channel(channel_id, owner_id)
+        if channel.kind == "journal":
+            raise ValidationError("Create a journal entry in this channel.")
+        if channel.kind == "document":
+            raise ValidationError("Edit the Markdown page in this Notes channel.")
         message = self.repository.create(channel_id, owner_id, data.content)
         attach_reminder(self.db, message, data.reminder)
+        complete_writing(self.db, channel_id, utc_now())
         self.db.commit()
         self.db.refresh(message)
         return message
 
-    def update_message(self, message_id: UUID, data: MessageCreate, owner_id: UUID) -> Message:
-        message = self.get_message(message_id, owner_id)
+    def update_message(self, message_id: UUID, data: MessageUpdate, owner_id: UUID) -> Message:
+        message = self.get_message(message_id, owner_id, lock=True)
+        if data.expected_content is not None and message.content != data.expected_content:
+            raise ConflictError(
+                "This note changed on another device. Reload it before trying again."
+            )
         message.content = data.content
         message.updated_at = utc_now()
         self.db.commit()
@@ -99,6 +110,22 @@ class MessageService:
         return message
 
     def delete_message(self, message_id: UUID, owner_id: UUID) -> None:
-        message = self.get_message(message_id, owner_id)
+        message = self.get_message(message_id, owner_id, lock=True)
         message.deleted_at = utc_now()
+        self.db.execute(
+            update(Message)
+            .where(Message.thread_root_id == message.id)
+            .values(deleted_at=message.deleted_at)
+        )
         self.db.commit()
+
+    def responses(self, messages: list[Message]) -> list[MessageResponse]:
+        counts = (
+            self.repository.reply_counts([message.id for message in messages]) if messages else {}
+        )
+        return [
+            MessageResponse.model_validate(message).model_copy(
+                update={"reply_count": counts.get(message.id, 0)}
+            )
+            for message in messages
+        ]

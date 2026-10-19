@@ -16,6 +16,19 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
     if url.origin() != connection.url.origin() {
         return failure(StatusCode::BAD_REQUEST, "Invalid API destination.");
     }
+    let is_login = parts.uri.path() == "/api/v1/auth/login";
+    let _auth_guard = if parts.uri.path().starts_with("/api/v1/auth/") {
+        Some(connection.auth_lock.lock().await)
+    } else {
+        None
+    };
+    let is_logout = parts.uri.path() == "/api/v1/auth/logout";
+    if is_logout && connection.forget().is_err() {
+        return failure(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Could not forget your saved sign-in. Try again.",
+        );
+    }
     let mut outgoing = connection.client.request(parts.method, url).header(
         header::ORIGIN,
         connection.url.origin().ascii_serialization(),
@@ -62,6 +75,30 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
             StatusCode::BAD_GATEWAY,
             "The server redirected this request. Connect using its final HTTPS address.",
         );
+    }
+    if is_login
+        && response.status().is_success()
+        && connection.save_session(response.headers()).is_err()
+    {
+        let _ = connection.forget();
+        connection.clear_cookies();
+        return failure(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Couldn't securely remember this sign-in. Try again or turn off Keep me signed in.",
+        );
+    }
+    let cleared = response
+        .headers()
+        .get_all("set-cookie")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .any(|value| value.starts_with("noted_session=") && value.contains("Max-Age=0"));
+    if cleared
+        || (parts.uri.path() == "/api/v1/auth/session"
+            && response.status() == StatusCode::UNAUTHORIZED)
+    {
+        let _ = connection.forget();
+        connection.clear_cookies();
     }
     let mut result = Response::builder().status(response.status());
     for (name, value) in response.headers() {

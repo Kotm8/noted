@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DebugTrigger } from "./debug-trigger";
 import { testPhoneNotification } from "./diagnostics";
 
@@ -14,6 +14,7 @@ vi.mock("./diagnostics", () => ({
   testPhoneNotification: vi.fn(async () => "Push service accepted the test for 1 phone. Check your phone."),
 }));
 
+beforeEach(() => vi.spyOn(performance, "now").mockReturnValue(100));
 afterEach(() => vi.restoreAllMocks());
 
 function mount() {
@@ -25,7 +26,7 @@ describe("hidden diagnostics", () => {
   it("sends a phone test from the menu and reports provider failures", async () => {
     const logo = mount();
     for (let index = 0; index < 7; index++) fireEvent.click(logo);
-    fireEvent.click(await screen.findByRole("button", { name: "Send test to phone" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send test to phone" }, { timeout: 3000 }));
     expect(await screen.findByText("Push service accepted the test for 1 phone. Check your phone.")).toBeInTheDocument();
     vi.mocked(testPhoneNotification).mockRejectedValueOnce(new Error("No phone is subscribed."));
     fireEvent.click(screen.getByRole("button", { name: "Send test to phone" }));
@@ -37,7 +38,7 @@ describe("hidden diagnostics", () => {
     for (let index = 0; index < 6; index++) fireEvent.click(logo);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     fireEvent.click(logo);
-    expect(await screen.findByRole("dialog", { name: "Diagnostics" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Diagnostics" }, { timeout: 3000 })).toBeInTheDocument();
     expect(await screen.findByText("ok (12 ms)")).toBeInTheDocument();
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

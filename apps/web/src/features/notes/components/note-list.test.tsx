@@ -8,6 +8,7 @@ import {
 } from "../../settings/appearance";
 import type { Note } from "../types";
 import { NoteList } from "./note-list";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
@@ -27,28 +28,30 @@ function renderNotes(layout: MessageLayout = "minute", minutes = 2) {
     }),
   );
   return render(
-    <AppearanceContext.Provider
-      value={{
-        preferences: {
-          ...defaultAppearance,
-          messageLayout: layout,
-          messageGroupMinutes: minutes,
-        },
-        update: vi.fn(),
-        reset: vi.fn(),
-        isSaving: false,
-        saveError: null,
-      }}
-    >
-      <NoteList
-        channelName="ideas"
-        notes={notes}
-        editingId={null}
-        onEdit={vi.fn()}
-        onCancelEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />
-    </AppearanceContext.Provider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <AppearanceContext.Provider
+        value={{
+          preferences: {
+            ...defaultAppearance,
+            messageLayout: layout,
+            messageGroupMinutes: minutes,
+          },
+          update: vi.fn(),
+          reset: vi.fn(),
+          isSaving: false,
+          saveError: null,
+        }}
+      >
+        <NoteList
+          channelName="ideas"
+          notes={notes}
+          editingId={null}
+          onEdit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </AppearanceContext.Provider>
+    </QueryClientProvider>,
   );
 }
 

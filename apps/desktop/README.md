@@ -17,7 +17,7 @@ npm --prefix apps/desktop run build
 The build produces:
 
 - `apps/desktop/src-tauri/target/release/noted-desktop.exe`
-- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.1.1_x64-setup.exe`
+- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.0_x64-setup.exe`
 
 The installer is per-user and this test build is unsigned. It does not install a server, Docker, or a database on the PC. The project has separate lockfiles for the frontend, desktop CLI, and Rust dependencies. Generated native artifacts and frontend bundles are ignored by Git and Docker build contexts.
 
@@ -25,9 +25,9 @@ The installer is per-user and this test build is unsigned. It does not install a
 
 Open Noted and enter the existing server's HTTPS origin, such as `https://notes.example.com`. Native requests verify HTTPS certificates. HTTP is accepted only for localhost development. After the readiness and API-version check, sign in using the server's username and password.
 
-Only the server URL and a preferred local port are saved in `connection.json` under the application's configuration directory. Server session cookies remain in native process memory. They are not written to that file, returned to JavaScript, or stored in localStorage. Sign in again after restarting the app. A persistent secure credential-store integration remains future work.
+Only the server URL and a preferred local port are saved in `connection.json` under the application's configuration directory. On Windows, **Keep me signed in** stores the session token and its expiry in Windows Credential Manager so sign-in survives app restarts. The password is never saved. Without that option, session cookies stay in native process memory. Server session cookies are never written to the connection file, returned to JavaScript, or stored in localStorage. Saved sessions still expire or can be revoked from Settings > Sessions.
 
-Use Settings > Connection > Switch server to forget the current address. The sign-in and connection-error screens also provide Switch server. Forgetting the connection discards its native cookie jar; it does not revoke the server-side session, which can still be revoked under Sessions or expire normally.
+Use Settings > Connection > Switch server to forget the current address. The sign-in and connection-error screens also provide Switch server. Forgetting the connection clears its saved sign-in and discards its native cookie jar; it does not revoke the server-side session, which can still be revoked under Sessions or expire normally. Signing out also clears the saved sign-in.
 
 The shared UI is compiled into the executable. A protected HTTP gateway binds only to `127.0.0.1`, serves those bundled assets, and forwards fixed `/api/` requests to the selected server. Per-launch private cookies, Host/Origin checks, fetch metadata checks, and CSRF tokens protect the local gateway. Native requests replace browser-supplied credentials and use the server's own origin/CSRF cookies. Uploads, downloads, and video byte ranges stream through this gateway. No frontend IPC capabilities or general shell commands are exposed. External HTTP(S) links open in the system browser.
 

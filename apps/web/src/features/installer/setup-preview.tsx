@@ -6,12 +6,20 @@ import { Button } from "../../components/ui/button";
 import { ServerStep } from "./components/server-step";
 import { DomainStep } from "./components/domain-step";
 import { AccountStep } from "./components/account-step";
+import { AndroidNotificationsStep } from "./components/android-notifications-step";
+import { firebaseProject } from "./firebase";
 import { ReviewStep } from "./components/review-step";
 import { initialInstallation, type UpdateInstallation } from "./types";
 import { validateStep } from "./validation";
 import "../../styles/installer.css";
 
-const steps = ["Server", "Domain", "Owner account", "Review"];
+const steps = [
+  "Server",
+  "Domain",
+  "Owner account",
+  "Android notifications",
+  "Review",
+];
 
 export function SetupPreview() {
   const [step, setStep] = useState(0);
@@ -27,7 +35,7 @@ export function SetupPreview() {
     const validation = validateStep(step, draft);
     setError(validation);
     if (!validation) {
-      setStep((current) => Math.min(3, current + 1));
+      setStep((current) => Math.min(4, current + 1));
       window.scrollTo(0, 0);
     }
   }
@@ -42,7 +50,8 @@ export function SetupPreview() {
     <main className="installer-screen">
       <header className="installer-header">
         <div className="wordmark">
-          <BrandIcon decorative />Noted
+          <BrandIcon decorative />
+          Noted
         </div>
         <span>Desktop installer preview</span>
       </header>
@@ -59,23 +68,44 @@ export function SetupPreview() {
             ))}
           </ol>
           <p className="installer-memory-note">
-            Preview only. No server connection is made, and passwords are not saved or sent.
+            Preview only. No server connection is made, and passwords are not
+            saved or sent.
           </p>
         </aside>
         <form className="installer-form" onSubmit={next}>
           {step === 0 && <ServerStep draft={draft} update={update} />}
           {step === 1 && <DomainStep draft={draft} update={update} />}
           {step === 2 && <AccountStep draft={draft} update={update} />}
-          {step === 3 && <ReviewStep draft={draft} />}
+          {step === 3 && (
+            <AndroidNotificationsStep draft={draft} update={update} />
+          )}
+          {step === 4 && (
+            <ReviewStep
+              draft={draft}
+              details={[
+                [
+                  "Android notifications",
+                  draft.androidNotifications
+                    ? `Firebase: ${firebaseProject(draft)}`
+                    : "Firebase skipped",
+                ],
+              ]}
+            />
+          )}
           {error && <Notice tone="error">{error}</Notice>}
           <footer className="installer-actions">
-            <Button type="button" variant="ghost" disabled={step === 0} onClick={back}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={step === 0}
+              onClick={back}
+            >
               <ArrowLeft size={15} />
               Back
             </Button>
-            {step < 3 ? (
+            {step < 4 ? (
               <Button type="submit">
-                {step === 2 ? "Review setup" : "Continue"}
+                {step === 3 ? "Review setup" : "Continue"}
                 <ArrowRight size={15} />
               </Button>
             ) : (

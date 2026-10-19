@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.notes.models import Attachment, Message
@@ -11,13 +11,15 @@ class MessageRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_for_author(self, message_id: UUID, author_id: UUID) -> Message | None:
+    def get_for_author(
+        self, message_id: UUID, author_id: UUID, lock: bool = False
+    ) -> Message | None:
         statement = select(Message).where(
             Message.id == message_id,
             Message.author_id == author_id,
             Message.deleted_at.is_(None),
         )
-        return self.db.scalar(statement)
+        return self.db.scalar(statement.with_for_update(of=Message) if lock else statement)
 
     def list_for_channel(
         self,
@@ -28,6 +30,7 @@ class MessageRepository:
     ) -> list[Message]:
         statement = select(Message).where(
             Message.channel_id == channel_id,
+            Message.thread_root_id.is_(None),
             Message.deleted_at.is_(None),
         )
         if before is not None:
@@ -46,6 +49,7 @@ class MessageRepository:
             select(Message)
             .where(
                 Message.channel_id == channel_id,
+                Message.thread_root_id.is_(None),
                 Message.deleted_at.is_(None),
                 tuple_(Message.created_at, Message.id) > after,
             )
@@ -59,6 +63,7 @@ class MessageRepository:
             select(Message.id)
             .where(
                 Message.channel_id == channel_id,
+                Message.thread_root_id.is_(None),
                 Message.deleted_at.is_(None),
                 tuple_(Message.created_at, Message.id) > (message.created_at, message.id),
             )
@@ -66,8 +71,23 @@ class MessageRepository:
         )
         return self.db.scalar(statement) is not None
 
-    def create(self, channel_id: UUID, author_id: UUID, content: str) -> Message:
-        message = Message(channel_id=channel_id, author_id=author_id, content=content)
+    def reply_counts(self, identifiers: list[UUID]) -> dict[UUID, int]:
+        statement = (
+            select(Message.thread_root_id, func.count())
+            .where(Message.thread_root_id.in_(identifiers), Message.deleted_at.is_(None))
+            .group_by(Message.thread_root_id)
+        )
+        return {root: count for root, count in self.db.execute(statement) if root is not None}
+
+    def create(
+        self, channel_id: UUID, author_id: UUID, content: str, thread_root_id: UUID | None = None
+    ) -> Message:
+        message = Message(
+            channel_id=channel_id,
+            author_id=author_id,
+            content=content,
+            thread_root_id=thread_root_id,
+        )
         self.db.add(message)
         self.db.flush()
         return message

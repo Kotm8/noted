@@ -5,6 +5,7 @@ mod gateway;
 mod installer;
 mod proxy;
 mod security;
+mod session_vault;
 
 use connection::{server_url, Connection, ProfileStore};
 use std::{net::TcpListener, sync::Arc};
@@ -40,7 +41,7 @@ fn main() {
                 .server_url
                 .as_deref()
                 .and_then(|s| server_url(s).ok())
-                .and_then(|url| Connection::new(url).ok());
+                .and_then(|url| Connection::with_store(url, &store).ok());
             let origin = format!("http://127.0.0.1:{}", profile.gateway_port);
             let state = Arc::new(gateway::Gateway {
                 app: app.handle().clone(),

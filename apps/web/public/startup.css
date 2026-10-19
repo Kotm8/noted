@@ -1,0 +1,125 @@
+html,
+body {
+  background: #1f1f1f;
+}
+.noted-startup {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: var(--surface-main, #1f1f1f);
+  color: var(--text-primary, #ccc);
+  font-family: "Segoe UI", sans-serif;
+}
+.startup-logo {
+  width: 112px;
+  height: 110px;
+  overflow: visible;
+}
+.startup-line {
+  transform-box: fill-box;
+  transform-origin: top;
+  animation: noted-line 0.24s ease-out both;
+}
+.startup-curve {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: noted-curve 0.43s 0.24s ease-out forwards;
+}
+.startup-curve-finish {
+  opacity: 0;
+  animation: noted-dot 0.01s 0.66s forwards;
+}
+.startup-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: noted-dot 0.16s 0.68s ease-out both;
+}
+.startup-progress {
+  width: 112px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #ffffff12;
+}
+.startup-progress::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--accent, #e2c15a);
+  animation: noted-progress 1.25s ease-in-out infinite;
+}
+.startup-failure {
+  text-align: center;
+  max-width: 330px;
+  padding: 0 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.startup-failure[hidden] {
+  display: none;
+}
+.startup-failure button {
+  display: inline-block;
+  margin-top: 16px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  color: #ddd;
+  background: #292929;
+  padding: 9px 18px;
+  font: inherit;
+  cursor: pointer;
+}
+.noted-startup[data-state="failed"] .startup-progress {
+  display: none;
+}
+@keyframes noted-line {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes noted-curve {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes noted-dot {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes noted-progress {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .startup-line,
+  .startup-curve,
+  .startup-dot,
+  .startup-curve-finish {
+    animation: none;
+    transform: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+  .startup-progress::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.7;
+  }
+}

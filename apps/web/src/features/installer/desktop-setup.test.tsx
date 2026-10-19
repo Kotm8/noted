@@ -4,105 +4,307 @@ import { DesktopSetup } from "./desktop-setup";
 import type { InstallationJob, InstallationPlan } from "./desktop-types";
 
 const plan: InstallationPlan = {
-  host: { ip: "203.0.113.10", port: 22 }, hostKey: "ssh-ed25519 test-key",
-  serverName: "My notes", domain: "notes.example.com", username: "owner",
-  repository: "kotm8/noted", releaseCommit: "a".repeat(40), manifestSha256: "b".repeat(64),
+  host: { ip: "203.0.113.10", port: 22 },
+  hostKey: "ssh-ed25519 test-key",
+  serverName: "My notes",
+  domain: "notes.example.com",
+  username: "owner",
+  repository: "kotm8/noted",
+  releaseCommit: "a".repeat(40),
+  manifestSha256: "b".repeat(64),
 };
-const waiting: InstallationJob = { status: "waiting_dns", phase: "https", detail: "Point your domain to the VPS.", plan };
+const waiting: InstallationJob = {
+  status: "waiting_dns",
+  phase: "https",
+  detail: "Point your domain to the VPS.",
+  plan,
+};
 
 function respond(value: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(value), { status }));
 }
 
 function fill(label: string, value: string) {
-  fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
+  fireEvent.change(screen.getByLabelText(label, { exact: true }), {
+    target: { value },
+  });
 }
 
 async function enterServerAndAccount() {
-  fill("Server name", "My notes"); fill("Server IP", "203.0.113.10");
+  fill("Server name", "My notes");
+  fill("Server IP", "203.0.113.10");
   fill("SSH password", "ssh-test-password-only");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByRole("heading", { name: "A home for your notes" });
   fill("Domain", "notes.example.com");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByRole("heading", { name: "Your Noted account" });
-  fill("Username", "owner"); fill("Password", "owner-test-password-only");
+  fill("Username", "owner");
+  fill("Password", "owner-test-password-only");
   fill("Confirm password", "owner-test-password-only");
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await screen.findByRole("heading", { name: "Android notifications" });
 }
 
 beforeEach(() => vi.spyOn(window, "scrollTo").mockImplementation(() => {}));
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("desktop server setup", () => {
-  it("stops at an unavailable release without starting an installation or sending credentials", async () => {
-    const fetcher = vi.fn((path: string) => path.endsWith("/host")
-      ? respond({ hostKey: plan.hostKey, fingerprint: "SHA256:test-fingerprint" })
-      : respond({ detail: "Publish the Noted release files first." }, 404));
+  it("sends Firebase files only with the confirmed installation request", async () => {
+    const googleServicesJson = JSON.stringify({
+      project_info: {
+        project_id: "noted-fixture",
+        project_number: "1234567890",
+      },
+      client: [
+        {
+          client_info: {
+            mobilesdk_app_id: "1:1234567890:android:abcdef",
+            android_client_info: { package_name: "com.noted.android" },
+          },
+          api_key: [{ current_key: `AIza${"a".repeat(35)}` }],
+        },
+      ],
+    });
+    const serviceAccountJson = JSON.stringify({
+      type: "service_account",
+      project_id: "noted-fixture",
+      client_email: "test@noted-fixture.iam.gserviceaccount.com",
+      private_key:
+        "-----BEGIN PRIVATE KEY-----\nsecret-fixture-only\n-----END PRIVATE KEY-----\n",
+      token_uri: "https://oauth2.googleapis.com/token",
+    });
+    const fetcher = vi.fn((path: string, options?: RequestInit) => {
+      if (path.endsWith("/host"))
+        return respond({
+          hostKey: plan.hostKey,
+          fingerprint: "SHA256:test-fingerprint",
+        });
+      if (path.endsWith("/release"))
+        return respond({
+          version: "0.1.1",
+          commit: plan.releaseCommit,
+          manifestSha256: plan.manifestSha256,
+        });
+      return respond(
+        options?.method === "POST"
+          ? { ...waiting, status: "running" }
+          : waiting,
+      );
+    });
     vi.stubGlobal("fetch", fetcher);
-    render(<DesktopSetup initialJob={null} close={vi.fn()} connected={vi.fn()} />);
+    render(
+      <DesktopSetup initialJob={null} close={vi.fn()} connected={vi.fn()} />,
+    );
+    await enterServerAndAccount();
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "Configure Firebase for this server",
+      }),
+    );
+    fill("Android app JSON", googleServicesJson);
+    fill("Service-account JSON", serviceAccountJson);
+    fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    await screen.findByRole("heading", { name: "Review your setup" });
+    expect(screen.getByText("Firebase: noted-fixture")).toBeVisible();
+    expect(
+      screen.queryByDisplayValue(serviceAccountJson),
+    ).not.toBeInTheDocument();
+    expect(JSON.stringify(fetcher.mock.calls)).not.toContain(
+      "secret-fixture-only",
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "I verified this SSH fingerprint with my VPS.",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Install on server" }));
+    await screen.findByRole(
+      "heading",
+      { name: "Your server is installed." },
+      { timeout: 3000 },
+    );
+    const submitted = fetcher.mock.calls.find(
+      ([path, options]) =>
+        path === "/desktop/setup" && options?.method === "POST",
+    );
+    const body = JSON.parse(String(submitted?.[1]?.body));
+    expect(body.androidNotifications).toEqual({
+      googleServicesJson,
+      serviceAccountJson,
+    });
+    expect(JSON.stringify(body.plan)).not.toContain("secret-fixture-only");
+    expect(JSON.stringify(localStorage)).not.toContain("secret-fixture-only");
+  });
+
+  it("stops at an unavailable release without starting an installation or sending credentials", async () => {
+    const fetcher = vi.fn((path: string) =>
+      path.endsWith("/host")
+        ? respond({
+            hostKey: plan.hostKey,
+            fingerprint: "SHA256:test-fingerprint",
+          })
+        : respond({ detail: "Publish the Noted release files first." }, 404),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      <DesktopSetup initialJob={null} close={vi.fn()} connected={vi.fn()} />,
+    );
     await enterServerAndAccount();
     fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
     await screen.findByRole("alert");
-    expect(screen.getByRole("alert")).toHaveTextContent("Publish the Noted release");
-    expect(fetcher.mock.calls.every(([path]) => path !== "/desktop/setup")).toBe(true);
-    expect(JSON.stringify(fetcher.mock.calls)).not.toContain("ssh-test-password-only");
-    expect(JSON.stringify(fetcher.mock.calls)).not.toContain("owner-test-password-only");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Publish the Noted release",
+    );
+    expect(
+      fetcher.mock.calls.every(([path]) => path !== "/desktop/setup"),
+    ).toBe(true);
+    expect(JSON.stringify(fetcher.mock.calls)).not.toContain(
+      "ssh-test-password-only",
+    );
+    expect(JSON.stringify(fetcher.mock.calls)).not.toContain(
+      "owner-test-password-only",
+    );
   });
 
   it("requires host-key confirmation and keeps a DNS failure recoverable", async () => {
     const connected = vi.fn().mockResolvedValue(undefined);
     let verified = false;
     const fetcher = vi.fn((path: string, options?: RequestInit) => {
-      if (path.endsWith("/host")) return respond({ hostKey: plan.hostKey, fingerprint: "SHA256:test-fingerprint" });
-      if (path.endsWith("/release")) return respond({ version: "0.1.0", commit: plan.releaseCommit, manifestSha256: plan.manifestSha256 });
-      if (path.endsWith("/verify")) return verified ? respond({ ...waiting, status: "complete" }) : respond({ detail: "HTTPS is not ready yet." }, 502);
-      return respond(options?.method === "POST" ? { ...waiting, status: "running", phase: "images" } : waiting);
+      if (path.endsWith("/host"))
+        return respond({
+          hostKey: plan.hostKey,
+          fingerprint: "SHA256:test-fingerprint",
+        });
+      if (path.endsWith("/release"))
+        return respond({
+          version: "0.1.0",
+          commit: plan.releaseCommit,
+          manifestSha256: plan.manifestSha256,
+        });
+      if (path.endsWith("/verify"))
+        return verified
+          ? respond({ ...waiting, status: "complete" })
+          : respond({ detail: "HTTPS is not ready yet." }, 502);
+      return respond(
+        options?.method === "POST"
+          ? { ...waiting, status: "running", phase: "images" }
+          : waiting,
+      );
     });
     vi.stubGlobal("fetch", fetcher);
-    render(<DesktopSetup initialJob={null} close={vi.fn()} connected={connected} />);
+    render(
+      <DesktopSetup initialJob={null} close={vi.fn()} connected={connected} />,
+    );
     await enterServerAndAccount();
     fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
     await screen.findByRole("heading", { name: "Review your setup" });
-    expect(screen.getByRole("button", { name: "Install on server" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "I verified this SSH fingerprint with my VPS." }));
+    expect(
+      screen.getByRole("button", { name: "Install on server" }),
+    ).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "I verified this SSH fingerprint with my VPS.",
+      }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Install on server" }));
-    await screen.findByRole("heading", { name: "Your server is installed." }, { timeout: 3000 });
-    fireEvent.click(screen.getByRole("button", { name: "Check connection and open Noted" }));
+    await screen.findByRole(
+      "heading",
+      { name: "Your server is installed." },
+      { timeout: 3000 },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check connection and open Noted" }),
+    );
     await screen.findByRole("alert");
-    expect(screen.getByRole("alert")).toHaveTextContent("HTTPS is not ready yet");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "HTTPS is not ready yet",
+    );
     expect(connected).not.toHaveBeenCalled();
     verified = true;
-    fireEvent.click(screen.getByRole("button", { name: "Check connection and open Noted" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check connection and open Noted" }),
+    );
     await waitFor(() => expect(connected).toHaveBeenCalledOnce());
-    const submitted = fetcher.mock.calls.find(([path, options]) => path === "/desktop/setup" && options?.method === "POST");
-    expect(JSON.parse(String(submitted?.[1]?.body)).plan.hostKey).toBe(plan.hostKey);
+    const submitted = fetcher.mock.calls.find(
+      ([path, options]) =>
+        path === "/desktop/setup" && options?.method === "POST",
+    );
+    expect(JSON.parse(String(submitted?.[1]?.body)).plan.hostKey).toBe(
+      plan.hostKey,
+    );
   });
 
   it("reopens the DNS step without asking for SSH credentials again", () => {
-    render(<DesktopSetup initialJob={waiting} close={vi.fn()} connected={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "Your server is installed." })).toBeVisible();
+    render(
+      <DesktopSetup initialJob={waiting} close={vi.fn()} connected={vi.fn()} />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Your server is installed." }),
+    ).toBeVisible();
     expect(screen.queryByLabelText("SSH password")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check connection and open Noted" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Check connection and open Noted" }),
+    ).toBeEnabled();
   });
 
   it("returns to fresh setup when background cleanup finishes", async () => {
     const fetcher = vi.fn((path: string) => {
-      if (path.endsWith("/host")) return respond({ hostKey: plan.hostKey, fingerprint: "SHA256:test-fingerprint" });
-      if (path.endsWith("/release")) return respond({ version: "0.1.0", commit: plan.releaseCommit, manifestSha256: plan.manifestSha256 });
-      return respond({ status: "cleaned", phase: "cleanup", detail: "Noted was removed.", plan: null });
+      if (path.endsWith("/host"))
+        return respond({
+          hostKey: plan.hostKey,
+          fingerprint: "SHA256:test-fingerprint",
+        });
+      if (path.endsWith("/release"))
+        return respond({
+          version: "0.1.0",
+          commit: plan.releaseCommit,
+          manifestSha256: plan.manifestSha256,
+        });
+      return respond({
+        status: "cleaned",
+        phase: "cleanup",
+        detail: "Noted was removed.",
+        plan: null,
+      });
     });
     vi.stubGlobal("fetch", fetcher);
-    render(<DesktopSetup initialJob={{ ...waiting, status: "running", phase: "cleanup" }} close={vi.fn()} connected={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "Removing Noted from the VPS." })).toBeVisible();
-    await screen.findByRole("heading", { name: "Your server" }, { timeout: 3000 });
-    expect(screen.getByLabelText("SSH password", { exact: true })).toHaveValue("");
-    expect(screen.queryByRole("button", { name: "Clean Noted from VPS" })).not.toBeInTheDocument();
+    render(
+      <DesktopSetup
+        initialJob={{ ...waiting, status: "running", phase: "cleanup" }}
+        close={vi.fn()}
+        connected={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Removing Noted from the VPS." }),
+    ).toBeVisible();
+    await screen.findByRole(
+      "heading",
+      { name: "Your server" },
+      { timeout: 3000 },
+    );
+    expect(screen.getByLabelText("SSH password", { exact: true })).toHaveValue(
+      "",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Clean Noted from VPS" }),
+    ).not.toBeInTheDocument();
     await enterServerAndAccount();
     fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
     await screen.findByRole("heading", { name: "Review your setup" });
-    const request = fetcher.mock.calls.find(([path]) => path.endsWith("/release"));
-    const options = vi.mocked(fetch).mock.calls.find(([path]) => String(path).endsWith("/release"))?.[1];
+    const request = fetcher.mock.calls.find(([path]) =>
+      path.endsWith("/release"),
+    );
+    const options = vi
+      .mocked(fetch)
+      .mock.calls.find(([path]) => String(path).endsWith("/release"))?.[1];
     expect(request).toBeDefined();
-    expect(JSON.parse(String(options?.body))).toEqual({ repository: "kotm8/noted" });
+    expect(JSON.parse(String(options?.body))).toEqual({
+      repository: "kotm8/noted",
+    });
   });
 });

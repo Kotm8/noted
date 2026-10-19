@@ -1,4 +1,6 @@
 export interface SearchResult {
+  kind?: "message" | "journal" | "document";
+  thread_root_id?: string | null;
   id: string;
   channel_id: string;
   workspace_id: string;

@@ -3,16 +3,19 @@ import { useState, type FormEvent } from "react";
 import { LoaderCircle } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { useAuthentication } from "../hooks/use-authentication";
+import { isDesktop } from "../../desktop/connection-context";
 
 export function AuthForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const authentication = useAuthentication();
+  const supportsRemember = isDesktop && navigator.userAgent.includes("Windows");
+  const [remember, setRemember] = useState(supportsRemember);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     authentication.mutate(
-      { username, password },
+      { username, password, remember },
       {
         onSuccess: () => {
           setPassword("");
@@ -54,9 +57,25 @@ export function AuthForm() {
         />
       </label>
 
-      {authentication.isError && <Notice tone="error">{authentication.error.message}</Notice>}
+      {supportsRemember && (
+        <label className="remember-sign-in">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+          />
+          Keep me signed in
+        </label>
+      )}
+      {authentication.isError && (
+        <Notice tone="error">{authentication.error.message}</Notice>
+      )}
 
-      <Button type="submit" className="auth-submit" disabled={authentication.isPending}>
+      <Button
+        type="submit"
+        className="auth-submit"
+        disabled={authentication.isPending}
+      >
         {authentication.isPending ? (
           <LoaderCircle className="animate-spin" size={17} />
         ) : (

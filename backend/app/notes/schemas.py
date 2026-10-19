@@ -45,9 +45,15 @@ class MessageCreate(BaseModel):
         return value
 
 
+class MessageUpdate(MessageCreate):
+    expected_content: str | None = Field(default=None, max_length=40000)
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     content: str
+    thread_root_id: UUID | None = None
+    reply_count: int = 0
     id: uuid.UUID
     channel_id: uuid.UUID
     author_id: uuid.UUID

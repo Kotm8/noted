@@ -79,3 +79,48 @@ def test_expired_sessions_are_hidden_and_legacy_activity_is_updated(
 def test_session_management_requires_authentication(client: TestClient) -> None:
     assert client.get(f"{API}/auth/sessions").status_code == 401
     assert client.delete(f"{API}/auth/sessions/{uuid4()}").status_code == 401
+
+
+def test_session_survives_vpn_and_network_changes_but_still_requires_its_token(
+    owner: TestClient, app: FastAPI
+) -> None:
+    with TestClient(
+        app,
+        base_url="http://localhost",
+        headers={"Origin": TEST_ORIGIN},
+        client=("198.51.100.10", 50000),
+    ) as vpn:
+        response = vpn.post(
+            f"{API}/auth/login",
+            json={"username": "ilya", "password": TEST_PASSWORD},
+        )
+        assert response.status_code == 200
+        cookies = dict(vpn.cookies)
+        initial = vpn.get(f"{API}/auth/session").json()
+
+    with TestClient(
+        app,
+        base_url="http://localhost",
+        headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": cookies["noted_csrf"]},
+        cookies=cookies,
+        client=("2001:db8::42", 51000),
+    ) as mobile:
+        response = mobile.get(f"{API}/auth/session")
+        assert response.status_code == 200 and response.json() == initial
+        created = mobile.post(f"{API}/workspaces", json={"name": "VPN switched off"})
+        assert created.status_code == 201, created.text
+        assert (
+            mobile.delete(
+                f"{API}/workspaces/{created.json()['id']}", headers={"X-CSRF-Token": ""}
+            ).status_code
+            == 403
+        )
+        sessions = owner.get(f"{API}/auth/sessions").json()
+        remote = next(session for session in sessions if not session["is_current"])
+        assert owner.delete(f"{API}/auth/sessions/{remote['id']}").status_code == 204
+        assert mobile.get(f"{API}/auth/session").status_code == 401
+
+    with TestClient(
+        app, base_url="http://localhost", client=("198.51.100.10", 52000)
+    ) as without_token:
+        assert without_token.get(f"{API}/auth/session").status_code == 401

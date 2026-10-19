@@ -47,3 +47,14 @@ class NotificationDelivery(Base):
     attempts: Mapped[int] = mapped_column(default=0)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retry_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AndroidPairing(Base):
+    __tablename__ = "android_pairings"
+    ticket_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    device_id: Mapped[uuid.UUID]
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

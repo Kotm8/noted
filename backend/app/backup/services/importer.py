@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 from app.backup.repository import BackupRepository
 from app.backup.schemas import BackupContent
 from app.backup.services.archive import blobs
+from app.backup.services.tracking import restore_tracking
+from app.core.security import utc_now
+from app.journals.models import JournalEntry
+from app.notes.documents.models import ChannelDocument
 from app.notes.models import Attachment, Message
+from app.publishing.models import ScheduledMessage, WritingPrompt
+from app.publishing.recurrence import next_occurrence
 from app.reminders.models import Reminder
 from app.storage.base import FileStorage
 from app.workspaces.models import Category, Channel, Workspace
@@ -37,6 +43,13 @@ class BackupImporter:
                 data.channels,
                 data.messages,
                 data.attachments,
+                data.journals,
+                data.activities,
+                data.time_sessions,
+                data.schedule_plans,
+                data.plan_events,
+                data.scheduled_messages,
+                data.writing_prompts,
             )
             for item in group
         }
@@ -54,6 +67,7 @@ class BackupImporter:
                 if size != blob.size:
                     raise ValueError("The staged backup file changed")
                 keys[blob.path] = key
+            restore_tracking(self.db, owner_id, data, identifiers, replace)
             if replace:
                 BackupRepository(self.db).clear(owner_id)
             for item in data.workspaces:
@@ -99,18 +113,44 @@ class BackupImporter:
                     )
                 )
             self.db.flush()
-            for message in data.messages:
+            for replies in (False, True):
+                for message in data.messages:
+                    if bool(message.thread_root_id) != replies:
+                        continue
+                    self.db.add(
+                        Message(
+                            id=identifiers[message.id],
+                            channel_id=identifiers[message.channel_id],
+                            author_id=owner_id,
+                            content=message.content,
+                            thread_root_id=identifiers[message.thread_root_id]
+                            if message.thread_root_id
+                            else None,
+                            created_at=message.created_at,
+                            updated_at=message.updated_at,
+                        )
+                    )
+                self.db.flush()
+            for entry in data.journals:
                 self.db.add(
-                    Message(
-                        id=identifiers[message.id],
-                        channel_id=identifiers[message.channel_id],
+                    JournalEntry(
+                        id=identifiers[entry.id],
+                        channel_id=identifiers[entry.channel_id],
                         author_id=owner_id,
-                        content=message.content,
-                        created_at=message.created_at,
-                        updated_at=message.updated_at,
+                        title=entry.title,
+                        content=entry.content,
+                        revision=entry.revision,
+                        created_at=entry.created_at,
+                        updated_at=entry.updated_at,
                     )
                 )
-            self.db.flush()
+            for document in data.documents:
+                self.db.add(
+                    ChannelDocument(
+                        channel_id=identifiers[document.channel_id],
+                        **document.model_dump(exclude={"channel_id"}),
+                    )
+                )
             for attachment in data.attachments:
                 self.db.add(
                     Attachment(
@@ -131,6 +171,28 @@ class BackupImporter:
                             message_id=identifiers[message.id], **message.reminder.model_dump()
                         )
                     )
+            for queued in data.scheduled_messages:
+                fields = queued.model_dump(exclude={"id", "channel_id"})
+                if queued.status == "pending" and queued.send_at <= utc_now():
+                    fields["status"] = "skipped"
+                self.db.add(
+                    ScheduledMessage(
+                        id=identifiers[queued.id],
+                        channel_id=identifiers[queued.channel_id],
+                        owner_id=owner_id,
+                        **fields,
+                    )
+                )
+            for rule in data.writing_prompts:
+                self.db.add(
+                    WritingPrompt(
+                        id=identifiers[rule.id],
+                        channel_id=identifiers[rule.channel_id],
+                        owner_id=owner_id,
+                        next_at=next_occurrence(rule, utc_now()),
+                        **rule.model_dump(exclude={"id", "channel_id"}),
+                    )
+                )
             self.db.commit()
         except BaseException:
             self.db.rollback()

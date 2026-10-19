@@ -1,11 +1,6 @@
-import {
-  Bell,
-  Hash,
-  Menu as MenuIcon,
-  MoreHorizontal,
-  Search,
-} from "lucide-react";
+import { Menu as MenuIcon, MoreHorizontal, Search } from "lucide-react";
 import { Menu, MenuItem } from "../../../components/ui/menu";
+import { ChannelIcon } from "./channel-icon";
 import type { Channel, OpenManagement, Workspace } from "../types";
 
 interface ChannelHeaderProps {
@@ -15,6 +10,7 @@ interface ChannelHeaderProps {
   onManage: OpenManagement;
   searchOpen: boolean;
   onOpenSearch: () => void;
+  onScheduling: (tab: "messages" | "writing") => void;
 }
 
 export function ChannelHeader({
@@ -24,6 +20,7 @@ export function ChannelHeader({
   onManage,
   searchOpen,
   onOpenSearch,
+  onScheduling,
 }: ChannelHeaderProps) {
   return (
     <header className="channel-header">
@@ -37,11 +34,7 @@ export function ChannelHeader({
       <div className="channel-heading">
         {channel ? (
           <>
-            {channel.kind === "reminder" ? (
-              <Bell size={21} strokeWidth={1.75} />
-            ) : (
-              <Hash size={21} strokeWidth={1.6} />
-            )}
+            <ChannelIcon kind={channel.kind} size={21} />
             <h1>{channel.name}</h1>
           </>
         ) : (
@@ -68,6 +61,14 @@ export function ChannelHeader({
               </button>
             }
           >
+            {channel.kind === "note" && (
+              <MenuItem onSelect={() => onScheduling("messages")}>
+                Scheduled messages
+              </MenuItem>
+            )}
+            <MenuItem onSelect={() => onScheduling("writing")}>
+              Writing prompt
+            </MenuItem>
             <MenuItem
               onSelect={() =>
                 onManage({

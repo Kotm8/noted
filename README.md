@@ -2,164 +2,44 @@
 
 A self-hosted notes app where writing a note feels like sending a chat message.
 
-Noted runs on your VPS with your domain and an owner username/password account. Access the same notes through a browser, the Windows client, or the Android app.
+Noted brings quick thoughts, longer journal entries, reminders, and activity planning into one workspace. Notes are organized into projects and channels, with threads for following an idea without interrupting the main conversation.
 
 ## Features
 
-- Projects, categories, and channels for organizing notes.
-- Markdown, code highlighting, message editing, and search.
-- File attachments, image previews, inline video playback, and animated project/channel images.
-- Reminder channels, `/remind`, repeating reminders, Done, Snooze, and Web Push notifications.
-- Account-wide appearance preferences and four message layouts.
-- Active sessions with individual sign-out.
-- Portable ZIP backups containing notes and files, excluding credentials and server configuration.
-- SSH server installation and VPS transfer, domain switching, and confirmed server removal.
-- Daily update checks with manual installation from Settings.
+- **Home:** A daily agenda from your calendar, project navigation, upcoming reminders, and missed activity with shared read status.
+- **Chat-style notes:** Markdown, code highlighting, interactive checklists, editing, search, and adjustable message grouping.
+- **Threads and journals:** Resizable thread sidebars and named journal entries with autosave and Markdown preview.
+- **Notes channels:** A continuous Markdown page with autosave, preview, and interactive checklists.
+- **Files and media:** Attachments up to 250 MB, image previews, inline video playback, and custom project and channel images.
+- **Reminders:** Dedicated reminder channels, `/remind`, repeating reminders, and Done and Snooze actions.
+- **Send later:** Schedule a chat message once, then review, edit, or cancel it from the channel menu. Messages missed during server downtime are skipped.
+- **Writing prompts:** Recurring nudges to write in a channel, with custom weekdays and automatic completion when you post.
+- **Time tracking:** A global activity tracker that stays in sync across devices, with custom activities and editable session history.
+- **Scheduling:** Horizontal week and day views, one-off and recurring plans, drag editing, and planned time displayed above actual tracked time.
+- **Activity prompts:** Start a planned activity, delay its prompt with a reason, or switch to another activity while keeping the original plan in place.
+- **Notifications:** Browser Web Push and optional native Android notifications through the server owner's Firebase project. Phone alerts are suppressed while Noted is focused on a PC.
+- **Personalization:** Custom colors, text size, zoom, and four message layouts, saved to the owner's account.
+- **Server management:** Portable ZIP backups, import, VPS transfer, domain switching, and updates installed on demand.
 
-## Hosting and clients
+## Your server, across your devices
 
-Use the [Windows setup wizard](apps/desktop/README.md#set-up-a-vps) to install a published release on your VPS over SSH. Enter the server details, domain, and owner credentials, then configure your DNS record. DNS changes remain manual.
+Noted runs on a VPS behind your own HTTPS domain. A private owner account provides access from the browser, Windows desktop client, and Android app. The current version is owner-only.
 
-The Android app opens your server through a Chrome Trusted Web Activity. Each server generates its own Web Push keys; owners do not need Firebase setup or a notification relay. See [Android installation and notifications](apps/android/README.md).
+Messages and metadata are stored in PostgreSQL. Uploaded files use a persistent filesystem volume. Portable backups contain notes, files, journals, and tracking and schedule history, without account credentials or server configuration.
 
-Messages and metadata live in PostgreSQL. Attachments use a persistent filesystem volume. Back up both the database and files, or export a portable ZIP through **Settings > Backups**.
+The Windows client includes an SSH setup wizard and optional persistent sign-in backed by Windows Credential Manager. The Android client uses Chrome for the app interface and native Firebase messaging for optional notification actions. Each server manages its own data and notification subscriptions.
 
-See [builds and releases](.github/README.md) for CI, signing the Android APK, and publishing version **0.1.1**. Pushing to `main` runs CI; publishing uses **Actions > Publish release > Run workflow**. Existing servers discover releases automatically and install them when you choose **Settings > Server > Updates > Update server**.
+## Built with
 
-## Run locally for development
-
-Requires Docker, Node.js 24 or newer, Python 3.13 or 3.14, and uv. Start Docker before running these commands.
-
-From the project root:
-
-```powershell
-python scripts/dev.py init
-python scripts/dev.py db
-cd backend
-uv sync --locked
-cd ..
-python scripts/dev.py migrate
-python scripts/dev.py create-owner
-```
-
-Create the owner username/password account in the terminal. An optional username defaults to `owner`. Run the backend in one terminal:
-
-```powershell
-python scripts/dev.py api
-```
-
-Run the frontend in a second terminal:
-
-```powershell
-cd apps/web
-npm ci
-npm run dev
-```
-
-Open **http://localhost:5173** and sign in with the username and password chosen above. Create a workspace and a channel to begin writing. The desktop setup preview is at **http://localhost:5173/setup-preview** in development only.
-
-Instances are owner-only, with no public registration or default credentials. Session cookies are HTTP-only, writes require CSRF protection, and authentication attempts are rate limited.
-
-The development database is published only on `127.0.0.1:55432`. Its data lives in a Docker volume. Generated local credentials live in `.local/compose.env`; keep that file private.
-
-## Run the containerized local stack
-
-This is an alternative to the development servers:
-
-```powershell
-python scripts/dev.py init
-python scripts/dev.py up
-```
-
-For a fresh database, create the owner account:
-
-```powershell
-docker compose --env-file .local/compose.env -f deploy/compose.yaml exec backend python -m app.cli create-owner
-```
-
-Open **http://localhost:8080**. If you already created an owner with the development setup, sign in with the same credentials. Both development launch methods use the same persistent database volume.
-
-The local stack builds the web assets and backend, runs migrations once, and serves the app through Caddy. PostgreSQL and the backend have no published ports in the base Compose file. Switching between development and the full container stack may recreate containers to change their port mappings. Stop the standalone development API and frontend before starting the full stack.
-
-```powershell
-python scripts/dev.py stop
-```
-
-Stopping services keeps their data. This configuration binds to localhost and is for development. Use the [desktop setup wizard](apps/desktop/README.md#set-up-a-vps) to deploy a published release to a VPS.
-
-## Checks
-
-Start the development database, then run backend integration tests from the project root:
-
-```powershell
-python scripts/dev.py db
-python scripts/dev.py test
-```
-
-Tests apply real Alembic migrations in randomly named PostgreSQL schemas and remove those schemas afterward. They do not reset your notes or create a development owner.
-
-Backend lint and type checks:
-
-```powershell
-cd backend
-uv run ruff check app tests alembic ../scripts
-uv run ruff format --check app tests alembic ../scripts
-uv run mypy app
-```
-
-Frontend checks:
-
-```powershell
-cd apps/web
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-The browser test exercises owner setup, navigation, Markdown, editing, deletion, file uploads and downloads, workspace images, search, appearance persistence, mobile layouts, and signing back in. It runs against a temporary PostgreSQL schema and attachment directory and starts its own API and frontend on ports 8000 and 5173. Keep those ports free.
-
-On Windows with Chrome installed:
-
-```powershell
-$env:PLAYWRIGHT_CHANNEL = 'chrome'
-python scripts/dev.py test-browser
-```
-
-Alternatively, install Playwright Chromium in the project cache before running the browser test:
-
-```powershell
-cd apps/web
-$env:PLAYWRIGHT_BROWSERS_PATH = (Join-Path (Resolve-Path ../..) '.local/browsers')
-npx playwright install chromium
-cd ../..
-python scripts/dev.py test-browser
-```
-
-Test installation against a published release:
-
-```powershell
-python scripts/test_server_install.py --repository kotm8/noted
-```
-
-This uses a disposable Docker project to check owner creation, interrupted retries, trusted HTTPS sign-in, and updater startup. Systemd registration is simulated; the updater process runs normally. On Linux, run the fixture as root to set volume ownership.
-
-Failed or unfinished desktop setup includes **Danger Zone > Clean Noted from VPS**. Inspect the installation over SSH, acknowledge permanent deletion, and type `I LOVE VERITY` to remove Noted and its data. Cleanup refuses active operations and resources shared with other apps. Completed servers have removal under Settings.
-
-Run `python scripts/test_server_cleanup.py` to verify cleanup against disposable Docker resources, including preservation of an unrelated container and volume.
-
-## Project structure
-
-| Directory | Purpose |
+| Part | Technology |
 | --- | --- |
-| `apps/web` | Shared React interface |
-| `apps/desktop` | Windows client and SSH setup wizard using Tauri |
-| `apps/android` | Android Trusted Web Activity client |
-| `backend` | FastAPI API, feature modules, PostgreSQL models, and migrations |
-| `updater` | VPS updates and hosting operations |
-| `deploy` | Docker Compose and Caddy configuration |
-| `scripts` | Development, testing, and release tools |
+| Shared interface | React and TypeScript |
+| API | Python, FastAPI, and SQLAlchemy |
+| Storage | PostgreSQL and filesystem volumes |
+| Windows client | Tauri and Rust |
+| Android client | Kotlin, Trusted Web Activity, and Firebase Cloud Messaging |
+| Hosting | Docker Compose and Caddy |
 
-## Diagnostics
+The monorepo contains the shared interface in `apps/web`, native clients in `apps/desktop` and `apps/android`, feature modules and migrations in `backend`, and server management in `updater`.
 
-Click the top-left Noted logo seven times in quick succession to open diagnostics on web or desktop. It provides connection checks, notification tests, app refresh, and a copyable diagnostic report.
+- [Changelog](CHANGELOG.md)

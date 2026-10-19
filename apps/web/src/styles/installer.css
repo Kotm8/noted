@@ -133,7 +133,8 @@
   margin-top: 26px;
   border-top: 1px solid var(--border-subtle);
 }
-.installer-form .setup-checkbox {
+.installer-form .setup-checkbox,
+.android-notifications-step .setup-checkbox {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -282,6 +283,106 @@
   border-top: 1px solid var(--border-default);
 }
 
+.firebase-setup-guide {
+  padding-left: 20px;
+  margin: 26px 0;
+  list-style: decimal;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.firebase-setup-guide li + li {
+  margin-top: 15px;
+}
+.firebase-setup-guide strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.firebase-setup-guide a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--link);
+}
+.firebase-setup-guide code {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.firebase-json-field {
+  margin: 24px 0;
+}
+
+.android-server-setup {
+  margin-top: 28px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 18px;
+}
+.android-server-setup .installation-step {
+  margin-top: 0;
+}
+.android-server-setup .installation-step h4 {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+.firebase-field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.firebase-field-heading label {
+  margin: 0;
+  font-size: 13px;
+}
+.firebase-json {
+  width: 100%;
+  min-width: 0;
+  min-height: 110px;
+  max-height: 280px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-sidebar);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.firebase-json:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+.firebase-json.masked-json {
+  -webkit-text-security: disc;
+}
+.firebase-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.android-notifications-step > .setup-help > svg {
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+@media (max-width: 760px) {
+  .installer-navigation ol {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    column-gap: 18px;
+    row-gap: 16px;
+  }
+  .installer-navigation li {
+    width: 70px;
+    text-align: center;
+  }
+}
+
 .installer-danger-zone h3 {
   color: var(--danger);
   font-size: 14px;
@@ -305,5 +406,10 @@
   gap: 16px;
 }
 
-.cleanup-summary dt { color: var(--text-muted); }
-.cleanup-summary dd { overflow-wrap: anywhere; text-align: right; }
+.cleanup-summary dt {
+  color: var(--text-muted);
+}
+.cleanup-summary dd {
+  overflow-wrap: anywhere;
+  text-align: right;
+}

@@ -1,4 +1,5 @@
-import { Bell, Hash, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ChannelIcon } from "./channel-icon";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import type { Channel, OpenManagement } from "../types";
 
@@ -22,11 +23,7 @@ export function ChannelRow({
         onClick={() => onSelect(channel)}
         aria-current={selected ? "page" : undefined}
       >
-        {channel.kind === "reminder" ? (
-          <Bell size={18} strokeWidth={1.75} />
-        ) : (
-          <Hash size={18} strokeWidth={1.6} />
-        )}
+        <ChannelIcon kind={channel.kind} size={18} />
         <span>{channel.name}</span>
       </button>
 

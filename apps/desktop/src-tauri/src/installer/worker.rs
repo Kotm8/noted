@@ -69,6 +69,7 @@ pub(super) async fn install(state: &Gateway, input: InstallRequest) -> Result<()
         "server_name": plan.server_name,
         "username": plan.username,
         "password": input.password,
+        "android_notifications": input.android_notifications,
         "release": release.manifest,
     });
     let bytes = serde_json::to_vec(&data).unwrap();
@@ -107,8 +108,8 @@ fn preparation_result(code: u32) -> Result<(), String> {
 
 pub(super) async fn verify_connection(state: &Gateway, plan: &Plan) -> Result<(), String> {
     let url = server_url(&format!("https://{}", plan.domain))?;
-    let connection =
-        Connection::new(url).map_err(|_| "Could not initialize the HTTPS connection.")?;
+    let connection = Connection::with_store(url, &state.store)
+        .map_err(|_| "Could not initialize the HTTPS connection.")?;
     tokio::time::timeout(Duration::from_secs(30), connection.verify())
         .await
         .map_err(|_| {

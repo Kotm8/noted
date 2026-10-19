@@ -85,11 +85,16 @@ pub struct InstallRequest {
     pub ssh_user: String,
     pub ssh_password: String,
     pub password: String,
+    #[serde(default)]
+    pub android_notifications: Option<super::firebase::FirebaseSetup>,
 }
 
 impl InstallRequest {
     pub fn validate(&self) -> Result<(), String> {
         self.plan.validate()?;
+        if let Some(firebase) = &self.android_notifications {
+            firebase.validate()?;
+        }
         if self.ssh_user != "root" {
             return Err("This installer currently requires the root SSH account.".into());
         }
