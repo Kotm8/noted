@@ -55,16 +55,6 @@ export const categoryApi = {
 };
 
 export const channelApi = {
-  setBanner(id: string, file: File): Promise<Channel> {
-    const body = new FormData();
-    body.append("file", file);
-    return request<Channel>(`/channels/${id}/banner`, "PUT", body);
-  },
-
-  removeBanner(id: string): Promise<Channel> {
-    return request<Channel>(`/channels/${id}/banner`, "DELETE");
-  },
-
   list(workspaceId: string): Promise<Channel[]> {
     return fetchAllPages<Channel>(`/workspaces/${workspaceId}/channels`);
   },

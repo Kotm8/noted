@@ -6,6 +6,7 @@ import os
 import secrets
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -143,7 +144,10 @@ def main() -> None:
         description="Build the signed Noted APK and its public domain association."
     )
     parser.add_argument(
-        "command", choices=["build", "check", "github-secrets"], default="build", nargs="?"
+        "command",
+        choices=["build", "check", "github-secrets"],
+        default="build",
+        nargs="?",
     )
     args = parser.parse_args()
     values = environment()
@@ -175,14 +179,34 @@ def main() -> None:
         ":app:testDebugUnitTest",
         ":app:lintDebug",
         ":app:assembleDebugAndroidTest",
+        ":wear:assembleDebug",
+        ":wear:testDebugUnitTest",
+        ":wear:lintDebug",
+        ":watchface:assembleDebug",
     ]
     if args.command == "build":
         values = signing_environment(values)
         export_association(values)
         tasks.insert(0, ":app:assembleRelease")
+        tasks.insert(0, ":wear:assembleRelease")
+        tasks.insert(0, ":watchface:assembleRelease")
     subprocess.run([str(wrapper), "--console=plain", *tasks], cwd=ANDROID, env=values, check=True)
+    variants = ["debug", "release"] if args.command == "build" else ["debug"]
+    for variant in variants:
+        face_apk = ANDROID / f"watchface/build/outputs/apk/{variant}/watchface-{variant}.apk"
+        with zipfile.ZipFile(face_apk) as archive:
+            if any(name.endswith(".dex") for name in archive.namelist()):
+                raise SystemExit("The Watch Face Format APK must contain resources only.")
+        watch_apk = ANDROID / f"wear/build/outputs/apk/{variant}/wear-{variant}.apk"
+        with zipfile.ZipFile(watch_apk) as archive:
+            if archive.read("assets/watchface/noted.apk") != face_apk.read_bytes():
+                raise SystemExit("The watch APK does not contain the current watch face.")
+            if not archive.read("assets/watchface/validation-token.txt").strip():
+                raise SystemExit("The bundled watch face has no validation token.")
     if args.command == "build":
         print(f"APK: {ANDROID / 'app/build/outputs/apk/release/app-release.apk'}")
+        print(f"Watch APK: {ANDROID / 'wear/build/outputs/apk/release/wear-release.apk'}")
+        print("The watch face is included in the watch APK.")
         print(
             "Keep .local/android/signing.json and its keystore private and backed up "
             "for future updates."

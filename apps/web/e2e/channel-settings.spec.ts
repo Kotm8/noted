@@ -1,0 +1,36 @@
+import { expect, test } from "@playwright/test";
+
+test("channel settings use styled categories without channel pictures", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Username", { exact: true }).fill("ilya");
+  await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("button", { name: "Create workspace", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill("Channel settings");
+  await page.getByRole("dialog").getByRole("button", { name: "Create workspace", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const menu = page.getByRole("button", { name: "Channel settings workspace menu", exact: true });
+  await menu.click();
+  await page.getByRole("menuitem", { name: "Create category", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill("Work");
+  await page.getByRole("dialog").getByRole("button", { name: "Create category", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await menu.click();
+  await page.getByRole("menuitem", { name: "Create channel", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Name", { exact: true }).fill("ideas");
+  await expect(dialog.getByLabel("Channel image file", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Category", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Work", exact: true }).click();
+  await dialog.getByRole("button", { name: "Create channel", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "ideas", exact: true })).toBeVisible();
+  await expect(page.locator(".sidebar-channel-image")).toHaveCount(0);
+  await page.getByRole("button", { name: "Channel options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Edit channel", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Category", exact: true })).toHaveText("Work");
+  await dialog.getByRole("button", { name: "Category", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "No category", exact: true }).click();
+  await dialog.getByRole("button", { name: "Edit channel", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

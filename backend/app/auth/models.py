@@ -20,6 +20,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     appearance: Mapped[dict[str, str | int] | None] = mapped_column(JSONB)
     notification_preferences: Mapped[dict[str, int | bool] | None] = mapped_column(JSONB)
+    watch_preferences: Mapped[dict[str, object] | None] = mapped_column(JSONB)
 
 
 class LoginSession(Base):

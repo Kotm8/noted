@@ -63,6 +63,7 @@ jobs:
           version=$(python scripts/release_version.py)
           mkdir -p .local/release
           cp apps/android/app/build/outputs/apk/release/app-release.apk ".local/release/Noted_${version}_android.apk"
+          cp apps/android/wear/build/outputs/apk/release/wear-release.apk ".local/release/Noted_${version}_wear.apk"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: signed-android-client

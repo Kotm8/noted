@@ -8,6 +8,7 @@ import {
   Palette,
   Server,
   Timer,
+  Watch,
 } from "lucide-react";
 import { ConnectionPanel } from "../../desktop/connection-panel";
 import { useDesktopConnection } from "../../desktop/connection-context";
@@ -22,6 +23,7 @@ import { isAndroidApp } from "../../notifications/android";
 import { SwitchServerButton } from "../../desktop/switch-server-button";
 import { TrackingSettings } from "../../time-tracking/components/tracking-settings";
 import type { TrackingTab } from "../../time-tracking/components/tracking-settings";
+import { WatchPanel } from "../../wear/watch-panel";
 
 export function SettingsDialog({
   onClose,
@@ -40,6 +42,7 @@ export function SettingsDialog({
     | "connection"
     | "notifications"
     | "tracking"
+    | "watch"
   >(initialTab);
   const connection = useDesktopConnection();
   const logout = useLogout();
@@ -56,6 +59,13 @@ export function SettingsDialog({
     >
       <div className="settings-layout">
         <nav className="settings-navigation" aria-label="Settings sections">
+          <button
+            aria-current={tab === "watch" ? "page" : undefined}
+            onClick={() => setTab("watch")}
+          >
+            <Watch size={16} />
+            Watch
+          </button>
           <button
             aria-current={tab === "tracking" ? "page" : undefined}
             onClick={() => setTab("tracking")}
@@ -117,7 +127,9 @@ export function SettingsDialog({
           )}
           {isAndroidApp() && <SwitchServerButton />}
         </nav>
-        {tab === "tracking" ? (
+        {tab === "watch" ? (
+          <WatchPanel />
+        ) : tab === "tracking" ? (
           <TrackingSettings initialTab={trackingTab} />
         ) : tab === "notifications" ? (
           <NotificationsPanel />

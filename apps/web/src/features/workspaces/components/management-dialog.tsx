@@ -6,7 +6,6 @@ import { Modal } from "../../../components/ui/dialog";
 import { useManageEntity } from "../hooks/use-manage-entity";
 import type { Category, ManagementAction } from "../types";
 import { WorkspaceIconPicker } from "./workspace-icon-picker";
-import { ChannelImagePicker } from "./channel-image-picker";
 import { Select } from "../../../components/ui/select";
 import type { Channel } from "../types";
 
@@ -91,14 +90,6 @@ export function ManagementDialog({
               />
             )}
             {action.kind === "channel" && (
-              <ChannelImagePicker
-                image={image}
-                existingImage={action.item?.banner_url}
-                disabled={mutation.isPending}
-                onChange={setImage}
-              />
-            )}
-            {action.kind === "channel" && (
               <label>
                 Channel type
                 <Select
@@ -119,17 +110,18 @@ export function ManagementDialog({
             {action.kind === "channel" && (
               <label>
                 Category
-                <select
+                <Select
+                  label="Category"
                   value={categoryId}
-                  onChange={(event) => setCategoryId(event.target.value)}
-                >
-                  <option value="">No category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCategoryId}
+                  options={[
+                    { value: "", label: "No category" },
+                    ...categories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    })),
+                  ]}
+                />
               </label>
             )}
           </>

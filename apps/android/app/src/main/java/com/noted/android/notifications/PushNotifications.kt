@@ -16,6 +16,7 @@ import com.noted.android.MainActivity
 import com.noted.android.R
 import com.noted.android.connection.ConnectionStore
 import com.noted.android.connection.ServerAddress
+import com.noted.android.watch.WatchConnection
 import java.util.UUID
 import org.json.JSONObject
 
@@ -74,6 +75,7 @@ object PushNotifications {
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
+                .setLocalOnly(WatchConnection.receivesOwnNotifications(context, origin))
                 .addExtras(
                     android.os.Bundle().apply {
                         putInt("noted_revision", payload.optInt("revision"))

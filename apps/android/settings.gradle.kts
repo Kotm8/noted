@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "NotedAndroid"
 include(":app")
+include(":wear")
+include(":watchface")

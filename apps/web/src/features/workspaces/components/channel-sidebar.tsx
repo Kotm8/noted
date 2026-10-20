@@ -57,9 +57,6 @@ export function ChannelSidebar({
     (channel) => channel.category_id === null,
   );
   const isEmpty = !channels.length && !categories.length;
-  const selectedChannel = channels.find(
-    (channel) => channel.id === selectedChannelId,
-  );
 
   return (
     <aside className="channel-sidebar" aria-label="Channels">
@@ -92,16 +89,6 @@ export function ChannelSidebar({
           </>
         )}
       </div>
-
-      {selectedChannel?.banner_url && (
-        <div className="sidebar-channel-image">
-          <img
-            src={selectedChannel.banner_url}
-            alt={`${selectedChannel.name} channel image`}
-            draggable={false}
-          />
-        </div>
-      )}
 
       <div className="channel-tree">
         {homeActive || scheduleActive ? (

@@ -133,21 +133,6 @@
   color: var(--text-muted);
 }
 
-.sidebar-channel-image {
-  flex-shrink: 0;
-  margin: 12px 12px 0;
-  overflow: hidden;
-  border-radius: 5px;
-  background: var(--surface-main);
-}
-
-.sidebar-channel-image img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 2 / 1;
-  object-fit: fill;
-}
-
 .channel-tree {
   flex: 1;
   padding: 12px 8px 20px;

@@ -117,11 +117,28 @@ class PublisherTests(unittest.TestCase):
             digest, name = line.split("  ", 1)
             self.assertEqual(digest, hashlib.sha256(self.uploads[name]).hexdigest())
 
+    def test_watch_downloads_are_published_and_included_in_checksums(self):
+        (self.arguments.clients_directory / "Noted_wear.apk").write_bytes(b"watch-apk-fixture")
+        self.publish()
+        self.assertIn("Noted_wear.apk", self.uploads)
+        self.assertIn("Noted_wear.apk", self.uploads["SHA256SUMS"].decode())
+        self.assertNotIn("Noted_watchface.apk", self.uploads)
+
     def test_upload_failure_keeps_the_release_a_draft(self):
         self.fail_upload = True
         with self.assertRaises(OSError):
             self.publish()
         self.assertFalse(any(method == "PATCH" for method, _, _ in self.calls))
+
+    def test_separate_watch_face_is_not_a_release_download(self):
+        (self.arguments.clients_directory / "Noted_watchface.apk").write_bytes(b"face-fixture")
+        with self.assertRaises(ValueError):
+            self.publish()
+        self.assertEqual(self.calls, [])
+        (self.arguments.clients_directory / "Noted_wear.apk").write_bytes(b"watch-fixture")
+        with self.assertRaises(ValueError):
+            self.publish()
+        self.assertEqual(self.calls, [])
 
     def test_stale_commit_never_creates_a_release(self):
         self.head = "c" * 40
@@ -157,7 +174,11 @@ class PublisherTests(unittest.TestCase):
         self.assertFalse(self.calls[-1][2]["draft"])
 
     def test_invalid_changelog_stops_before_any_api_calls(self):
-        for content in ("## 0.1.1\nOther version", "## 0.1.0\n", "## 0.1.0\nOne\n## 0.1.0\nTwo"):
+        for content in (
+            "## 0.1.1\nOther version",
+            "## 0.1.0\n",
+            "## 0.1.0\nOne\n## 0.1.0\nTwo",
+        ):
             with self.subTest(content=content):
                 self.changelog.write_text(content, encoding="utf-8")
                 with self.assertRaises(SystemExit):

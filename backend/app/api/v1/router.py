@@ -24,6 +24,7 @@ from app.api.v1.endpoints import (
     threads,
     time_tracking,
     updates,
+    wear,
     workspace_icons,
     workspaces,
 )
@@ -56,3 +57,4 @@ router.include_router(time_tracking.router)
 router.include_router(schedule.router)
 router.include_router(plan_prompts.router)
 router.include_router(publishing.router)
+router.include_router(wear.router)

@@ -10,7 +10,7 @@ Noted brings quick thoughts, longer journal entries, reminders, and activity pla
 - **Chat-style notes:** Markdown, code highlighting, interactive checklists, editing, search, and adjustable message grouping.
 - **Threads and journals:** Resizable thread sidebars and named journal entries with autosave and Markdown preview.
 - **Notes channels:** A continuous Markdown page with autosave, preview, and interactive checklists.
-- **Files and media:** Attachments up to 250 MB, image previews, inline video playback, and custom project and channel images.
+- **Files and media:** Attachments up to 250 MB, image previews, inline video playback, and custom project icons.
 - **Reminders:** Dedicated reminder channels, `/remind`, repeating reminders, and Done and Snooze actions.
 - **Send later:** Schedule a chat message once, then review, edit, or cancel it from the channel menu. Messages missed during server downtime are skipped.
 - **Writing prompts:** Recurring nudges to write in a channel, with custom weekdays and automatic completion when you post.
@@ -18,6 +18,7 @@ Noted brings quick thoughts, longer journal entries, reminders, and activity pla
 - **Scheduling:** Horizontal week and day views, one-off and recurring plans, drag editing, and planned time displayed above actual tracked time.
 - **Activity prompts:** Start a planned activity, delay its prompt with a reason, or switch to another activity while keeping the original plan in place.
 - **Notifications:** Browser Web Push and optional native Android notifications through the server owner's Firebase project. Phone alerts are suppressed while Noted is focused on a PC.
+- **Wear OS:** A native activity and reminder client, 24-hour watch face, tracker tile, and configurable complications, with watch pairing and preferences managed from the Android app. The watch face is included in the watch APK and can be installed inside the app on Wear OS 6 or newer.
 - **Personalization:** Custom colors, text size, zoom, and four message layouts, saved to the owner's account.
 - **Server management:** Portable ZIP backups, import, VPS transfer, domain switching, and updates installed on demand.
 
@@ -38,6 +39,7 @@ The Windows client includes an SSH setup wizard and optional persistent sign-in 
 | Storage | PostgreSQL and filesystem volumes |
 | Windows client | Tauri and Rust |
 | Android client | Kotlin, Trusted Web Activity, and Firebase Cloud Messaging |
+| Watch client | Native Kotlin, Wear OS Tiles, complications, and Watch Face Format |
 | Hosting | Docker Compose and Caddy |
 
 The monorepo contains the shared interface in `apps/web`, native clients in `apps/desktop` and `apps/android`, feature modules and migrations in `backend`, and server management in `updater`.

@@ -15,6 +15,7 @@ from app.reminders.models import Reminder
 from app.schedule.models import ScheduleException, SchedulePlan
 from app.schedule.prompts.models import PlanPrompt, PlanPromptDelivery, PlanPromptEvent
 from app.time_tracking.models import Activity, TimeSession, TrackerState
+from app.wear.models import WatchDevice, WatchPairing
 from app.workspaces.models import Category, Channel, Workspace
 
 __all__ = [
@@ -47,4 +48,6 @@ __all__ = [
     "ScheduledMessage",
     "WritingPrompt",
     "WritingDelivery",
+    "WatchDevice",
+    "WatchPairing",
 ]

@@ -17,7 +17,7 @@ npm --prefix apps/desktop run build
 The build produces:
 
 - `apps/desktop/src-tauri/target/release/noted-desktop.exe`
-- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.0_x64-setup.exe`
+- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.1_x64-setup.exe`
 
 The installer is per-user and this test build is unsigned. It does not install a server, Docker, or a database on the PC. The project has separate lockfiles for the frontend, desktop CLI, and Rust dependencies. Generated native artifacts and frontend bundles are ignored by Git and Docker build contexts.
 

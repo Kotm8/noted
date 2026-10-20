@@ -18,6 +18,14 @@
         android:usesCleartextTraffic="false">
         <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
         <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+        <activity android:name=".watch.WatchPairingActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@style/Theme.Noted.Permission">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="noted" android:host="watch" android:path="/connect" />
+            </intent-filter>
+        </activity>
         <activity android:name=".notifications.NotificationSetupActivity" android:exported="true" android:launchMode="singleTask"
             android:configChanges="orientation|screenSize" android:excludeFromRecents="true" android:theme="@style/Theme.Noted.Permission">
             <intent-filter>

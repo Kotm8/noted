@@ -53,9 +53,6 @@ async function saveEntity(
         ? await channelApi.update(existing.id, data)
         : await channelApi.create(action.workspaceId, data);
       if (!action.item) createdChannel.current = channel;
-      if (values.image) return channelApi.setBanner(channel.id, values.image);
-      if (values.image === null && channel.banner_url)
-        return channelApi.removeBanner(channel.id);
       return channel;
     }
   }

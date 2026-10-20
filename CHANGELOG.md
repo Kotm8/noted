@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- Bundled the watch face inside the Wear OS APK, with in-app installation, updates, and activation on Wear OS 6 or newer.
+- Native Wear OS app with activity switching, pause/stop, planned activity prompts, required delay reasons, and reminder actions.
+- Watch pairing from Android, independently revocable watch sessions, and shared watch preferences in Settings.
+- A Noted watch face with 24-hour time, three content layouts, a tracker tile, reusable complications, and editable edge data without colored background bands.
+- Removed channel pictures from the sidebar and channel settings.
+- Styled the category selector in channel settings to match the other dropdowns.
+
 ## 0.2.0
 
 ### Added

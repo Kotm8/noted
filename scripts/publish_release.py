@@ -101,7 +101,12 @@ def main() -> None:
         raise SystemExit("Main advanced during publishing. Release kept as a draft; run again.")
     api(
         f"{api_base}/{release['id']}",
-        {"name": f"v{arguments.version}", "body": notes, "draft": False, "make_latest": "true"},
+        {
+            "name": f"v{arguments.version}",
+            "body": notes,
+            "draft": False,
+            "make_latest": "true",
+        },
         "PATCH",
     )
     url = f"https://github.com/{repository}/releases/tag/{tag}"
@@ -159,9 +164,17 @@ def release_assets(arguments: argparse.Namespace, repository: str, commit: str) 
     }
     if arguments.clients_directory is not None:
         clients = sorted(arguments.clients_directory.iterdir())
-        if len(clients) != 2 or {path.suffix for path in clients} != {".apk", ".exe"}:
+        suffixes = [path.suffix for path in clients]
+        apk_names = {path.name.rsplit("_", 1)[-1] for path in clients if path.suffix == ".apk"}
+        if (
+            len(clients) not in {2, 3}
+            or suffixes.count(".exe") != 1
+            or suffixes.count(".apk") != len(clients) - 1
+            or apk_names != ({"android.apk"} if len(clients) == 2 else {"android.apk", "wear.apk"})
+        ):
             raise ValueError(
-                "Release downloads must contain one signed Android APK and Windows installer"
+                "Release downloads require a Windows installer and either the phone APK "
+                "or the phone and combined watch APKs"
             )
         for path in clients:
             if not path.is_file() or path.stat().st_size == 0:

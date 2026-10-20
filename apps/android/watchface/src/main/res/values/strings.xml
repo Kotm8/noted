@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<resources>
+    <string name="agenda">Noted agenda</string>
+    <string name="elapsed">Elapsed time</string>
+    <string name="left">Left edge</string>
+    <string name="right">Right edge</string>
+    <string name="bottom">Bottom edge</string>
+</resources>

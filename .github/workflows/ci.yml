@@ -178,7 +178,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: android-test-reports
-          path: apps/android/app/build/reports/
+          path: |
+            apps/android/app/build/reports/
+            apps/android/wear/build/reports/
           retention-days: 7
 
   upgrade:
