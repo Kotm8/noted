@@ -163,7 +163,8 @@ def release_assets(arguments: argparse.Namespace, repository: str, commit: str) 
         "noted-updater.tar.gz": updater_buffer.getvalue(),
     }
     if arguments.clients_directory is not None:
-        clients = sorted(arguments.clients_directory.iterdir())
+        all_files = sorted(arguments.clients_directory.iterdir())
+        clients = [path for path in all_files if path.suffix != ".sig"]
         suffixes = [path.suffix for path in clients]
         apk_names = {path.name.rsplit("_", 1)[-1] for path in clients if path.suffix == ".apk"}
         if (
@@ -180,6 +181,16 @@ def release_assets(arguments: argparse.Namespace, repository: str, commit: str) 
             if not path.is_file() or path.stat().st_size == 0:
                 raise ValueError(f"Client download is empty or missing: {path.name}")
             assets[path.name] = path.read_bytes()
+        installer = next(path for path in clients if path.suffix == ".exe")
+        if {path.name for path in all_files if path.suffix == ".sig"} != {installer.name + ".sig"}:
+            raise ValueError("The signed Windows update file is missing or ambiguous.")
+        from scripts.desktop_update import manifest as desktop_manifest
+        from scripts.release_notes import release_notes
+
+        assets[installer.name + ".sig"] = installer.with_suffix(".exe.sig").read_bytes()
+        assets["noted-desktop-update.json"] = desktop_manifest(
+            installer, arguments.version, repository, commit, release_notes(arguments.version)
+        )
     assets["SHA256SUMS"] = "".join(
         f"{hashlib.sha256(body).hexdigest()}  {name}\n" for name, body in assets.items()
     ).encode()

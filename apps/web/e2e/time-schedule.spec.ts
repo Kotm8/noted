@@ -28,6 +28,9 @@ async function choose(page: Page, label: string, option: string) {
 test("global tracker and horizontal schedule persist plans, preferences, and reminder flags", async ({
   page,
 }) => {
+  const calendarTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  calendarTime.setUTCHours(10, 0, 0, 0);
+  await page.clock.setFixedTime(calendarTime);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
@@ -133,8 +136,7 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
       .locator(".schedule-activity-row")
       .filter({ hasText: "Building Noted" }),
   ).toBeVisible();
-  const now = new Date();
-  const due = new Date(now.getTime() + 30 * 60000);
+  const due = new Date(calendarTime.getTime() + 30 * 60000);
   const message = await api(page, `/channels/${channel.id}/messages`, "POST", {
     content: "Read the next chapter",
     reminder: { due_at: due.toISOString(), timezone: "Europe/Moscow" },

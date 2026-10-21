@@ -9,7 +9,8 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit
 
-from scripts import publish_release, release_notes, release_version
+from scripts import desktop_update, publish_release, release_notes, release_version
+from scripts.tests.signing_fixture import sign
 
 
 class PublisherTests(unittest.TestCase):
@@ -34,7 +35,12 @@ class PublisherTests(unittest.TestCase):
         clients = self.directory / "clients"
         clients.mkdir()
         (clients / "Noted_android.apk").write_bytes(b"signed-apk-fixture")
-        (clients / "Noted_setup.exe").write_bytes(b"windows-installer-fixture")
+        (clients / "Noted_0.1.0_x64-setup.exe").write_bytes(b"windows-installer-fixture")
+        key, signature = sign(b"windows-installer-fixture", "0.1.0")
+        (clients / "Noted_0.1.0_x64-setup.exe.sig").write_text(signature)
+        key_patch = patch.object(desktop_update, "public_key", return_value=key)
+        key_patch.start()
+        self.addCleanup(key_patch.stop)
         self.arguments = argparse.Namespace(
             backend_metadata=self.directory / "backend.json",
             web_metadata=self.directory / "web.json",
@@ -64,7 +70,7 @@ class PublisherTests(unittest.TestCase):
             return {}
         if method == "PATCH":
             self.assertIn("Noted_android.apk", self.uploads)
-            self.assertIn("Noted_setup.exe", self.uploads)
+            self.assertIn("Noted_0.1.0_x64-setup.exe", self.uploads)
             self.assertIn("SHA256SUMS", self.uploads)
             return {}
         raise AssertionError(f"Unexpected API request: {method} {path}")
@@ -123,6 +129,31 @@ class PublisherTests(unittest.TestCase):
         self.assertIn("Noted_wear.apk", self.uploads)
         self.assertIn("Noted_wear.apk", self.uploads["SHA256SUMS"].decode())
         self.assertNotIn("Noted_watchface.apk", self.uploads)
+
+    def test_desktop_feed_uses_the_same_immutable_release_and_verified_signature(self):
+        self.publish()
+        feed = json.loads(self.uploads["noted-desktop-update.json"])
+        self.assertEqual(feed["version"], "0.1.0")
+        self.assertEqual(feed["notes"], self.notes)
+        target = feed["platforms"]["windows-x86_64"]
+        self.assertEqual(
+            target["url"],
+            f"https://github.com/kotm8/noted/releases/download/main-{self.commit}/Noted_0.1.0_x64-setup.exe",
+        )
+        self.assertEqual(
+            target["signature"].encode(), self.uploads["Noted_0.1.0_x64-setup.exe.sig"]
+        )
+
+    def test_missing_or_invalid_desktop_signatures_stop_before_publication(self):
+        signature = self.arguments.clients_directory / "Noted_0.1.0_x64-setup.exe.sig"
+        signature.unlink()
+        with self.assertRaises(ValueError):
+            self.publish()
+        self.assertEqual(self.calls, [])
+        signature.write_text("invalid-signature")
+        with self.assertRaises(ValueError):
+            self.publish()
+        self.assertEqual(self.calls, [])
 
     def test_upload_failure_keeps_the_release_a_draft(self):
         self.fail_upload = True

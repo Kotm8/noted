@@ -17,9 +17,17 @@ npm --prefix apps/desktop run build
 The build produces:
 
 - `apps/desktop/src-tauri/target/release/noted-desktop.exe`
-- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.1_x64-setup.exe`
+- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.2_x64-setup.exe`
 
-The installer is per-user and this test build is unsigned. It does not install a server, Docker, or a database on the PC. The project has separate lockfiles for the frontend, desktop CLI, and Rust dependencies. Generated native artifacts and frontend bundles are ignored by Git and Docker build contexts.
+The installer is per-user and does not have a Windows Authenticode certificate. It does not install a server, Docker, or a database on the PC. The project has separate lockfiles for the frontend, desktop CLI, and Rust dependencies. Generated native artifacts and frontend bundles are ignored by Git and Docker build contexts.
+
+## App updates
+
+On Windows, Settings > Desktop app checks the official published releases. The app also checks shortly after startup and every 24 hours while running. Downloads show progress and verify a signature tied to the announced version. Restart and install requires confirmation. The server's update controls are independent.
+
+The first installer containing this feature must be installed manually. Later updates can be downloaded and installed inside Noted. Failed checks or downloads leave the current app running.
+
+Signed update builds use `python scripts/desktop.py build` with the backend Python environment. The updater key is separate from Windows Authenticode signing. Its public half is pinned in the app configuration; its private half stays outside the repository. Publishing requires the `TAURI_SIGNING_PRIVATE_KEY` Actions secret. The build and publisher both verify the installer signature before it becomes a release download.
 
 ## Connect
 
@@ -66,4 +74,4 @@ The desktop workflow launches the real executable and controls its WebView2 wind
 
 The SSH fixture uses a disposable local container with no VPS credentials. It covers native SSH host-key pinning, password rejection, five MiB bidirectional streaming, timeouts, occupied ports, and existing-installation preservation. With `--app`, it also opens the real WebView2 wizard and checks the missing-release path. Its review screenshot uses fixture release metadata. Python tests cover provisioning retries and real PostgreSQL owner creation/retry without replacing a password.
 
-Installation from a published release on a clean systemd VPS and real DNS/certificate issuance still need deployment verification after a release is published. Persistent native sign-in, SSH key/non-root provisioning, multiple saved profiles, and Linux/macOS packaging remain future work. The [Android client](../android/README.md) is a separate project in this repository.
+Installation from a published release on a clean systemd VPS and real DNS/certificate issuance still need deployment verification after a release is published. SSH key/non-root provisioning, multiple saved profiles, and Linux/macOS packaging remain future work. The [Android client](../android/README.md) is a separate project in this repository.

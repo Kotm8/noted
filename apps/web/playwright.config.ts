@@ -9,6 +9,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 960 },
+    timezoneId: "UTC",
     baseURL: "http://localhost:5173",
     channel: process.env.PLAYWRIGHT_CHANNEL,
     trace: "retain-on-failure",

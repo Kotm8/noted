@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- Windows desktop update checks, signed downloads, and installation on request, with progress and release notes.
+- Fixed watch preference controls reverting while a save is pending.
+
 ## 0.2.1
 
 - Bundled the watch face inside the Wear OS APK, with in-app installation, updates, and activation on Wear OS 6 or newer.

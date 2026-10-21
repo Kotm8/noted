@@ -20,6 +20,7 @@ interface WatchSettings {
 export function WatchPanel() {
   const client = useQueryClient();
   const [message, setMessage] = useState("");
+  const [draft, setDraft] = useState<WatchSettings | null>(null);
   const settings = useQuery({
     queryKey: ["watch-settings"],
     queryFn: () => request<WatchSettings>("/wear/settings"),
@@ -39,11 +40,14 @@ export function WatchPanel() {
       return { previous };
     },
     onError: (_error, _value, context) => {
-      if (context?.previous)
+      if (context?.previous) {
         client.setQueryData(["watch-settings"], context.previous);
+        setDraft(context.previous);
+      }
     },
     onSuccess: (value) => {
       client.setQueryData(["watch-settings"], value);
+      setDraft(value);
       setMessage("Watch preferences saved.");
     },
   });
@@ -58,9 +62,13 @@ export function WatchPanel() {
       setMessage("Choose your watch in the Android pairing screen.");
     },
   });
-  const value = settings.data;
+  const value = draft ?? settings.data;
   function update(change: Partial<WatchSettings>) {
-    if (value) save.mutate({ ...value, ...change });
+    if (!value || save.isPending) return;
+    const next = { ...value, ...change };
+    setDraft(next);
+    setMessage("");
+    save.mutate(next);
   }
   return (
     <section className="settings-panel">

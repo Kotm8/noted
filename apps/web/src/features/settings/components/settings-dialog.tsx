@@ -11,7 +11,7 @@ import {
   Watch,
 } from "lucide-react";
 import { ConnectionPanel } from "../../desktop/connection-panel";
-import { useDesktopConnection } from "../../desktop/connection-context";
+import { isDesktop, useDesktopConnection } from "../../desktop/connection-context";
 import { Modal } from "../../../components/ui/dialog";
 import { useLogout } from "../../auth/hooks/use-logout";
 import { AppearancePanel } from "./appearance-panel";
@@ -24,6 +24,7 @@ import { SwitchServerButton } from "../../desktop/switch-server-button";
 import { TrackingSettings } from "../../time-tracking/components/tracking-settings";
 import type { TrackingTab } from "../../time-tracking/components/tracking-settings";
 import { WatchPanel } from "../../wear/watch-panel";
+import { DesktopUpdatesPanel } from "../../desktop/updates/desktop-updates-panel";
 
 export function SettingsDialog({
   onClose,
@@ -43,6 +44,7 @@ export function SettingsDialog({
     | "notifications"
     | "tracking"
     | "watch"
+    | "desktop"
   >(initialTab);
   const connection = useDesktopConnection();
   const logout = useLogout();
@@ -108,6 +110,11 @@ export function SettingsDialog({
             <Monitor size={16} />
             Sessions
           </button>
+          {isDesktop && (
+            <button aria-current={tab === "desktop" ? "page" : undefined} onClick={() => setTab("desktop")}>
+              <Monitor size={16} />Desktop app
+            </button>
+          )}
           <button
             className="settings-signout"
             disabled={logout.isPending}
@@ -127,7 +134,9 @@ export function SettingsDialog({
           )}
           {isAndroidApp() && <SwitchServerButton />}
         </nav>
-        {tab === "watch" ? (
+        {tab === "desktop" ? (
+          <DesktopUpdatesPanel />
+        ) : tab === "watch" ? (
           <WatchPanel />
         ) : tab === "tracking" ? (
           <TrackingSettings initialTab={trackingTab} />

@@ -15,6 +15,46 @@ jobs:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/ci.yml
 
+  windows:
+    name: Sign Windows desktop update
+    needs: checks
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-backend
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.14.0'
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/desktop/package-lock.json
+      - run: rustup update stable --no-self-update
+      - run: rustup default stable
+      - run: npm --prefix apps/web ci
+      - run: npm --prefix apps/desktop ci
+      - name: Build and verify signed installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            throw "Add the TAURI_SIGNING_PRIVATE_KEY Actions secret before publishing desktop updates."
+          }
+          uv run --project backend python scripts/desktop.py build
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: signed-windows-client
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
   android:
     name: Sign Android APK
     needs: checks
@@ -151,7 +191,7 @@ jobs:
 
   publish:
     name: Publish coordinated release
-    needs: [checks, android, images]
+    needs: [checks, windows, android, images]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -163,7 +203,7 @@ jobs:
       - uses: ./.github/actions/setup-backend
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: windows-client
+          name: signed-windows-client
           path: .local/release/clients
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:

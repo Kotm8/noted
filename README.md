@@ -19,6 +19,7 @@ Noted brings quick thoughts, longer journal entries, reminders, and activity pla
 - **Activity prompts:** Start a planned activity, delay its prompt with a reason, or switch to another activity while keeping the original plan in place.
 - **Notifications:** Browser Web Push and optional native Android notifications through the server owner's Firebase project. Phone alerts are suppressed while Noted is focused on a PC.
 - **Wear OS:** A native activity and reminder client, 24-hour watch face, tracker tile, and configurable complications, with watch pairing and preferences managed from the Android app. The watch face is included in the watch APK and can be installed inside the app on Wear OS 6 or newer.
+- **Desktop updates:** The Windows client checks published releases and verifies signed downloads. Installation happens when you choose to restart.
 - **Personalization:** Custom colors, text size, zoom, and four message layouts, saved to the owner's account.
 - **Server management:** Portable ZIP backups, import, VPS transfer, domain switching, and updates installed on demand.
 

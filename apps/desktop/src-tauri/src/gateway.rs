@@ -26,6 +26,7 @@ pub struct Gateway {
     pub store: ProfileStore,
     pub installer: crate::installer::Installer,
     pub connection: RwLock<Option<Connection>>,
+    pub client_updates: Arc<crate::client_updates::ClientUpdates>,
 }
 
 pub fn token() -> String {
@@ -238,6 +239,10 @@ async fn serve(State(state): State<Arc<Gateway>>, request: Request) -> Response<
 
 pub fn router(state: Arc<Gateway>) -> Router {
     Router::new()
+        .route(
+            "/desktop/updates",
+            get(crate::client_updates::read).post(crate::client_updates::act),
+        )
         .route(
             "/desktop/connection",
             get(current).put(connect).delete(disconnect),

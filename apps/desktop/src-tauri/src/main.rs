@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod client_updates;
 mod connection;
 mod gateway;
 mod installer;
@@ -23,6 +24,7 @@ fn open_link(url: &url::Url) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let mut directory = app.path().app_config_dir()?;
             if cfg!(debug_assertions) {
@@ -52,7 +54,9 @@ fn main() {
                 store,
                 installer: installer::Installer::new(directory.join("setup.json")),
                 connection: RwLock::new(connection),
+                client_updates: client_updates::ClientUpdates::new(),
             });
+            state.client_updates.schedule(app.handle().clone());
             let launch = format!("{origin}/?launch={}", state.secret);
             tauri::async_runtime::spawn(async move {
                 let listener = tokio::net::TcpListener::from_std(listener).unwrap();

@@ -9,3 +9,38 @@
 .desktop-setup-button {
   margin-top: 12px;
 }
+
+.desktop-update-notice {
+  position: fixed;
+  bottom: 18px;
+  right: 20px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 40px);
+  padding: 10px 12px;
+  background: var(--surface-floating);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.desktop-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.desktop-updates-panel progress {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--accent);
+}
+
+.desktop-update-notes {
+  margin-top: 20px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}

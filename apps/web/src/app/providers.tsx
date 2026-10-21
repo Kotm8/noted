@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { ApiError } from "../lib/http";
 import { AppearanceProvider } from "../features/settings/appearance-provider";
+import { DesktopUpdateNotice } from "../features/desktop/updates/desktop-update-notice";
 
 function createQueryClient(): QueryClient {
   const queryClient = new QueryClient({
@@ -35,7 +36,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AppearanceProvider>
-        <BrowserRouter>{children}</BrowserRouter>
+        <BrowserRouter>
+          {children}
+          <DesktopUpdateNotice />
+        </BrowserRouter>
         <Toaster
           theme="dark"
           position="top-right"
