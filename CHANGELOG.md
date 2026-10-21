@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+- Faster Windows CI builds through Rust dependency caching and release signing of the tested installer without recompiling.
+- Fixed updater signing failures caused by whitespace in the private signing key.
+
 ## 0.2.2
 
 - Windows desktop update checks, signed downloads, and installation on request, with progress and release notes.

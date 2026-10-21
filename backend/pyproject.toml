@@ -1,6 +1,6 @@
 [project]
 name = "noted-backend"
-version = "0.2.2"
+version = "0.2.3"
 requires-python = ">=3.13,<3.15"
 dependencies = [
   "fastapi>=0.115,<1",

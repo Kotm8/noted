@@ -81,7 +81,7 @@ try {
     const desktopUpdate = await call("/desktop/updates");
     assert.equal(desktopUpdate.supported, true);
     assert.equal(desktopUpdate.phase, "idle");
-    assert.equal(desktopUpdate.current_version, "0.2.2");
+    assert.equal(desktopUpdate.current_version, "0.2.3");
     assert.equal((await fetch(`${origin}/desktop/updates`)).status, 403);
     const updateForgery = await page.evaluate(async () => {
       const response = await fetch("/desktop/updates", {
@@ -94,7 +94,7 @@ try {
     assert.equal(updateForgery, 403);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Desktop app", exact: true }).click();
-    await expect(page.getByText("Installed version: 0.2.2", { exact: true })).toBeVisible();
+    await expect(page.getByText("Installed version: 0.2.3", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Check for updates", exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Restart and install", exact: true })).toHaveCount(0);
     await page.screenshot({ path: resolve(screenshots, "desktop-app-updates.png") });

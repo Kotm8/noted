@@ -144,6 +144,11 @@ jobs:
             apps/desktop/package-lock.json
       - run: rustup update stable --no-self-update
       - run: rustup default stable
+      - uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: npm --prefix apps/web ci
       - run: npm --prefix apps/desktop ci
       - run: npm --prefix apps/desktop run build

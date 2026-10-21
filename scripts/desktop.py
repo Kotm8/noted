@@ -1,4 +1,6 @@
 import argparse
+import base64
+import binascii
 import json
 import os
 import shutil
@@ -65,18 +67,50 @@ def initialize() -> None:
 
 def signing_environment() -> dict[str, str]:
     environment = os.environ.copy()
-    if not environment.get("TAURI_SIGNING_PRIVATE_KEY"):
+    value = environment.get("TAURI_SIGNING_PRIVATE_KEY", "").strip()
+    if not value:
         if not KEY.is_file():
             raise SystemExit("Run python scripts/desktop.py signing-key first.")
-        environment["TAURI_SIGNING_PRIVATE_KEY"] = str(KEY)
+        value = KEY.read_text()
+    else:
+        try:
+            key_path = Path(value)
+            if key_path.is_file():
+                value = key_path.read_text()
+        except OSError:
+            pass
+    value = "".join(value.split())
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (ValueError, binascii.Error):
+        raise SystemExit(
+            "TAURI_SIGNING_PRIVATE_KEY must contain the generated updater key."
+        ) from None
+    if not decoded.startswith(b"untrusted comment:"):
+        raise SystemExit("TAURI_SIGNING_PRIVATE_KEY must contain the generated updater key.")
+    environment["TAURI_SIGNING_PRIVATE_KEY"] = value
     environment.setdefault("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "")
     return environment
 
 
+def verify_installer(installer: Path, version: str) -> None:
+    from scripts.desktop_update import public_key, verify_signature
+
+    verify_signature(
+        installer.read_bytes(),
+        installer.with_suffix(".exe.sig").read_text().strip(),
+        public_key(),
+        version,
+    )
+    print("The Windows installer signature and release version are verified.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build signed Noted desktop updates.")
-    parser.add_argument("command", choices=["build", "signing-key", "github-secret"])
-    command = parser.parse_args().command
+    parser.add_argument("command", choices=["build", "sign", "signing-key", "github-secret"])
+    parser.add_argument("--installer", type=Path)
+    arguments = parser.parse_args()
+    command = arguments.command
     if command == "signing-key":
         initialize()
     elif command == "github-secret":
@@ -84,9 +118,24 @@ def main() -> None:
             raise SystemExit("The private desktop updater key is missing.")
         target = ROOT / ".local/github-secrets/TAURI_SIGNING_PRIVATE_KEY.txt"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(KEY.read_text())
+        target.write_text("".join(KEY.read_text().split()))
         target.chmod(0o600)
         print(f"Prepared the private Actions secret in {target}.")
+    elif command == "sign":
+        version = json.loads(CONFIG.read_text())["version"]
+        installer = arguments.installer
+        if installer is None or installer.name != f"Noted_{version}_x64-setup.exe":
+            parser.error("Provide --installer with the current version's Windows installer.")
+        installer = installer.resolve(strict=True)
+        tauri(
+            "signer",
+            "sign",
+            "--app-version",
+            version,
+            str(installer),
+            environment=signing_environment(),
+        )
+        verify_installer(installer, version)
     else:
         tauri(
             "build",
@@ -94,17 +143,9 @@ def main() -> None:
             json.dumps({"bundle": {"createUpdaterArtifacts": True}}),
             environment=signing_environment(),
         )
-        from scripts.desktop_update import public_key, verify_signature
-
         version = json.loads(CONFIG.read_text())["version"]
         installer = DESKTOP / f"src-tauri/target/release/bundle/nsis/Noted_{version}_x64-setup.exe"
-        verify_signature(
-            installer.read_bytes(),
-            installer.with_suffix(".exe.sig").read_text().strip(),
-            public_key(),
-            version,
-        )
-        print("The Windows installer signature and release version are verified.")
+        verify_installer(installer, version)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ npm --prefix apps/desktop run build
 The build produces:
 
 - `apps/desktop/src-tauri/target/release/noted-desktop.exe`
-- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.2_x64-setup.exe`
+- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.3_x64-setup.exe`
 
 The installer is per-user and does not have a Windows Authenticode certificate. It does not install a server, Docker, or a database on the PC. The project has separate lockfiles for the frontend, desktop CLI, and Rust dependencies. Generated native artifacts and frontend bundles are ignored by Git and Docker build contexts.
 
@@ -27,7 +27,7 @@ On Windows, Settings > Desktop app checks the official published releases. The a
 
 The first installer containing this feature must be installed manually. Later updates can be downloaded and installed inside Noted. Failed checks or downloads leave the current app running.
 
-Signed update builds use `python scripts/desktop.py build` with the backend Python environment. The updater key is separate from Windows Authenticode signing. Its public half is pinned in the app configuration; its private half stays outside the repository. Publishing requires the `TAURI_SIGNING_PRIVATE_KEY` Actions secret. The build and publisher both verify the installer signature before it becomes a release download.
+Signed update builds use `python scripts/desktop.py build` with the backend Python environment. CI caches Rust dependencies, and publishing signs the installer produced by its Windows checks without compiling it again. The updater key is separate from Windows Authenticode signing. Its public half is pinned in the app configuration; its private half stays outside the repository. Publishing requires the `TAURI_SIGNING_PRIVATE_KEY` Actions secret. Signing and publishing both verify the installer signature before it becomes a release download.
 
 ## Connect
 

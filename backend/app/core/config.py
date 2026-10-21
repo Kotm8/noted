@@ -4,7 +4,7 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.2.2")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.2.3")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
 SCHEMA_REVISION = "0015_wear_os"
 API_VERSION = 1
