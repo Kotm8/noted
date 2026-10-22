@@ -18,6 +18,7 @@ from alembic import command
 from app.auth.schemas import LoginRequest
 from app.auth.services.auth import AuthService
 from app.db.database import create_database_engine
+from tests.suites import browser_arguments
 
 ROOT = Path(__file__).resolve().parents[2]
 BROWSER_PASSWORD = "browser-test-password-only"
@@ -96,6 +97,7 @@ def main() -> int:
                 "127.0.0.1",
                 "--port",
                 "8000",
+                "--no-access-log",
             ],
             cwd=ROOT / "backend",
             env=environment,
@@ -103,7 +105,12 @@ def main() -> int:
         wait_until_ready(server)
 
         result = subprocess.run(
-            [node, "node_modules/@playwright/test/cli.js", "test", *sys.argv[1:]],
+            [
+                node,
+                "node_modules/@playwright/test/cli.js",
+                "test",
+                *browser_arguments(sys.argv[1:]),
+            ],
             cwd=ROOT / "apps/web",
             env=environment,
             check=False,

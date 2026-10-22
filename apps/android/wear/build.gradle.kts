@@ -12,8 +12,8 @@ android {
         applicationId = "com.noted.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.2.3"
+        versionCode = 10
+        versionName = "0.2.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { buildConfig = true }

@@ -8,8 +8,8 @@ android {
         applicationId = "com.noted.android.watchfacepush.noted"
         minSdk = 33
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.2.3"
+        versionCode = 10
+        versionName = "0.2.5"
     }
     signingConfigs {
         create("distribution") {

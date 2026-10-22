@@ -45,6 +45,10 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     "POST",
     { name: "thoughts" },
   );
+  for (let index = 0; index < 22; index++)
+    await api(page, "/workspaces", "POST", {
+      name: `Background project ${index + 1}`,
+    });
   await page.goto(`/w/${project.id}/c/${channel.id}`);
   const composer = page.getByRole("textbox", {
     name: "Message thoughts",

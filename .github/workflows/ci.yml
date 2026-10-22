@@ -6,7 +6,19 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      full_tests:
+        description: Run the full backend and browser suites
+        type: boolean
+        default: false
   workflow_call:
+    inputs:
+      full_tests:
+        type: boolean
+        default: false
+
+env:
+  NOTED_FULL_TESTS: ${{ inputs.full_tests && '1' || '0' }}
 
 permissions:
   contents: read
@@ -49,9 +61,9 @@ jobs:
       - name: Type check
         working-directory: backend
         run: uv run mypy app
-      - name: Backend tests
+      - name: Backend tests (core by default)
         working-directory: backend
-        run: uv run pytest -q
+        run: uv run python -m tests.suites
       - name: Updater tests
         run: python -m unittest discover -s updater/tests -v
       - name: Publisher tests
@@ -113,7 +125,7 @@ jobs:
         working-directory: apps/web
         run: npx playwright install --with-deps chrome
       - run: mkdir -p .local
-      - name: Browser tests
+      - name: Browser tests (core by default)
         working-directory: backend
         run: uv run python -m tests.browser_runner
       - name: Upload failure traces

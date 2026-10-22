@@ -92,7 +92,9 @@ def main() -> None:
             "create-owner",
             "api",
             "test",
+            "test-full",
             "test-browser",
+            "test-browser-full",
             "test-desktop",
             "up",
             "stop",
@@ -126,9 +128,13 @@ def main() -> None:
                 ]
             )
         case "test":
-            run_backend(["-m", "pytest", "-q"])
+            run_backend(["-m", "tests.suites"])
+        case "test-full":
+            run_backend(["-m", "tests.suites", "--full"])
         case "test-browser":
             run_backend(["-m", "tests.browser_runner"])
+        case "test-browser-full":
+            run_backend(["-m", "tests.browser_runner", "--full"])
         case "test-desktop":
             run_backend(["-m", "tests.desktop_runner"])
         case "up":

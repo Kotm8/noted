@@ -17,7 +17,7 @@ npm --prefix apps/desktop run build
 The build produces:
 
 - `apps/desktop/src-tauri/target/release/noted-desktop.exe`
-- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.3_x64-setup.exe`
+- `apps/desktop/src-tauri/target/release/bundle/nsis/Noted_0.2.5_x64-setup.exe`
 
 The installer is per-user and does not have a Windows Authenticode certificate. It does not install a server, Docker, or a database on the PC. The project has separate lockfiles for the frontend, desktop CLI, and Rust dependencies. Generated native artifacts and frontend bundles are ignored by Git and Docker build contexts.
 

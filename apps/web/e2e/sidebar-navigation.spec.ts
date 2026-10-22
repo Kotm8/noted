@@ -201,6 +201,10 @@ test.describe("Android touch navigation", () => {
       ),
     ).toHaveCount(0);
     await expect(page.locator(".channel-sidebar")).toBeVisible();
+    await expect(page.locator(".channel-sidebar")).toHaveCSS(
+      "transform",
+      "matrix(1, 0, 0, 1, 0, 0)",
+    );
     await page.screenshot({
       path: "../../.local/screenshots/android-sidebar-swipe.png",
     });
