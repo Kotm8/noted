@@ -141,6 +141,28 @@ class PublisherTests(unittest.TestCase):
             digest, name = line.split("  ", 1)
             self.assertEqual(digest, hashlib.sha256(self.uploads[name]).hexdigest())
 
+    def test_upgrade_manifest_supports_every_retained_migration(self):
+        from alembic.script import ScriptDirectory
+
+        self.publish()
+        manifest = json.loads(self.uploads["noted-release.json"])
+        migrations = ScriptDirectory(str(publish_release.ROOT / "backend/alembic"))
+        self.assertEqual(manifest["schema_revision"], migrations.get_current_head())
+        self.assertSetEqual(
+            set(manifest["supported_source_schemas"]),
+            {migration.revision for migration in migrations.walk_revisions()},
+        )
+
+    def test_policy_missing_current_schema_is_rejected(self):
+        policy = self.directory / "updater/release-policy.json"
+        policy.parent.mkdir()
+        policy.write_text(json.dumps({"supported_source_schemas": ["0014_channel_publishing"]}))
+        with (
+            patch.object(publish_release, "ROOT", self.directory),
+            self.assertRaisesRegex(SystemExit, "current schema"),
+        ):
+            publish_release.release_policy("0016_plan_end_prompts")
+
     def test_watch_downloads_are_published_and_included_in_checksums(self):
         (self.arguments.clients_directory / "Noted_wear.apk").write_bytes(b"watch-apk-fixture")
         self.publish()

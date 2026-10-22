@@ -2640,7 +2640,7 @@ dependencies = [
 
 [[package]]
 name = "noted-desktop"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "axum",
  "flate2",

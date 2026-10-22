@@ -1,11 +1,15 @@
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
+from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from alembic import command
 from app.core.errors import NotFoundError
 from app.notes.models import Message
 from app.workspaces.models import Channel
@@ -170,3 +174,26 @@ def test_health_checks_validate_schema(client: TestClient, db: Session) -> None:
 def test_unauthenticated_navigation_is_rejected(client: TestClient) -> None:
     assert client.get(f"{API}/workspaces").status_code == 401
     assert client.get(f"{API}/channels/{uuid4()}/messages").status_code == 401
+
+
+def test_upgrade_from_023_schema_preserves_notes_and_sign_in(
+    owner: TestClient, channel: dict[str, str], engine: Engine
+) -> None:
+    path = f"{API}/channels/{channel['id']}/messages"
+    message = owner.post(path, json={"content": "Keep this note through the upgrade."}).json()
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0015_wear_os")
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0015_wear_os"
+        command.upgrade(config, "head")
+        assert (
+            connection.scalar(text("SELECT version_num FROM alembic_version"))
+            == "0016_plan_end_prompts"
+        )
+    assert owner.get(f"{API}/auth/session").status_code == 200
+    messages = owner.get(path).json()["items"]
+    assert (
+        next(item for item in messages if item["id"] == message["id"])["content"]
+        == message["content"]
+    )

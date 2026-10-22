@@ -218,7 +218,11 @@ def run() -> None:
                 2,
                 version,
                 target_schema,
-                (installed["schema"],),
+                tuple(
+                    json.loads((ROOT / "updater/release-policy.json").read_text())[
+                        "supported_source_schemas"
+                    ]
+                ),
                 backend,
                 web,
                 hashlib.sha256(raw).hexdigest(),

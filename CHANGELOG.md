@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6
+
+- Fix server upgrades from 0.2.3 by declaring the Wear OS and plan-ending database schemas as supported upgrade sources.
+- Validate release schema compatibility during publishing and use the real release policy in upgrade checks.
+
 ## 0.2.5
 
 - Run a smaller core backend/browser suite by default, with full suites available manually, while retaining fast unit tests and release safety checks.

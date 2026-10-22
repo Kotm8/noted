@@ -118,18 +118,25 @@ def main() -> None:
             )
 
 
+def release_policy(schema_revision: str) -> dict:
+    policy = json.loads((ROOT / "updater/release-policy.json").read_text())
+    if schema_revision not in policy["supported_source_schemas"]:
+        raise SystemExit("Release policy must support upgrades from the current schema.")
+    return policy
+
+
 def release_assets(arguments: argparse.Namespace, repository: str, commit: str) -> dict[str, bytes]:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
         for filename in ("compose.production.yaml", "Caddyfile.production"):
             archive.add(ROOT / "deploy" / filename, arcname=filename)
     bundle = buffer.getvalue()
-    policy = json.loads((ROOT / "updater/release-policy.json").read_text())
     backend = json.loads(arguments.backend_metadata.read_text())["containerimage.digest"]
     web = json.loads(arguments.web_metadata.read_text())["containerimage.digest"]
     sys.path.insert(0, str(ROOT / "backend"))
     from app.core.config import API_VERSION, SCHEMA_REVISION
 
+    policy = release_policy(SCHEMA_REVISION)
     manifest = {
         **policy,
         "repository": repository,

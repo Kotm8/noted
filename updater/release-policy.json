@@ -16,6 +16,8 @@
     "0011_plan_prompts",
     "0012_channel_documents",
     "0013_home_activity",
-    "0014_channel_publishing"
+    "0014_channel_publishing",
+    "0015_wear_os",
+    "0016_plan_end_prompts"
   ]
 }
