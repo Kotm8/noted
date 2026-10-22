@@ -21,9 +21,10 @@ class WatchActionReceiver : BroadcastReceiver() {
         val path =
             intent.getStringExtra("path")?.takeIf { it in listOf("prompts", "reminders") } ?: return
         val action =
-            intent.getStringExtra("action")?.takeIf { it in listOf("start", "done", "snooze") }
-                ?: return
-        if ((path == "prompts") != (action == "start")) return
+            intent.getStringExtra("action")?.takeIf {
+                it in listOf("start", "stop", "done", "snooze")
+            } ?: return
+        if ((path == "prompts") != (action in listOf("start", "stop"))) return
         val data =
             Data.Builder()
                 .putString("device_id", saved.getString("device_id"))
@@ -39,7 +40,7 @@ class WatchActionReceiver : BroadcastReceiver() {
             OneTimeWorkRequestBuilder<WatchActionWorker>()
                 .setInputData(data)
                 .setConstraints(
-                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
                 )
                 .build()
         WorkManager.getInstance(context)

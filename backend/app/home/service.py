@@ -79,7 +79,7 @@ class HomeService:
                 kind="plan",
                 id=item.id,
                 revision=item.revision,
-                title=item.title,
+                title=f"Ended: {item.title}" if item.phase == "end" else item.title,
                 due_at=item.notify_at,
                 read=item.read_revision == item.revision,
             )

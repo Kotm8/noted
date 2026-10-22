@@ -31,11 +31,13 @@ export function PromptHistory({ planId }: { planId: string }) {
         <div key={event.id}>
           <time>{new Date(event.created_at).toLocaleString()}</time>
           <strong>
-            {event.action === "start"
-              ? "Started activity"
-              : event.action === "other"
-                ? `Switched activity; delayed ${event.minutes} min`
-                : `Delayed ${event.minutes} min`}
+            {event.action === "stop"
+              ? "Stopped tracking"
+              : event.action === "start"
+                ? "Started activity"
+                : event.action === "other"
+                  ? `Switched activity; delayed ${event.minutes} min`
+                  : `Delayed ${event.minutes} min`}
           </strong>
           {event.reason && <p>{event.reason}</p>}
         </div>

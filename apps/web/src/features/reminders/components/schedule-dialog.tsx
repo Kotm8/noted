@@ -3,14 +3,12 @@ import { Bell, CalendarDays, Clock3, Repeat2 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Modal } from "../../../components/ui/dialog";
 import { Notice } from "../../../components/ui/notice";
-import {
-  DateTimePicker,
-  localDateTime,
-} from "../../../components/ui/date-time-picker";
+import { DateTimePicker } from "../../../components/ui/date-time-picker";
+import { localDateTime } from "../../../lib/format";
 import { Select } from "../../../components/ui/select";
 import type { ReminderSchedule, RepeatRule } from "../types";
 
-export const repeatOptions = [
+const repeatOptions = [
   { value: "none", label: "Does not repeat" },
   { value: "daily", label: "Every day" },
   { value: "weekdays", label: "Weekdays" },

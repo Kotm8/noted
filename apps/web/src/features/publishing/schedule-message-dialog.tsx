@@ -5,10 +5,8 @@ import { toast } from "sonner";
 import { Modal } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
-import {
-  DateTimePicker,
-  localDateTime,
-} from "../../components/ui/date-time-picker";
+import { DateTimePicker } from "../../components/ui/date-time-picker";
+import { localDateTime } from "../../lib/format";
 import { publishingApi } from "./api";
 import type { ScheduledMessage } from "./types";
 

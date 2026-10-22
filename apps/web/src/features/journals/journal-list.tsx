@@ -9,6 +9,7 @@ import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/dialog";
 import { Notice } from "../../components/ui/notice";
 import { journalsApi } from "./api";
+import { journalsQuery } from "./queries";
 import type { Channel } from "../workspaces/types";
 
 export function JournalList({
@@ -23,14 +24,7 @@ export function JournalList({
   const client = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
-  const query = useInfiniteQuery({
-    queryKey: ["journals", channel.id],
-    queryFn: ({ pageParam }) => journalsApi.list(channel.id, pageParam),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, _pages, offset) =>
-      lastPage.length === 50 ? offset + 50 : undefined,
-    refetchInterval: 15000,
-  });
+  const query = useInfiniteQuery(journalsQuery(channel.id));
   const create = useMutation({
     mutationFn: () => journalsApi.create(channel.id, title),
     onSuccess: async (entry) => {

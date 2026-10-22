@@ -26,6 +26,7 @@ import {
   addDays,
   dayLabel,
   dateRangeLabel,
+  defaultPlanTimes,
   minuteLabel,
   wallTime,
   weekDays,
@@ -251,8 +252,7 @@ export function ScheduleBoard({
               onClick={() =>
                 create({
                   date,
-                  start_minute: preferences.start_minute,
-                  end_minute: preferences.start_minute + 60,
+                  ...defaultPlanTimes(preferences.timezone),
                 })
               }
             >

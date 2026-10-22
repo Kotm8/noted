@@ -5,23 +5,12 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notesApi } from "../api";
-import type { NoteCursor } from "../types";
+import { notesQuery } from "../queries";
 import type { ReminderSchedule } from "../../reminders/types";
 
 export function useNotes(channelId: string, targetId?: string) {
   const queryClient = useQueryClient();
-  const queryKey = ["notes", channelId, targetId ?? "latest"];
-
-  const query = useInfiniteQuery({
-    queryKey,
-    queryFn: ({ pageParam }) => notesApi.list(channelId, pageParam),
-    initialPageParam: (targetId ? { around: targetId } : {}) as NoteCursor,
-    refetchInterval: 15000,
-    getNextPageParam: (lastPage): NoteCursor | undefined =>
-      lastPage.next_cursor ? { before: lastPage.next_cursor } : undefined,
-    getPreviousPageParam: (firstPage): NoteCursor | undefined =>
-      firstPage.newer_cursor ? { after: firstPage.newer_cursor } : undefined,
-  });
+  const query = useInfiniteQuery(notesQuery(channelId, targetId));
 
   const createNote = useMutation({
     mutationFn: ({

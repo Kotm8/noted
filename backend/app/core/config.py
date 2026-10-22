@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.2.3")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
-SCHEMA_REVISION = "0015_wear_os"
+SCHEMA_REVISION = "0016_plan_end_prompts"
 API_VERSION = 1
 
 

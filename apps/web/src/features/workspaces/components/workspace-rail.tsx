@@ -5,6 +5,7 @@ import type { Workspace } from "../types";
 interface WorkspaceRailProps {
   workspaces: Workspace[];
   selectedId?: string;
+  pendingId?: string;
   onSelect: (workspace: Workspace) => void;
   onCreate: () => void;
   onHome: () => void;
@@ -14,6 +15,7 @@ interface WorkspaceRailProps {
 export function WorkspaceRail({
   workspaces,
   selectedId,
+  pendingId,
   onSelect,
   onCreate,
   onHome,
@@ -39,6 +41,7 @@ export function WorkspaceRail({
             title={workspace.name}
             aria-label={`Open workspace ${workspace.name}`}
             aria-current={workspace.id === selectedId ? "page" : undefined}
+            aria-busy={workspace.id === pendingId || undefined}
             className={`workspace-button ${workspace.id === selectedId ? "workspace-selected" : ""}`}
             onClick={() => onSelect(workspace)}
           >

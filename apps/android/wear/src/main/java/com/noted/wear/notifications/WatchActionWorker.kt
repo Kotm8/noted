@@ -22,7 +22,8 @@ class WatchActionWorker(context: Context, parameters: WorkerParameters) :
         val path = inputData.getString("path") ?: return Result.failure()
         val data =
             JSONObject().put("action", action).put("revision", inputData.getInt("revision", 0))
-        if (action == "start") data.put("request_id", inputData.getString("request_id"))
+        if (action in listOf("start", "stop"))
+            data.put("request_id", inputData.getString("request_id"))
         if (action == "snooze") data.put("minutes", inputData.getInt("minutes", 10))
         return try {
             WatchRepository(applicationContext).request("$path/$id/actions", data)

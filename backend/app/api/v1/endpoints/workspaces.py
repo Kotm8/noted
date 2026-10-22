@@ -7,10 +7,21 @@ from app.auth.services.sessions import AuthenticatedSession
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.workspaces.models import Workspace
-from app.workspaces.schemas import WorkspaceCreate, WorkspaceResponse
+from app.workspaces.schemas import SidebarMove, SidebarOrder, WorkspaceCreate, WorkspaceResponse
+from app.workspaces.services.ordering import SidebarOrderService
 from app.workspaces.services.workspaces import WorkspaceService
 
 router = APIRouter(tags=["workspaces"])
+
+
+@router.put("/workspaces/{workspace_id}/order", response_model=SidebarOrder)
+def move_sidebar_item(
+    workspace_id: UUID,
+    data: SidebarMove,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> SidebarOrder:
+    return SidebarOrderService(db).move(workspace_id, current.user.id, data)
 
 
 @router.get("/workspaces", response_model=list[WorkspaceResponse])

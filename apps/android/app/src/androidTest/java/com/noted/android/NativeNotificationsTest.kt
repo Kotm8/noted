@@ -222,17 +222,37 @@ class NativeNotificationsTest {
             planned.actions.map { it.title.toString() },
         )
         assertEquals("reason", planned.actions[1].remoteInputs.single().resultKey)
+        payload.put("phase", "end").put("plannedEnd", "2026-10-19T13:00:00Z").put("revision", 2)
+        PushNotifications.show(context, origin, payload)
+        waitFor("The end-of-activity notification was not posted.") {
+            manager.activeNotifications
+                .singleOrNull()
+                ?.notification
+                ?.extras
+                ?.getInt("noted_revision") == 2
+        }
+        val ended = manager.activeNotifications.single().notification
+        assertEquals(
+            listOf("No activity", "Snooze 15m", "More options"),
+            ended.actions.map { it.title.toString() },
+        )
+        assertTrue(ended.actions[1].remoteInputs.isNullOrEmpty())
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            assertTrue(ended.actions[0].actionIntent.isImmutable)
+            assertTrue(ended.actions[1].actionIntent.isImmutable)
+        }
         NotificationManagerCompat.from(context).cancelAll()
         waitFor("The planned notification was not cleared.") {
             manager.activeNotifications.isEmpty()
         }
-        val writing = JSONObject()
-            .put("kind", "writing")
-            .put("writingPromptId", UUID.randomUUID().toString())
-            .put("title", "Journal / #daily")
-            .put("body", "What did you learn today?")
-            .put("revision", 2)
-            .put("url", "/w/project/c/channel")
+        val writing =
+            JSONObject()
+                .put("kind", "writing")
+                .put("writingPromptId", UUID.randomUUID().toString())
+                .put("title", "Journal / #daily")
+                .put("body", "What did you learn today?")
+                .put("revision", 2)
+                .put("url", "/w/project/c/channel")
         PushNotifications.show(context, origin, writing)
         waitFor("The writing prompt notification was not posted.") {
             manager.activeNotifications.size == 1

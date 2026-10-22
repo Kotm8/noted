@@ -7,12 +7,14 @@ import { CategorySection } from "./category-section";
 import { ChannelRow } from "./channel-row";
 import { WorkspaceMenu } from "./workspace-menu";
 import { useServerUpdates } from "../../updates/use-server-updates";
+import { useSidebarReorder } from "../hooks/use-sidebar-reorder";
 
 interface ChannelSidebarProps {
   workspace?: Workspace;
   categories: Category[];
   channels: Channel[];
   selectedChannelId?: string;
+  pendingChannelId?: string;
   isLoading: boolean;
   error: Error | null;
   onRetry: () => void;
@@ -35,6 +37,7 @@ export function ChannelSidebar({
   categories,
   channels,
   selectedChannelId,
+  pendingChannelId,
   isLoading,
   error,
   onRetry,
@@ -53,6 +56,7 @@ export function ChannelSidebar({
 }: ChannelSidebarProps) {
   const { collapsed, toggleCategory } = useCategoryCollapse();
   const updates = useServerUpdates();
+  const reorder = useSidebarReorder(workspace?.id, { categories, channels });
   const ungroupedChannels = channels.filter(
     (channel) => channel.category_id === null,
   );
@@ -90,7 +94,13 @@ export function ChannelSidebar({
         )}
       </div>
 
-      <div className="channel-tree">
+      <div
+        className="channel-tree"
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+            reorder.clearMarker();
+        }}
+      >
         {homeActive || scheduleActive ? (
           <div className="home-project-navigation">
             <span className="home-project-label">Projects</span>
@@ -124,15 +134,24 @@ export function ChannelSidebar({
           </div>
         ) : (
           <>
-            {ungroupedChannels.map((channel) => (
-              <ChannelRow
-                key={channel.id}
-                channel={channel}
-                selected={channel.id === selectedChannelId}
-                onSelect={onSelect}
-                onManage={onManage}
-              />
-            ))}
+            <div className="ungrouped-channels" {...reorder.ungroupedProps}>
+              {ungroupedChannels.map((channel) => (
+                <ChannelRow
+                  key={channel.id}
+                  channel={channel}
+                  selected={channel.id === selectedChannelId}
+                  pending={channel.id === pendingChannelId}
+                  onSelect={onSelect}
+                  onManage={onManage}
+                  reorder={reorder}
+                />
+              ))}
+              {reorder.draggingChannel && !ungroupedChannels.length && (
+                <span className="sidebar-drop-placeholder">
+                  Move outside categories
+                </span>
+              )}
+            </div>
             {categories.map((category) => (
               <CategorySection
                 key={category.id}
@@ -141,10 +160,12 @@ export function ChannelSidebar({
                   (channel) => channel.category_id === category.id,
                 )}
                 selectedChannelId={selectedChannelId}
+                pendingChannelId={pendingChannelId}
                 collapsed={collapsed.has(category.id)}
                 onToggle={() => toggleCategory(category.id)}
                 onSelect={onSelect}
                 onManage={onManage}
+                reorder={reorder}
               />
             ))}
             {workspace && isEmpty && (

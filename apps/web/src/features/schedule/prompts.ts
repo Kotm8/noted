@@ -9,13 +9,15 @@ export interface PlanPrompt {
   activity_id: string;
   title: string;
   planned_start: string;
+  planned_end?: string | null;
+  phase?: "start" | "end";
   notify_at: string;
   revision: number;
   status: string;
 }
 
 export interface PlanPromptAction {
-  action: "start" | "delay" | "other";
+  action: "start" | "stop" | "delay" | "other";
   minutes?: number;
   reason?: string;
   activity_id?: string;
@@ -42,11 +44,13 @@ export function usePromptAction(prompt: PlanPrompt) {
       }),
     onSuccess: (_data, values) => {
       toast.success(
-        values.action === "start"
-          ? "Activity started"
-          : values.action === "other"
-            ? "Activity switched; planned task delayed"
-            : "Task prompt delayed",
+        values.action === "stop"
+          ? "Tracking stopped"
+          : values.action === "start"
+            ? "Activity started"
+            : values.action === "other"
+              ? "Activity switched; planned task delayed"
+              : "Task prompt delayed",
       );
       void client.invalidateQueries({
         queryKey: ["plan-prompt-history", prompt.plan_id],

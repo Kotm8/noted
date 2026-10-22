@@ -18,7 +18,7 @@ class PushActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val origin = intent.getStringExtra("origin") ?: return
         val action = intent.getStringExtra("action") ?: return
-        if (action !in listOf("done", "snooze", "plan_start", "plan_delay")) return
+        if (action !in listOf("done", "snooze", "plan_start", "plan_stop", "plan_delay")) return
         val id =
             intent.getStringExtra(if (action.startsWith("plan_")) "prompt_id" else "message_id")
                 ?: return
@@ -28,7 +28,7 @@ class PushActionReceiver : BroadcastReceiver() {
                 ?.getCharSequence("reason")
                 ?.toString()
                 ?.trim()
-                ?.take(500)
+                ?.take(500) ?: intent.getStringExtra("reason")?.trim()?.take(500)
         if (action == "plan_delay" && reason.isNullOrBlank()) return
         val revision = intent.getIntExtra("revision", 0)
         if (revision <= 0) return

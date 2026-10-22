@@ -66,6 +66,7 @@ def dispatch_plan_prompts(engine: Engine, origin: str, settings: Settings | None
             payload = json.dumps(
                 {
                     "kind": "plan",
+                    "phase": prompt.phase,
                     "snoozeMinutes": preferences.snooze_minutes
                     if preferences.snooze_minutes in {5, 10, 15, 30, 60}
                     else 5,
@@ -73,9 +74,14 @@ def dispatch_plan_prompts(engine: Engine, origin: str, settings: Settings | None
                     "revision": prompt.revision,
                     "activityId": str(activity.id),
                     "activityName": activity.name,
-                    "title": f"Time for {activity.name}",
-                    "body": prompt.title,
+                    "title": f"{activity.name} has ended"
+                    if prompt.phase == "end"
+                    else f"Time for {activity.name}",
+                    "body": f"{prompt.title}. Stop tracking or snooze to keep going."
+                    if prompt.phase == "end"
+                    else prompt.title,
                     "plannedStart": prompt.planned_start.isoformat(),
+                    "plannedEnd": prompt.planned_end.isoformat() if prompt.planned_end else None,
                     "timezone": plan.timezone if plan else "UTC",
                     "url": f"/schedule?prompt={prompt.id}",
                 },

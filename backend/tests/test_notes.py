@@ -161,7 +161,7 @@ def test_invalid_cursor_and_page_size_are_rejected(
 def test_health_checks_validate_schema(client: TestClient, db: Session) -> None:
     assert client.get(f"{API}/health/live").status_code == 200
     assert client.get(f"{API}/health/ready").status_code == 200
-    assert client.get(f"{API}/version").json()["schema_revision"] == "0015_wear_os"
+    assert client.get(f"{API}/version").json()["schema_revision"] == "0016_plan_end_prompts"
     db.execute(text("UPDATE alembic_version SET version_num = 'incompatible'"))
     db.commit()
     assert client.get(f"{API}/health/ready").status_code == 503

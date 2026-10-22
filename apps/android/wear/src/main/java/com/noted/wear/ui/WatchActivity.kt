@@ -6,19 +6,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.text.TextUtils
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -45,16 +48,19 @@ class WatchActivity : ComponentActivity() {
     private lateinit var content: LinearLayout
     private lateinit var scroll: ScrollView
     private lateinit var clock: TextView
+    private lateinit var backButton: ImageView
     private var elapsedView: TextView? = null
     private var snapshot: JSONObject? = null
     private var screen = "home"
+    private var renderedScreen: String? = null
     private var busy = false
     private var visible = false
     private var prompt: JSONObject? = null
     private var selectedReminder: JSONObject? = null
     private var selectedPlan: JSONObject? = null
     private var delayMinutes = 10
-    private var delayReason = ""
+    private val finishingReason = "Finishing up current task"
+    private var delayReason = finishingReason
     private var alternative: String? = null
     private var choosingAlternative = false
     private var accent = Color.rgb(226, 193, 90)
@@ -97,28 +103,13 @@ class WatchActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         root = FrameLayout(this).apply { setBackgroundColor(Color.rgb(8, 10, 9)) }
-        scroll =
-            ScrollView(this).apply {
-                isVerticalScrollBarEnabled = false
-                clipToPadding = false
-                setPadding(dp(26), dp(36), dp(26), dp(64))
-                isFocusable = true
-                setOnGenericMotionListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_SCROLL) {
-                        smoothScrollBy(
-                            0,
-                            (-event.getAxisValue(MotionEvent.AXIS_SCROLL) * dp(28)).toInt(),
-                        )
-                        true
-                    } else false
-                }
-            }
+        scroll = RoundScrollView(this)
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scroll.addView(content)
         root.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         clock =
             TextView(this).apply {
-                textSize = 11f
+                textSize = 10f
                 gravity = Gravity.CENTER
                 setTextColor(Color.LTGRAY)
                 setBackgroundColor(Color.rgb(8, 10, 9))
@@ -127,6 +118,25 @@ class WatchActivity : ComponentActivity() {
             clock,
             FrameLayout.LayoutParams(dp(70), dp(25), Gravity.TOP or Gravity.CENTER_HORIZONTAL)
                 .apply { topMargin = dp(5) },
+        )
+        backButton =
+            ImageView(this).apply {
+                contentDescription = "Back"
+                setImageDrawable(WatchIcon("back", Color.LTGRAY))
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    screen = "home"
+                    render()
+                }
+            }
+        root.addView(
+            backButton,
+            FrameLayout.LayoutParams(dp(36), dp(36), Gravity.TOP or Gravity.START).apply {
+                topMargin = dp(12)
+                leftMargin = dp(29)
+            },
         )
         setContentView(root)
         snapshot = WatchStore(this).snapshot()
@@ -264,8 +274,11 @@ class WatchActivity : ComponentActivity() {
     }
 
     private fun render() {
+        val position = if (renderedScreen == screen) scroll.scrollY else 0
+        renderedScreen = screen
         content.removeAllViews()
         elapsedView = null
+        backButton.visibility = if (screen == "home") View.GONE else View.VISIBLE
         if (WatchStore(this).credentials() == null) {
             text("Noted", 24f)
             text(
@@ -286,11 +299,6 @@ class WatchActivity : ComponentActivity() {
             watchFaceButton()
             return
         }
-        if (screen != "home")
-            button("Back", "back", false) {
-                screen = "home"
-                render()
-            }
         when (screen) {
             "picker" -> showActivities()
             "plan" -> showPlan()
@@ -300,7 +308,7 @@ class WatchActivity : ComponentActivity() {
             "upcoming" -> showUpcoming()
             else -> showHome()
         }
-        scroll.scrollTo(0, 0)
+        scroll.post { scroll.scrollTo(0, position) }
     }
 
     private fun showHome() {
@@ -308,20 +316,22 @@ class WatchActivity : ComponentActivity() {
         val current = WatchData.current(value)
         label(
             if (trackerRunning) "CURRENT ACTIVITY"
-            else if (current != null) "PAUSED" else "NOT TRACKING"
+            else if (current != null) "PAUSED" else "NOT TRACKING",
         )
-        button(
-            current?.optString("name") ?: "Choose an activity",
-            current?.optString("icon") ?: "next",
-            false,
-        ) {
-            choosingAlternative = false
-            screen = "picker"
-            render()
-        }
+        val currentRow =
+            button(
+                current?.optString("name") ?: "Choose an activity",
+                subtitle = WatchData.duration(elapsedBase),
+            ) {
+                choosingAlternative = false
+                screen = "picker"
+                render()
+            }
         elapsedView =
-            text(WatchData.duration(elapsedBase), 15f, accent).apply {
-                typeface = Typeface.MONOSPACE
+            currentRow.findViewWithTag<TextView>("subtitle").apply {
+                typeface = Typeface.create("monospace", Typeface.NORMAL)
+                setTextColor(accent)
+                textSize = 12f * scale
             }
         divider()
         label("UP NEXT")
@@ -374,7 +384,7 @@ class WatchActivity : ComponentActivity() {
 
     private fun showActivities() {
         val value = snapshot ?: return
-        text(if (choosingAlternative) "Doing something else?" else "Switch activity", 20f)
+        text(if (choosingAlternative) "Another activity" else "Activities", 18f)
         val favorites =
             value.optJSONObject("settings")?.optJSONArray("favorites")?.let { array ->
                 (0 until array.length()).map { array.getString(it) }
@@ -385,7 +395,7 @@ class WatchActivity : ComponentActivity() {
                 button(activity.getString("name"), activity.optString("icon"), false) {
                     if (choosingAlternative) {
                         alternative = activity.getString("id")
-                        delayReason = ""
+                        delayReason = finishingReason
                         screen = "delay"
                         render()
                     } else tracker("start", activity.getString("id"))
@@ -420,49 +430,55 @@ class WatchActivity : ComponentActivity() {
 
     private fun showPlan() {
         val item = prompt ?: selectedPlan ?: return
-        label("PLANNED ACTIVITY")
+        val ended = prompt?.optString("phase") == "end"
+        label(if (ended) "ACTIVITY ENDED" else "PLANNED ACTIVITY")
         text(item.optString("title"), 23f)
         text(
-            WatchData.time(item.optString("planned_start", item.optString("start_at"))),
+            WatchData.time(
+                if (ended) item.optString("planned_end")
+                else item.optString("planned_start", item.optString("start_at")),
+            ),
             16f,
             accent,
         )
-        button("Start activity", "play", true) {
+        button(
+            if (ended) "No activity" else "Start activity",
+            if (ended) "stop" else "play",
+            true,
+        ) {
             if (prompt == null) tracker("start", item.getString("activity_id"))
-            else promptAction("start")
+            else promptAction(if (ended) "stop" else "start")
         }
         if (prompt != null) {
-            button("Delay prompt") {
+            button(if (ended) "Snooze" else "Delay prompt") {
                 alternative = null
-                delayReason = ""
+                delayReason = finishingReason
                 screen = "delay"
                 render()
             }
-            button("Doing something else") {
-                choosingAlternative = true
-                screen = "picker"
-                render()
-            }
+            if (!ended)
+                button("Doing something else") {
+                    choosingAlternative = true
+                    screen = "picker"
+                    render()
+                }
         } else text("Delay becomes available when this plan's prompt arrives.", 12f, Color.GRAY)
     }
 
     private fun showDelay() {
-        text("Remind me later", 21f)
-        text("The planned block stays in place.", 12f, Color.LTGRAY)
+        val ended = prompt?.optString("phase") == "end"
+        text(if (ended) "Snooze prompt" else "Delay prompt", 18f)
+        text("Your plan stays in place.", 11f, Color.LTGRAY)
         label("DELAY FROM NOW")
-        listOf(5, 10, 15, 30, 60).forEach { minutes ->
-            button(
-                if (minutes == 60) "1 hour" else "$minutes minutes",
-                if (delayMinutes == minutes) "check" else "",
-            ) {
+        content.addView(
+            DelayChoices(this, delayMinutes, accent, scale) { minutes ->
                 delayMinutes = minutes
                 val position = scroll.scrollY
                 showDelayAgain(position)
-            }
-        }
+            },
+        )
         label("REASON / REQUIRED")
-        listOf("Finishing current activity", "Taking a break", "Something came up").forEach { reason
-            ->
+        listOf(finishingReason, "Taking a break", "Something came up").forEach { reason ->
             button(reason, if (delayReason == reason) "check" else "") {
                 delayReason = reason
                 showDelayAgain(scroll.scrollY)
@@ -478,7 +494,11 @@ class WatchActivity : ComponentActivity() {
                 filters = arrayOf(android.text.InputFilter.LengthFilter(500))
             }
         content.addView(custom)
-        button(if (alternative == null) "Delay prompt" else "Switch and delay", primary = true) {
+        button(
+            if (alternative != null) "Switch and delay"
+            else if (ended) "Snooze prompt" else "Delay prompt",
+            primary = true,
+        ) {
             val reason = custom.text.toString().trim().ifBlank { delayReason }
             if (reason.isBlank()) {
                 custom.error = "Choose or write a reason"
@@ -491,10 +511,6 @@ class WatchActivity : ComponentActivity() {
 
     private fun showDelayAgain(position: Int) {
         content.removeAllViews()
-        button("Back", "back") {
-            screen = "plan"
-            render()
-        }
         showDelay()
         scroll.post { scroll.scrollTo(0, position) }
     }
@@ -507,7 +523,8 @@ class WatchActivity : ComponentActivity() {
                 .put("revision", item.getInt("revision"))
                 .put("request_id", UUID.randomUUID().toString())
                 .put("requested_at", Instant.now().toString())
-        if (action != "start") data.put("minutes", delayMinutes).put("reason", delayReason)
+        if (action in listOf("delay", "other"))
+            data.put("minutes", delayMinutes).put("reason", delayReason)
         alternative?.let { data.put("activity_id", it) }
         execute {
             val repository = WatchRepository(this)
@@ -544,10 +561,10 @@ class WatchActivity : ComponentActivity() {
     }
 
     private fun showSettings() {
-        text("Watch settings", 21f)
+        text("Settings", 18f)
         text(
-            "Choose layouts, colors, favorites, and text size from Noted Settings > Watch on your phone. Edit steps, sleep, and battery slots from the watch face's Customize screen.",
-            13f,
+            "Layouts, text size, and favorites are in your phone's Watch settings.",
+            12f,
             Color.LTGRAY,
         )
         text(
@@ -557,6 +574,7 @@ class WatchActivity : ComponentActivity() {
         )
         watchFaceButton()
         button("Sync now") { refresh() }
+        text("Hold the face, then Customize to change steps, sleep, and battery.", 11f, Color.GRAY)
         button("Disconnect watch") {
             execute {
                 val repository = WatchRepository(this)
@@ -572,24 +590,25 @@ class WatchActivity : ComponentActivity() {
         button("Watch face") { startActivity(Intent(this, WatchFaceActivity::class.java)) }
     }
 
-    private fun label(value: String) = text(value, 10f, Color.rgb(145, 154, 139))
+    private fun label(value: String) = text(value, 9f, Color.rgb(153, 156, 153))
 
     private fun text(value: String, size: Float, color: Int = Color.WHITE): TextView {
         return TextView(this).apply {
             text = value
             textSize = size * scale
+            includeFontPadding = false
             setTextColor(color)
-            setPadding(0, dp(4), 0, dp(5))
+            setPadding(dp(7), dp(3), dp(7), dp(4))
             content.addView(this, LinearLayout.LayoutParams(-1, -2))
         }
     }
 
     private fun divider() {
         content.addView(
-            View(this).apply { setBackgroundColor(Color.rgb(42, 49, 39)) },
+            View(this).apply { setBackgroundColor(Color.rgb(43, 46, 44)) },
             LinearLayout.LayoutParams(-1, dp(1)).apply {
-                topMargin = dp(7)
-                bottomMargin = dp(7)
+                topMargin = dp(5)
+                bottomMargin = dp(6)
             },
         )
     }
@@ -600,18 +619,25 @@ class WatchActivity : ComponentActivity() {
         primary: Boolean = false,
         subtitle: String = "",
         action: () -> Unit,
-    ) {
+    ): LinearLayout {
         val row =
             LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = dp(42)
-                setPadding(dp(9), dp(6), dp(9), dp(6))
+                minimumHeight = dp(if (primary) 38 else if (subtitle.isEmpty()) 40 else 46)
+                setPadding(dp(7), dp(5), dp(7), dp(5))
                 background =
-                    GradientDrawable().apply {
-                        cornerRadius = dp(if (primary) 24 else 7).toFloat()
-                        setColor(if (primary) accent else Color.TRANSPARENT)
-                    }
+                    RippleDrawable(
+                        ColorStateList.valueOf(0x26FFFFFF),
+                        GradientDrawable().apply {
+                            cornerRadius = dp(if (primary) 24 else 8).toFloat()
+                            setColor(if (primary) accent else Color.TRANSPARENT)
+                        },
+                        GradientDrawable().apply {
+                            cornerRadius = dp(24).toFloat()
+                            setColor(Color.WHITE)
+                        },
+                    )
                 isClickable = true
                 isFocusable = true
                 contentDescription =
@@ -629,28 +655,42 @@ class WatchActivity : ComponentActivity() {
                     setImageDrawable(WatchIcon(icon, if (primary) Color.BLACK else accent))
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 },
-                LinearLayout.LayoutParams(dp(19), dp(19)).apply { marginEnd = dp(8) },
+                LinearLayout.LayoutParams(dp(17), dp(17)).apply { marginEnd = dp(7) },
             )
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         column.addView(
             TextView(this).apply {
                 text = title
-                textSize = (if (primary) 14f else 14.5f) * scale
+                textSize = (if (primary) 13f else 14f) * scale
+                includeFontPadding = false
                 setTextColor(if (primary) Color.BLACK else Color.WHITE)
-                maxLines = 3
-            }
+                maxLines = 2
+                ellipsize = TextUtils.TruncateAt.END
+                if (primary) {
+                    gravity = Gravity.CENTER
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                }
+            },
         )
         if (subtitle.isNotEmpty())
             column.addView(
                 TextView(this).apply {
+                    tag = "subtitle"
                     text = subtitle
-                    textSize = 10.5f * scale
-                    setTextColor(Color.rgb(156, 168, 149))
-                    maxLines = 2
-                }
+                    textSize = 11f * scale
+                    includeFontPadding = false
+                    setPadding(0, dp(3), 0, 0)
+                    setTextColor(Color.rgb(163, 166, 163))
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
             )
-        row.addView(column, LinearLayout.LayoutParams(-1, -2))
-        content.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(3) })
+        row.addView(column, LinearLayout.LayoutParams(0, -2, 1f))
+        content.addView(
+            row,
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (primary) 6 else 1) },
+        )
+        return row
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()

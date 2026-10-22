@@ -115,7 +115,7 @@ export function TimeTracker({ onSettings }: { onSettings: () => void }) {
           className="tracker-prompt-badge"
           onClick={() => setClosedPrompt("")}
         >
-          Planned: {prompt.title}
+          {prompt.phase === "end" ? "Ended" : "Planned"}: {prompt.title}
         </button>
       )}
       <div className="tracker-expansion" inert={!open}>

@@ -13,13 +13,15 @@ class PromptResponse(BaseModel):
     activity_id: UUID
     title: str
     planned_start: datetime
+    planned_end: datetime | None = None
+    phase: Literal["start", "end"] = "start"
     notify_at: datetime
     status: str
     revision: int
 
 
 class PromptAction(BaseModel):
-    action: Literal["start", "delay", "other"]
+    action: Literal["start", "stop", "delay", "other"]
     revision: int = Field(ge=1)
     request_id: UUID
     minutes: Literal[5, 10, 15, 30, 60] | None = None
@@ -29,7 +31,7 @@ class PromptAction(BaseModel):
 
     @model_validator(mode="after")
     def validate_delay(self) -> "PromptAction":
-        if self.action != "start":
+        if self.action in {"delay", "other"}:
             if self.minutes is None or not self.reason or not self.reason.strip():
                 raise ValueError("Choose a delay and a reason")
             self.reason = self.reason.strip()

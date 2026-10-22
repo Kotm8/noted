@@ -43,11 +43,13 @@ object PushNotifications {
             return
         val diagnostic = payload.optString("kind") == "diagnostic"
         val plan = payload.optString("kind") == "plan"
+        val ended = plan && payload.optString("phase") == "end"
         val writing = payload.optString("kind") == "writing"
         val identity =
             if (diagnostic) payload.optString("testId")
             else if (plan) payload.optString("promptId")
-            else if (writing) payload.optString("writingPromptId") else payload.optString("messageId")
+            else if (writing) payload.optString("writingPromptId")
+            else payload.optString("messageId")
         if (runCatching { UUID.fromString(identity) }.isFailure) return
         val tag = "$origin:$identity"
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -86,7 +88,7 @@ object PushNotifications {
             val binding = PushState(context).read()?.optString("binding")
             val minutes =
                 payload.optInt("snoozeMinutes", 5).takeIf { it in listOf(5, 10, 15, 30, 60) } ?: 5
-            for (action in listOf("plan_start", "plan_delay")) {
+            for (action in listOf(if (ended) "plan_stop" else "plan_start", "plan_delay")) {
                 val intent =
                     Intent(context, PushActionReceiver::class.java)
                         .setData(
@@ -101,25 +103,30 @@ object PushNotifications {
                         .putExtra("minutes", minutes)
                         .putExtra("tag", tag)
                         .putExtra("binding", binding)
+                if (ended && action == "plan_delay")
+                    intent.putExtra("reason", "Finishing up current task")
                 val mutable =
                     if (android.os.Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
                 val flags =
                     PendingIntent.FLAG_UPDATE_CURRENT or
-                        (if (action == "plan_delay") mutable else PendingIntent.FLAG_IMMUTABLE)
+                        (if (action == "plan_delay" && !ended) mutable
+                        else PendingIntent.FLAG_IMMUTABLE)
                 val pending = PendingIntent.getBroadcast(context, 0, intent, flags)
                 val button =
                     NotificationCompat.Action.Builder(
                         0,
-                        if (action == "plan_start") "Start" else "Delay ${minutes}m",
+                        if (action == "plan_stop") "No activity"
+                        else if (action == "plan_start") "Start"
+                        else if (ended) "Snooze ${minutes}m" else "Delay ${minutes}m",
                         pending,
                     )
-                if (action == "plan_delay")
+                if (action == "plan_delay" && !ended)
                     button.addRemoteInput(
                         RemoteInput.Builder("reason")
                             .setLabel("Reason for delaying")
                             .setChoices(
                                 arrayOf(
-                                    "Finishing current activity",
+                                    "Finishing up current task",
                                     "Taking a break",
                                     "Something came up",
                                 ),
@@ -149,12 +156,14 @@ object PushNotifications {
             )
             runCatching {
                 val time =
-                    java.time.OffsetDateTime.parse(payload.getString("plannedStart"))
+                    java.time.OffsetDateTime.parse(
+                            payload.getString(if (ended) "plannedEnd" else "plannedStart"),
+                        )
                         .atZoneSameInstant(
                             java.time.ZoneId.of(payload.optString("timezone", "UTC")),
                         )
                 builder.setSubText(
-                    "Planned ${time.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}",
+                    "${if (ended) "Ended" else "Planned"} ${time.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}",
                 )
             }
         } else if (!diagnostic && !writing && revision > 0) {

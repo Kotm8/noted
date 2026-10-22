@@ -10,6 +10,7 @@ from app.core.errors import ConflictError, NotFoundError
 from app.core.security import utc_now
 from app.notifications.schemas import NotificationSettings
 from app.schedule.models import ScheduleException, SchedulePlan
+from app.schedule.prompts.endings import refresh_end_prompt
 from app.schedule.prompts.models import PlanPrompt, PlanPromptEvent
 from app.schedule.prompts.schemas import PromptAction
 from app.schedule.recurrence import instants, occurs_on
@@ -22,7 +23,7 @@ from app.time_tracking.service import TrackingService
 
 def resolve(
     plan: SchedulePlan, day: date, override: ScheduleException | None
-) -> tuple[PlanFields, datetime] | None:
+) -> tuple[PlanFields, datetime, datetime] | None:
     if (
         plan.deleted_at
         or (override and override.deleted)
@@ -37,7 +38,7 @@ def resolve(
         )
     )
     times = instants(fields, fields.date)
-    return (fields, times[0]) if times and fields.notifications_enabled else None
+    return (fields, times[0], times[1]) if times else None
 
 
 def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) -> None:
@@ -65,7 +66,7 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
         )
     )
     existing = {(item.plan_id, item.occurrence_date): item for item in rows}
-    valid: set[UUID] = set()
+    occurrences: dict[UUID, dict[date, tuple[PlanFields, datetime, datetime]]] = {}
     for plan in plans:
         today = now.astimezone(ZoneInfo(plan.timezone)).date()
         dates = {today + timedelta(days=offset) for offset in (-1, 0, 1)}
@@ -79,13 +80,24 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
             for item in rows
             if item.plan_id == plan.id and item.status == "pending"
         )
-        latest: PlanPrompt | None = None
-        for day in sorted(dates):
-            item = existing.get((plan.id, day))
+        for day in dates:
             occurrence = resolve(plan, day, overrides.get((plan.id, day)))
-            if occurrence is None:
+            if occurrence:
+                occurrences.setdefault(plan.id, {})[day] = occurrence
+    starts = [
+        start
+        for group in occurrences.values()
+        for fields, start, _end in group.values()
+        if fields.activity_id in activities and not activities[fields.activity_id].archived
+    ]
+    active = tracking.active(owner_id)
+    valid: set[UUID] = set()
+    for plan in plans:
+        latest: PlanPrompt | None = None
+        for day, (fields, start, end) in sorted(occurrences.get(plan.id, {}).items()):
+            if not fields.notifications_enabled:
                 continue
-            fields, start = occurrence
+            item = existing.get((plan.id, day))
             activity = activities.get(fields.activity_id)
             if activity is None or activity.archived:
                 continue
@@ -95,6 +107,22 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
                 else preferences.plan_notice_minutes
             )
             notice = start - timedelta(minutes=lead)
+            if item and item.phase == "end":
+                if end <= now:
+                    refresh_end_prompt(item, fields, start, end, active, starts, now)
+                    valid.add(item.id)
+                    continue
+                item.phase = "start"
+                item.status = (
+                    "started"
+                    if active
+                    and active.id == item.tracked_session_id
+                    and active.activity_id == fields.activity_id
+                    else "cancelled"
+                )
+                item.planned_start = start
+                item.scheduled_notice_at = notice
+                item.revision += 1
             if item is None:
                 if notice > now or start < now - timedelta(days=1):
                     continue
@@ -105,6 +133,8 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
                     activity_id=fields.activity_id,
                     title=fields.title,
                     planned_start=start,
+                    planned_end=end,
+                    phase="start",
                     scheduled_notice_at=notice,
                     notify_at=notice,
                     status="pending",
@@ -132,9 +162,13 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
                     item.notify_at, item.delayed = notice, False
                 item.status = "pending"
                 item.revision += 1
+            item.planned_end = end
+            if end <= now:
+                refresh_end_prompt(item, fields, start, end, active, starts, now)
             valid.add(item.id)
             if (
                 item.status == "pending"
+                and item.phase == "start"
                 and notice <= now
                 and (latest is None or item.planned_start > latest.planned_start)
             ):
@@ -143,6 +177,7 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
             for item in rows:
                 if (
                     item.plan_id == plan.id
+                    and item.phase == "start"
                     and item.status == "pending"
                     and item.planned_start < latest.planned_start
                 ):
@@ -191,11 +226,15 @@ def act_on_prompt(db: Session, owner_id: UUID, prompt_id: UUID, data: PromptActi
         raise ConflictError(
             "This task prompt changed on another device. Refresh it before trying again."
         )
-    activity_id = item.activity_id if data.action == "start" else data.activity_id
+    if (item.phase == "end" and data.action in {"start", "other"}) or (
+        item.phase == "start" and data.action == "stop"
+    ):
+        raise ConflictError("This task prompt changed. Open it again before choosing an action.")
+    activity_id = item.activity_id if data.action in {"start", "stop"} else data.activity_id
     if activity_id is not None and tracking.activity(owner_id, activity_id).archived:
         raise ConflictError("This activity was archived. Choose another activity.")
-    if data.action == "start":
-        item.status = "started"
+    if data.action in {"start", "stop"}:
+        item.status = "started" if data.action == "start" else "stopped"
     else:
         now = utc_now()
         requested = min(data.requested_at, now) if data.requested_at else now
@@ -210,16 +249,16 @@ def act_on_prompt(db: Session, owner_id: UUID, prompt_id: UUID, data: PromptActi
             plan_id=item.plan_id,
             occurrence_date=item.occurrence_date,
             action=data.action,
-            minutes=data.minutes if data.action != "start" else None,
+            minutes=data.minutes if data.action in {"delay", "other"} else None,
             reason=data.reason,
             activity_id=activity_id,
         )
     )
-    if data.action in {"start", "other"}:
+    if data.action in {"start", "stop", "other"}:
         TrackingService(db).act(
             owner_id,
             TrackerAction(
-                action="start",
+                action="stop" if data.action == "stop" else "start",
                 activity_id=activity_id,
                 revision=state.revision,
                 request_id=data.request_id,

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import type { TrackingPreferences } from "../time-tracking/types";
-import { minuteLabel } from "./dates";
+import { defaultPlanTimes, minuteLabel } from "./dates";
 
 export interface DragValues {
   date: string;
@@ -286,11 +286,9 @@ export function useScheduleGestures(
       if (!track || latest.current.pending) return;
       if (track === target && (event.key === "Enter" || event.key === " ")) {
         event.preventDefault();
-        const start = latest.current.preferences.start_minute;
         latest.current.create({
           date: track.dataset.date!,
-          start_minute: start,
-          end_minute: start + 60,
+          ...defaultPlanTimes(latest.current.preferences.timezone),
           ...(track.dataset.activity
             ? { activity_id: track.dataset.activity }
             : {}),

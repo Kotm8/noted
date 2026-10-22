@@ -15,16 +15,15 @@ data class UpcomingItem(
         fun from(snapshot: JSONObject): List<UpcomingItem> {
             val prompts = WatchData.items(snapshot.optJSONArray("prompts"))
             val promptPlans = prompts.map { it.optString("plan_id") }.toSet()
-            val active =
-                prompts.map {
-                    UpcomingItem(
-                        "prompt",
-                        it,
-                        it.optString("title"),
-                        "Activity prompt",
-                        Instant.parse(it.getString("notify_at")),
-                    )
-                }
+            val active = prompts.map {
+                UpcomingItem(
+                    "prompt",
+                    it,
+                    it.optString("title"),
+                    if (it.optString("phase") == "end") "Activity ended" else "Activity prompt",
+                    Instant.parse(it.getString("notify_at")),
+                )
+            }
             val plans =
                 WatchData.plans(snapshot)
                     .filter { it.optString("id") !in promptPlans }

@@ -4,10 +4,8 @@ import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { Select } from "../../components/ui/select";
-import {
-  DateTimePicker,
-  localDateTime,
-} from "../../components/ui/date-time-picker";
+import { DateTimePicker } from "../../components/ui/date-time-picker";
+import { localDateTime } from "../../lib/format";
 import { publishingApi } from "./api";
 import type { WritingFields, WritingPrompt } from "./types";
 

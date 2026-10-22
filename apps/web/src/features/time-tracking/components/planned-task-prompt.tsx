@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { AlarmClock, ArrowLeft, Play, RefreshCw, X } from "lucide-react";
+import {
+  AlarmClock,
+  ArrowLeft,
+  Play,
+  RefreshCw,
+  Square,
+  X,
+} from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Select } from "../../../components/ui/select";
 import { Notice } from "../../../components/ui/notice";
@@ -19,8 +26,9 @@ export function PlannedTaskPrompt({
 }) {
   const [mode, setMode] = useState<"main" | "delay" | "other">("main");
   const [minutes, setMinutes] = useState(5);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("Finishing up current task");
   const [custom, setCustom] = useState("");
+  const ended = prompt.phase === "end";
   const alternatives = activities.filter(
     (item) => !item.archived && item.id !== prompt.activity_id,
   );
@@ -38,7 +46,7 @@ export function PlannedTaskPrompt({
       <header>
         <span>
           <AlarmClock size={13} />
-          PLANNED ACTIVITY
+          {ended ? "ACTIVITY ENDED" : "PLANNED ACTIVITY"}
         </span>
         <button
           className="icon-button"
@@ -53,10 +61,15 @@ export function PlannedTaskPrompt({
         {activities.find((item) => item.id === prompt.activity_id)?.name ??
           "Planned activity"}{" "}
         <span>
-          ·{" "}
-          {new Date(prompt.planned_start).toLocaleTimeString([], {
+          · {ended ? "Ended at " : ""}
+          {new Date(
+            ended
+              ? (prompt.planned_end ?? prompt.planned_start)
+              : prompt.planned_start,
+          ).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
+            hourCycle: "h23",
             timeZone: timezone,
           })}
         </span>
@@ -67,11 +80,14 @@ export function PlannedTaskPrompt({
             size="small"
             disabled={action.isPending}
             onClick={() =>
-              action.mutate({ action: "start" }, { onSuccess: close })
+              action.mutate(
+                { action: ended ? "stop" : "start" },
+                { onSuccess: close },
+              )
             }
           >
-            <Play size={14} />
-            Start activity
+            {ended ? <Square size={14} /> : <Play size={14} />}
+            {ended ? "No activity" : "Start activity"}
           </Button>
           <Button
             size="small"
@@ -80,9 +96,9 @@ export function PlannedTaskPrompt({
             onClick={() => setMode("delay")}
           >
             <AlarmClock size={14} />
-            Delay
+            {ended ? "Snooze" : "Delay"}
           </Button>
-          {alternatives.length > 0 && (
+          {!ended && alternatives.length > 0 && (
             <button
               className="plan-prompt-other"
               disabled={action.isPending}
@@ -148,8 +164,8 @@ export function PlannedTaskPrompt({
               options={[
                 { value: "", label: "Choose a reason" },
                 {
-                  value: "Finishing current activity",
-                  label: "Finishing current activity",
+                  value: "Finishing up current task",
+                  label: "Finishing up current task",
                 },
                 { value: "Taking a break", label: "Taking a break" },
                 { value: "Something came up", label: "Something came up" },
@@ -187,7 +203,11 @@ export function PlannedTaskPrompt({
               size="small"
               disabled={!ready || action.isPending}
             >
-              {mode === "other" ? "Switch & delay" : "Delay prompt"}
+              {mode === "other"
+                ? "Switch & delay"
+                : ended
+                  ? "Snooze prompt"
+                  : "Delay prompt"}
             </Button>
           </div>
         </form>

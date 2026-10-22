@@ -26,4 +26,15 @@ Watch data is cached for display. Actions require a server connection and use re
 
 `python scripts/android.py check` builds the phone, watch, and internal face, and runs phone/watch unit tests and lint. `python scripts/android.py build` signs the release builds. Gradle runs Google's Watch Face Push validator before embedding the exact APK and its validation token. Only phone and combined watch APKs are published as downloads. The face remains a separate resource-only package internally, as required by Watch Face Format.
 
-Physical Samsung watch testing is still needed for pairing, notification delivery, round-screen fit, and third-party complication providers.
+`WatchUiTest` runs the real app in a disposable Wear OS 6 emulator, uses touch events to open activities, plans, reminders, and delay choices, and installs the bundled face through Watch Face Push. It captures Home, the activity picker, reminders, delay choices, settings, and all three native face layouts. Its test-only HTTPS fixture uses no real server or account and refuses to run on physical hardware. It is included only in the instrumentation APK.
+
+After installing `wear-debug.apk` and `wear-debug-androidTest.apk` on the emulator, run:
+
+```sh
+adb -s emulator-5566 shell am instrument -w -e phase review com.noted.android.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5566 pull /sdcard/Android/data/com.noted.android/files/watch-ui/review
+```
+
+Use `-e text_scale 1.3` to check enlarged text. The emulator must have Noted selected as its face when rerunning captures; Wear OS limits repeated programmatic face activations. The display is checked at 454 × 454 (227 dp) and 384 × 384 (192 dp).
+
+Physical Samsung watch testing is still needed for pairing, notification delivery, and third-party complication providers.

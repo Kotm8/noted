@@ -29,7 +29,10 @@
   .workspace-rail {
     position: fixed;
     top: 0;
-    left: -61px;
+    left: 0;
+    transform: translateX(-304px);
+    transition: transform 180ms ease-out;
+    visibility: hidden;
     width: 60px;
     height: calc(100dvh / var(--ui-zoom, 1));
   }
@@ -37,16 +40,21 @@
   .channel-sidebar {
     position: fixed;
     top: 0;
-    left: -260px;
+    left: 60px;
+    transform: translateX(-304px);
+    transition: transform 180ms ease-out;
+    visibility: hidden;
     width: 244px;
     height: calc(100dvh / var(--ui-zoom, 1));
   }
 
   .mobile-nav-open .workspace-rail {
-    left: 0;
+    transform: translateX(0);
+    visibility: visible;
   }
   .mobile-nav-open .channel-sidebar {
-    left: 60px;
+    transform: translateX(0);
+    visibility: visible;
   }
 
   .mobile-scrim {

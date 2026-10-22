@@ -1,127 +1,110 @@
-<?xml version="1.0" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <WatchFace width="400" height="400">
-    <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
-    <Metadata key="PREVIEW_TIME" value="10:08:00"/>
+    <Metadata key="CLOCK_TYPE" value="DIGITAL" />
+    <Metadata key="PREVIEW_TIME" value="10:08:00" />
     <Scene backgroundColor="#080A09">
-        <DigitalClock x="0" y="0" width="400" height="400">
-            <TimeText x="60" y="52" width="280" height="65" format="hh:mm" hourFormat="24" align="CENTER">
-                <Font family="SYNC_TO_DEVICE" size="58" weight="MEDIUM" color="#EFEEE7"/>
+        <DigitalClock x="60" y="52" width="280" height="65">
+            <TimeText x="0" y="0" width="280" height="65" format="hh:mm" hourFormat="24" align="CENTER">
+                <Font family="SYNC_TO_DEVICE" size="60" weight="MEDIUM" color="#EFEEE7" />
             </TimeText>
         </DigitalClock>
-        <ComplicationSlot x="60" y="120" width="280" height="196" slotId="1" displayName="agenda" supportedTypes="SMALL_IMAGE EMPTY">
-            <BoundingBox x="0" y="0" width="280" height="196"/>
-            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.AgendaComplication" primaryProviderType="SMALL_IMAGE" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY"/>
+        <PartText x="80" y="110" width="240" height="18">
+            <Text align="CENTER">
+                <Font family="SYNC_TO_DEVICE" size="11" color="#9CA09D">
+                    <Template>%s / %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template>
+                </Font>
+            </Text>
+        </PartText>
+        <ComplicationSlot x="60" y="132" width="280" height="190" slotId="1" displayName="agenda" supportedTypes="SMALL_IMAGE EMPTY">
+            <BoundingBox x="0" y="0" width="280" height="190" />
+            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.AgendaComplication" primaryProviderType="SMALL_IMAGE" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
             <Complication type="SMALL_IMAGE">
-                <PartImage x="0" y="0" width="280" height="196">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <Image resource="[COMPLICATION.SMALL_IMAGE]"/>
+                <PartImage x="0" y="0" width="280" height="190">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <Image resource="[COMPLICATION.SMALL_IMAGE]" />
                 </PartImage>
             </Complication>
         </ComplicationSlot>
-        <ComplicationSlot x="100" y="322" width="200" height="27" slotId="2" displayName="elapsed" supportedTypes="SHORT_TEXT EMPTY">
-            <BoundingBox x="0" y="0" width="200" height="27"/>
-            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.ElapsedComplication" primaryProviderType="SHORT_TEXT" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY"/>
-            <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="200" height="27">
+        <ComplicationSlot x="80" y="324" width="240" height="32" slotId="2" displayName="elapsed" supportedTypes="LONG_TEXT EMPTY">
+            <BoundingBox x="0" y="0" width="240" height="32" />
+            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.ElapsedComplication" primaryProviderType="LONG_TEXT" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
+            <Complication type="LONG_TEXT">
+                <PartText x="0" y="0" width="240" height="32">
                     <Text align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="20" color="#E2C15A">
-                            <Template>
-                                %s
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                        <Font family="SYNC_TO_DEVICE" size="23" color="#E2C15A">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </Text>
                 </PartText>
             </Complication>
         </ComplicationSlot>
-        <ComplicationSlot x="0" y="0" width="400" height="400" slotId="3" displayName="left" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
-            <BoundingOval x="7" y="115" width="65" height="170"/>
-            <DefaultProviderPolicy defaultSystemProvider="STEP_COUNT" defaultSystemProviderType="SHORT_TEXT"/>
+        <ComplicationSlot x="0" y="80" width="85" height="240" slotId="3" displayName="left" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
+            <BoundingOval x="0" y="0" width="85" height="240" />
+            <DefaultProviderPolicy defaultSystemProvider="STEP_COUNT" defaultSystemProviderType="SHORT_TEXT" />
             <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="400" height="400">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <TextCircular centerX="200" centerY="200" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="16" weight="MEDIUM" color="#D1D8C8">
-                            <Template>
-                                %s %s
-                                <Parameter expression="[COMPLICATION.TITLE]"/>
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                <PartText x="0" y="0" width="85" height="240">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <TextCircular centerX="200" centerY="120" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                            <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </TextCircular>
                 </PartText>
             </Complication>
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="400" height="400">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <TextCircular centerX="200" centerY="200" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="16" weight="MEDIUM" color="#D1D8C8">
-                            <Template>
-                                %s
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                <PartText x="0" y="0" width="85" height="240">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <TextCircular centerX="200" centerY="120" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </TextCircular>
                 </PartText>
             </Complication>
         </ComplicationSlot>
-        <ComplicationSlot x="0" y="0" width="400" height="400" slotId="4" displayName="right" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
-            <BoundingOval x="328" y="115" width="65" height="170"/>
-            <DefaultProviderPolicy defaultSystemProvider="WATCH_BATTERY" defaultSystemProviderType="SHORT_TEXT"/>
+        <ComplicationSlot x="315" y="80" width="85" height="240" slotId="4" displayName="right" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
+            <BoundingOval x="0" y="0" width="85" height="240" />
+            <DefaultProviderPolicy defaultSystemProvider="WATCH_BATTERY" defaultSystemProviderType="SHORT_TEXT" />
             <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="400" height="400">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <TextCircular centerX="200" centerY="200" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="16" weight="MEDIUM" color="#D1D8C8">
-                            <Template>
-                                %s %s
-                                <Parameter expression="[COMPLICATION.TITLE]"/>
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                <PartText x="0" y="0" width="85" height="240">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <TextCircular centerX="-115" centerY="120" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                            <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </TextCircular>
                 </PartText>
             </Complication>
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="400" height="400">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <TextCircular centerX="200" centerY="200" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="16" weight="MEDIUM" color="#D1D8C8">
-                            <Template>
-                                %s
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                <PartText x="0" y="0" width="85" height="240">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <TextCircular centerX="-115" centerY="120" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </TextCircular>
                 </PartText>
             </Complication>
         </ComplicationSlot>
-        <ComplicationSlot x="0" y="0" width="400" height="400" slotId="5" displayName="bottom" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
-            <BoundingOval x="105" y="343" width="190" height="50"/>
-            <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY"/>
+        <ComplicationSlot x="85" y="340" width="230" height="60" slotId="5" displayName="bottom" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
+            <BoundingOval x="0" y="0" width="230" height="60" />
+            <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
             <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="400" height="400">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <TextCircular centerX="200" centerY="200" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="16" weight="MEDIUM" color="#D1D8C8">
-                            <Template>
-                                %s %s
-                                <Parameter expression="[COMPLICATION.TITLE]"/>
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                <PartText x="0" y="0" width="230" height="60">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <TextCircular centerX="115" centerY="-140" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                            <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </TextCircular>
                 </PartText>
             </Complication>
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="400" height="400">
-                    <Variant mode="AMBIENT" target="alpha" value="0"/>
-                    <TextCircular centerX="200" centerY="200" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="16" weight="MEDIUM" color="#D1D8C8">
-                            <Template>
-                                %s
-                                <Parameter expression="[COMPLICATION.TEXT]"/>
-                            </Template>
+                <PartText x="0" y="0" width="230" height="60">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <TextCircular centerX="115" centerY="-140" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </TextCircular>
                 </PartText>
@@ -133,7 +116,11 @@
             <Complication type="SHORT_TEXT">
                 <PartText x="0" y="0" width="200" height="35" alpha="0">
                     <Variant mode="AMBIENT" target="alpha" value="255" />
-                    <Text align="CENTER" ellipsis="TRUE"><Font family="SYNC_TO_DEVICE" size="20" color="#B0B6AA"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font></Text>
+                    <Text align="CENTER" ellipsis="TRUE">
+                        <Font family="SYNC_TO_DEVICE" size="20" color="#B0B6AA">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
                 </PartText>
             </Complication>
         </ComplicationSlot>

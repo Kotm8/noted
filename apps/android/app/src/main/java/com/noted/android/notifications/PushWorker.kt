@@ -29,7 +29,14 @@ class PushWorker(context: Context, parameters: WorkerParameters) : Worker(contex
                 val path =
                     if (plan) {
                         body.remove("message_id")
-                        body.put("action", if (action == "plan_start") "start" else "delay")
+                        body.put(
+                            "action",
+                            when (action) {
+                                "plan_start" -> "start"
+                                "plan_stop" -> "stop"
+                                else -> "delay"
+                            },
+                        )
                         body.put("request_id", inputData.getString("request_id"))
                         body.put("requested_at", inputData.getString("requested_at"))
                         if (action == "plan_delay")

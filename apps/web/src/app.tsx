@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConnectionScreen } from "./components/connection-screen";
 import { authApi } from "./features/auth/api";
 import { AuthScreen } from "./features/auth/components/auth-screen";
 import { WorkspacePage } from "./features/workspaces/workspace-page";
 import { lazy, Suspense, useEffect } from "react";
 import { finishStartup } from "./lib/startup";
+import { prepareStartup } from "./features/workspaces/navigation-data";
 
 const SetupPreview = import.meta.env.DEV
   ? lazy(() =>
@@ -29,6 +30,7 @@ export function App() {
 }
 
 function ConnectedApp() {
+  const client = useQueryClient();
   const session = useQuery({
     queryKey: ["session"],
     queryFn: authApi.getSession,
@@ -38,18 +40,31 @@ function ConnectedApp() {
     queryFn: authApi.getSetupStatus,
     enabled: session.data === null,
   });
+  const startup = useQuery({
+    queryKey: ["startup-data", session.data?.id],
+    enabled: Boolean(session.data),
+    staleTime: Infinity,
+    queryFn: async () => {
+      await prepareStartup(client, new URL(window.location.href));
+      return true;
+    },
+  });
 
   function retryConnection() {
     void session.refetch();
     if (session.data === null) void setupStatus.refetch();
+    if (startup.isError) void startup.refetch();
   }
 
-  const error = session.error ?? setupStatus.error;
+  const error = session.error ?? setupStatus.error ?? startup.error;
   const checkingSetup = session.data === null && setupStatus.isPending;
-  const pending = session.isPending || checkingSetup;
+  const pending =
+    session.isPending ||
+    checkingSetup ||
+    (Boolean(session.data) && startup.isPending);
   useEffect(() => {
-    if (error || !pending) finishStartup();
-  }, [error, pending]);
+    if (error || (!pending && !session.data)) finishStartup();
+  }, [error, pending, session.data]);
   if (error)
     return <ConnectionScreen error={error.message} onRetry={retryConnection} />;
 

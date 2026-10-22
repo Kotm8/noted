@@ -85,6 +85,7 @@ class PlanPromptActivity : ComponentActivity() {
     }
 
     private fun showForm(prompt: JSONObject, activities: List<JSONObject>) {
+        val ended = prompt.optString("phase") == "end"
         root.removeAllViews()
         root.addView(
             TextView(this).apply {
@@ -95,16 +96,23 @@ class PlanPromptActivity : ComponentActivity() {
         )
         root.addView(
             TextView(this).apply {
-                text = "Delay the prompt; the planned block stays in place."
+                text =
+                    if (ended)
+                        "Snoozing keeps your current activity running. Your plan stays in place."
+                    else "Delay the prompt; the planned block stays in place."
                 setPadding(0, 8, 0, 16)
                 setTextColor(Color.LTGRAY)
             },
         )
         val modes =
             spinner(
-                "What are you doing?",
+                if (ended) null else "What are you doing?",
                 listOf("Continue current activity", "Track another activity"),
             )
+        if (ended) {
+            modes.isEnabled = false
+            modes.visibility = View.GONE
+        }
         val alternatives = activities.filter {
             it.getString("id") != prompt.getString("activity_id")
         }
@@ -131,7 +139,7 @@ class PlanPromptActivity : ComponentActivity() {
                 "Reason",
                 listOf(
                     "Choose a reason",
-                    "Finishing current activity",
+                    "Finishing up current task",
                     "Taking a break",
                     "Something came up",
                     "Write a reason",
@@ -162,7 +170,9 @@ class PlanPromptActivity : ComponentActivity() {
             activityLabel.visibility = if (other) View.VISIBLE else View.GONE
             activity.visibility = if (other) View.VISIBLE else View.GONE
             custom.visibility = if (reasons.selectedItemPosition == 4) View.VISIBLE else View.GONE
-            save.text = if (other) "Switch activity & delay" else "Delay prompt"
+            save.text =
+                if (other) "Switch activity & delay"
+                else if (ended) "Snooze prompt" else "Delay prompt"
             save.isEnabled =
                 reasons.selectedItemPosition > 0 &&
                     (reasons.selectedItemPosition != 4 || custom.text.toString().isNotBlank()) &&
@@ -181,6 +191,8 @@ class PlanPromptActivity : ComponentActivity() {
             }
         modes.onItemSelectedListener = listener
         reasons.onItemSelectedListener = listener
+        reasons.setSelection(1)
+        update()
         custom.addTextChangedListener { update() }
         save.setOnClickListener {
             val state = PushState(this).read()
@@ -249,8 +261,8 @@ class PlanPromptActivity : ComponentActivity() {
             root.addView(this)
         }
 
-    private fun spinner(title: String, options: List<String>): Spinner {
-        label(title)
+    private fun spinner(title: String?, options: List<String>): Spinner {
+        if (title != null) label(title)
         return Spinner(this).apply {
             adapter =
                 ArrayAdapter(

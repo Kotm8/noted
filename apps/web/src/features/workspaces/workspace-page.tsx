@@ -10,6 +10,9 @@ import { ManagementDialog } from "./components/management-dialog";
 import { WorkspaceEmpty } from "./components/workspace-empty";
 import { WorkspaceRail } from "./components/workspace-rail";
 import { useWorkspaceNavigation } from "./hooks/use-workspace-navigation";
+import { useSidebarSwipe } from "./hooks/use-sidebar-swipe";
+import { useChannelNavigation } from "./hooks/use-channel-navigation";
+import { finishStartup } from "../../lib/startup";
 import type { Channel, ManagementAction, Workspace } from "./types";
 import { NotificationPrompt } from "../notifications/notification-prompt";
 import { useNotifications } from "../notifications/use-notifications";
@@ -34,6 +37,18 @@ export function WorkspacePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const navigation = useWorkspaceNavigation();
+  const channelNavigation = useChannelNavigation();
+  const cancelChannelNavigation = channelNavigation.cancel;
+  const initialPageReady =
+    !navigation.isLoading &&
+    (navigation.isHome ||
+      navigation.isSchedule ||
+      Boolean(navigation.channel) ||
+      !navigation.workspaces.length ||
+      Boolean(navigation.workspace && !navigation.channels.length));
+  useEffect(() => {
+    if (initialPageReady || navigation.error) finishStartup();
+  }, [initialPageReady, navigation.error]);
   const [management, setManagement] = useState<ManagementAction | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [trackingTab, setTrackingTab] = useState<TrackingTab | null>(null);
@@ -61,35 +76,76 @@ export function WorkspacePage() {
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
-  const [trackerRequest, setTrackerRequest] = useState(0);
-  useAndroidBackLayer(mobileNavigationOpen, () =>
-    setMobileNavigationOpen(false),
+  const sidebarSwipeRef = useSidebarSwipe(
+    mobileNavigationOpen,
+    settingsOpen ||
+      Boolean(management) ||
+      Boolean(channelScheduling) ||
+      searchOpen ||
+      Boolean(writing),
+    (open) => {
+      if (!open) channelNavigation.cancel();
+      setMobileNavigationOpen(open);
+    },
   );
-  useAndroidBackLayer(searchOpen, () => setSearchOpen(false));
+  const [trackerRequest, setTrackerRequest] = useState(0);
+  useAndroidBackLayer(mobileNavigationOpen, () => closeNavigation());
+  useAndroidBackLayer(searchOpen, () => {
+    cancelChannelNavigation();
+    setSearchOpen(false);
+  });
   useAndroidBackLayer(Boolean(writing), () => setWriting(null));
   useEffect(() => syncAndroidRoute(location.pathname), [location.pathname]);
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).get("prompt")) return;
+    setTrackerRequest((value) => value + 1);
+    setSettingsOpen(false);
+    setSearchOpen(false);
+    setWriting(null);
+    if (window.matchMedia("(max-width: 760px)").matches)
+      setMobileNavigationOpen(true);
+  }, [location.key, location.search]);
 
   function openPage(path: string) {
+    channelNavigation.cancel();
     navigate(path, { replace: isAndroidApp() && !navigation.isHome });
     setMobileNavigationOpen(false);
     setSearchOpen(false);
     setWriting(null);
   }
 
+  function closeNavigation() {
+    channelNavigation.cancel();
+    setMobileNavigationOpen(false);
+  }
+
   function openHomeActivity(item: HomeActivity) {
     if (item.kind === "plan") {
-      setTrackerRequest((value) => value + 1);
       openPage(`/?prompt=${item.id}`);
-      if (window.matchMedia("(max-width: 760px)").matches)
-        setMobileNavigationOpen(true);
     } else {
       if (item.kind === "writing") {
-        openPage(`/w/${item.workspace_id}/c/${item.channel_id}`);
-        setTargetNote(null);
+        void channelNavigation.open(
+          { workspaceId: item.workspace_id!, channelId: item.channel_id! },
+          () => {
+            openPage(`/w/${item.workspace_id}/c/${item.channel_id}`);
+            setTargetNote(null);
+          },
+        );
         return;
       }
-      openPage(`/w/${item.workspace_id}/c/${item.channel_id}?note=${item.id}`);
-      setTargetNote({ channelId: item.channel_id!, id: item.id });
+      void channelNavigation.open(
+        {
+          workspaceId: item.workspace_id!,
+          channelId: item.channel_id!,
+          noteId: item.id,
+        },
+        () => {
+          openPage(
+            `/w/${item.workspace_id}/c/${item.channel_id}?note=${item.id}`,
+          );
+          setTargetNote({ channelId: item.channel_id!, id: item.id });
+        },
+      );
     }
   }
 
@@ -108,6 +164,7 @@ export function WorkspacePage() {
         !event.defaultPrevented &&
         !event.isComposing
       ) {
+        cancelChannelNavigation();
         setMobileNavigationOpen(false);
         setSearchOpen(false);
         setWriting(null);
@@ -116,20 +173,47 @@ export function WorkspacePage() {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
+  }, [cancelChannelNavigation]);
 
   function selectWorkspace(workspace: Workspace) {
-    openPage(`/w/${workspace.id}`);
-    setTargetNote(null);
+    void channelNavigation.open({ workspaceId: workspace.id }, (channel) => {
+      openPage(
+        channel ? `/w/${workspace.id}/c/${channel.id}` : `/w/${workspace.id}`,
+      );
+      setTargetNote(null);
+    });
   }
 
   function selectChannel(channel: Channel) {
-    openPage(`/w/${channel.workspace_id}/c/${channel.id}`);
-    setTargetNote(null);
-    setWriting(null);
+    void channelNavigation.open(
+      { workspaceId: channel.workspace_id, channelId: channel.id },
+      () => {
+        openPage(`/w/${channel.workspace_id}/c/${channel.id}`);
+        setTargetNote(null);
+        setWriting(null);
+      },
+    );
   }
 
   function selectResult(result: SearchResult) {
+    void channelNavigation.open(
+      {
+        workspaceId: result.workspace_id,
+        channelId: result.channel_id,
+        noteId:
+          result.kind !== "journal" && result.kind !== "document"
+            ? (result.thread_root_id ?? result.id)
+            : undefined,
+        journalEntryId: result.kind === "journal" ? result.id : undefined,
+        threadId: result.thread_root_id ?? undefined,
+        replyId: result.thread_root_id ? result.id : undefined,
+      },
+      () => showResult(result),
+    );
+  }
+
+  function showResult(result: SearchResult) {
+    channelNavigation.cancel();
     navigate(`/w/${result.workspace_id}/c/${result.channel_id}`);
     if (result.kind === "journal") {
       setWriting({
@@ -165,6 +249,7 @@ export function WorkspacePage() {
     writing?.channelId === navigation.channel?.id ? writing : null;
 
   function openTracking(tab: TrackingTab) {
+    cancelChannelNavigation();
     setTrackingTab(tab);
     setSettingsOpen(true);
     setMobileNavigationOpen(false);
@@ -172,19 +257,21 @@ export function WorkspacePage() {
 
   return (
     <div
+      ref={sidebarSwipeRef}
       className={`app-shell ${mobileNavigationOpen ? "mobile-nav-open" : ""} ${searchOpen ? "search-open" : ""} ${activeWriting ? "writing-open" : ""}`}
     >
       {mobileNavigationOpen && (
         <button
           className="mobile-scrim"
           aria-label="Close navigation"
-          onClick={() => setMobileNavigationOpen(false)}
+          onClick={closeNavigation}
         />
       )}
 
       <WorkspaceRail
         workspaces={navigation.workspaces}
         selectedId={navigation.workspace?.id}
+        pendingId={channelNavigation.pending?.workspaceId}
         onSelect={selectWorkspace}
         onCreate={() => setManagement({ kind: "workspace" })}
         onHome={() => openPage("/")}
@@ -195,12 +282,14 @@ export function WorkspacePage() {
         categories={navigation.categories}
         channels={navigation.channels}
         selectedChannelId={navigation.channel?.id}
+        pendingChannelId={channelNavigation.pending?.channelId}
         isLoading={navigation.isCategoriesLoading}
         error={navigation.error}
         onRetry={navigation.retry}
         onSelect={selectChannel}
         onManage={setManagement}
         onOpenSettings={() => {
+          cancelChannelNavigation();
           setTrackingTab(null);
           setSettingsOpen(true);
           setMobileNavigationOpen(false);
@@ -240,13 +329,22 @@ export function WorkspacePage() {
             onNavigation={() => setMobileNavigationOpen(true)}
             onSettings={() => openTracking("schedule")}
             onReminder={(flag) => {
-              openPage(
-                `/w/${flag.workspace_id}/c/${flag.channel_id}?note=${flag.message_id}`,
+              void channelNavigation.open(
+                {
+                  workspaceId: flag.workspace_id,
+                  channelId: flag.channel_id,
+                  noteId: flag.message_id,
+                },
+                () => {
+                  openPage(
+                    `/w/${flag.workspace_id}/c/${flag.channel_id}?note=${flag.message_id}`,
+                  );
+                  setTargetNote({
+                    channelId: flag.channel_id,
+                    id: flag.message_id,
+                  });
+                },
               );
-              setTargetNote({
-                channelId: flag.channel_id,
-                id: flag.message_id,
-              });
             }}
           />
         ) : (
@@ -372,7 +470,10 @@ export function WorkspacePage() {
           query={searchQuery}
           workspaces={navigation.workspaces}
           onQueryChange={setSearchQuery}
-          onClose={() => setSearchOpen(false)}
+          onClose={() => {
+            cancelChannelNavigation();
+            setSearchOpen(false);
+          }}
           onSelect={selectResult}
         />
       )}

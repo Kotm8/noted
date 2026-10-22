@@ -1,9 +1,11 @@
 import argparse
 import hashlib
+import io
 import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -18,6 +20,8 @@ class PublisherTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
+        self.summary = self.directory / "summary.md"
+        self.stdout = io.StringIO()
         self.notes = "### Added\n\n- Notes from the changelog."
         self.changelog = self.directory / "CHANGELOG.md"
         self.changelog.write_text(f"# Changelog\n\n## 0.1.0\n\n{self.notes}\n", encoding="utf-8")
@@ -93,14 +97,28 @@ class PublisherTests(unittest.TestCase):
                 {
                     "GITHUB_REPOSITORY": "Kotm8/noted",
                     "GITHUB_SHA": self.commit,
+                    "GITHUB_STEP_SUMMARY": str(self.summary),
                 },
             ),
             patch("sys.argv", argv),
             patch.object(publish_release, "api", self.api),
             patch.object(release_notes, "ROOT", self.directory),
             patch.object(release_version, "release_version", return_value="0.1.0"),
+            redirect_stdout(self.stdout),
         ):
             publish_release.main()
+
+    def test_test_publication_cannot_write_to_the_runner_summary(self):
+        runner_summary = self.directory / "runner-summary.md"
+        runner_summary.write_text("Existing CI summary\n")
+        with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(runner_summary)}):
+            self.publish()
+        self.assertEqual(runner_summary.read_text(), "Existing CI summary\n")
+        self.assertEqual(
+            self.summary.read_text(),
+            f"Published [Noted v0.1.0](https://github.com/kotm8/noted/releases/tag/main-{self.commit})"
+            " with server and client downloads.\n",
+        )
 
     def test_publishes_only_after_all_server_and_client_assets_are_uploaded(self):
         self.publish()

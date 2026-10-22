@@ -62,3 +62,15 @@ export type ManagementAction =
     };
 
 export type OpenManagement = (action: ManagementAction) => void;
+
+export interface SidebarMove {
+  kind: "channel" | "category";
+  id: string;
+  before_id: string | null;
+  category_id?: string | null;
+}
+
+export interface SidebarOrder {
+  categories: Category[];
+  channels: Channel[];
+}

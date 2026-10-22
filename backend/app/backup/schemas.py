@@ -137,7 +137,7 @@ class BackupPlanEvent(BackupRecord):
     plan_id: UUID
     occurrence_date: date
     created_at: AwareDatetime
-    action: Literal["start", "delay", "other"]
+    action: Literal["start", "stop", "delay", "other"]
     minutes: Literal[5, 10, 15, 30, 60] | None
     reason: str | None = Field(max_length=500)
     activity_id: UUID | None

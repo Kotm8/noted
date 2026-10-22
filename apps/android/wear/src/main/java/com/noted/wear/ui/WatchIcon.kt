@@ -39,6 +39,7 @@ class WatchIcon(private val name: String, color: Int) : Drawable() {
                 path.moveTo(16f, 5f)
                 path.lineTo(16f, 19f)
             }
+            "stop" -> path.addRect(6f, 6f, 18f, 18f, Path.Direction.CW)
             "play" -> {
                 path.moveTo(8f, 4f)
                 path.lineTo(20f, 12f)

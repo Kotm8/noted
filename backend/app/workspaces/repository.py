@@ -36,6 +36,13 @@ class WorkspaceRepository:
     def delete(self, workspace: Workspace) -> None:
         self.db.delete(workspace)
 
+    def lock_for_owner(self, workspace_id: UUID, owner_id: UUID) -> Workspace | None:
+        return self.db.scalar(
+            select(Workspace)
+            .where(Workspace.id == workspace_id, Workspace.owner_id == owner_id)
+            .with_for_update()
+        )
+
 
 class CategoryRepository:
     def __init__(self, db: Session) -> None:
@@ -62,6 +69,16 @@ class CategoryRepository:
 
     def delete(self, category: Category) -> None:
         self.db.delete(category)
+
+    def lock_for_workspace(self, workspace_id: UUID) -> list[Category]:
+        return list(
+            self.db.scalars(
+                select(Category)
+                .where(Category.workspace_id == workspace_id)
+                .order_by(Category.position, Category.id)
+                .with_for_update()
+            )
+        )
 
 
 class ChannelRepository:
@@ -100,3 +117,13 @@ class ChannelRepository:
 
     def delete(self, channel: Channel) -> None:
         self.db.delete(channel)
+
+    def lock_for_workspace(self, workspace_id: UUID) -> list[Channel]:
+        return list(
+            self.db.scalars(
+                select(Channel)
+                .where(Channel.workspace_id == workspace_id)
+                .order_by(Channel.position, Channel.created_at, Channel.id)
+                .with_for_update()
+            )
+        )

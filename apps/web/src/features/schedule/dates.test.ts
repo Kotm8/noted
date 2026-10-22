@@ -1,7 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { addDays, wallTime, weekDays, zonedParts } from "./dates";
+import {
+  addDays,
+  defaultPlanTimes,
+  wallTime,
+  weekDays,
+  zonedParts,
+} from "./dates";
 
 describe("schedule timezone boundaries", () => {
+  it("starts new plans near now in the schedule timezone with a one-hour duration", () => {
+    expect(
+      defaultPlanTimes("Europe/Moscow", Date.parse("2026-10-22T11:07:00Z")),
+    ).toEqual({
+      start_minute: 840,
+      end_minute: 900,
+    });
+    expect(
+      defaultPlanTimes("Europe/Moscow", Date.parse("2026-10-22T11:08:00Z")),
+    ).toEqual({
+      start_minute: 855,
+      end_minute: 915,
+    });
+  });
+  it("keeps late-night defaults within the selected day", () => {
+    expect(
+      defaultPlanTimes("Europe/Moscow", Date.parse("2026-10-22T20:59:00Z")),
+    ).toEqual({
+      start_minute: 1425,
+      end_minute: 1440,
+    });
+    expect(
+      defaultPlanTimes("Europe/Moscow", Date.parse("2026-10-22T21:02:00Z")),
+    ).toEqual({
+      start_minute: 0,
+      end_minute: 60,
+    });
+  });
   it("finds Monday and preserves calendar days over month and year boundaries", () => {
     expect(weekDays("2026-10-18")).toEqual([
       "2026-10-12",

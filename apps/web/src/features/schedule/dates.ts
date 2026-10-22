@@ -41,6 +41,11 @@ export function wallTime(
   }
   throw new Error("This time does not exist in the selected timezone.");
 }
+export function defaultPlanTimes(timezone: string, now = Date.now()) {
+  const { minute } = zonedParts(now, timezone);
+  const start = Math.min(1425, Math.round(minute / 15) * 15);
+  return { start_minute: start, end_minute: Math.min(1440, start + 60) };
+}
 export function dayLabel(
   day: string,
   options: Intl.DateTimeFormatOptions = {

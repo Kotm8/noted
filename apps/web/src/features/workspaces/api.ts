@@ -6,9 +6,18 @@ import type {
   ChannelInput,
   Workspace,
   WorkspaceInput,
+  SidebarMove,
+  SidebarOrder,
 } from "./types";
 
 export const workspaceApi = {
+  move(workspaceId: string, data: SidebarMove): Promise<SidebarOrder> {
+    return request<SidebarOrder>(
+      `/workspaces/${workspaceId}/order`,
+      "PUT",
+      data,
+    );
+  },
   list(): Promise<Workspace[]> {
     return fetchAllPages<Workspace>("/workspaces");
   },
@@ -42,7 +51,11 @@ export const categoryApi = {
   },
 
   create(workspaceId: string, data: CategoryInput): Promise<Category> {
-    return request<Category>(`/workspaces/${workspaceId}/categories`, "POST", data);
+    return request<Category>(
+      `/workspaces/${workspaceId}/categories`,
+      "POST",
+      data,
+    );
   },
 
   update(id: string, data: CategoryInput): Promise<Category> {
@@ -60,7 +73,11 @@ export const channelApi = {
   },
 
   create(workspaceId: string, data: ChannelInput): Promise<Channel> {
-    return request<Channel>(`/workspaces/${workspaceId}/channels`, "POST", data);
+    return request<Channel>(
+      `/workspaces/${workspaceId}/channels`,
+      "POST",
+      data,
+    );
   },
 
   update(id: string, data: ChannelInput): Promise<Channel> {

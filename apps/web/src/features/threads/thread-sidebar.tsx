@@ -18,7 +18,8 @@ import { useTimelineScroll } from "../notes/hooks/use-timeline-scroll";
 import { useDraft } from "../notes/hooks/use-draft";
 import { notesApi } from "../notes/api";
 import type { Channel } from "../workspaces/types";
-import type { Note, NoteCursor } from "../notes/types";
+import type { Note } from "../notes/types";
+import { threadQuery } from "./queries";
 
 export function ThreadSidebar({
   rootId,
@@ -37,20 +38,7 @@ export function ThreadSidebar({
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Note | null>(null);
   const { draft, setDraft, clearSentDraft } = useDraft(`thread.${rootId}`);
-  const query = useInfiniteQuery({
-    queryKey: ["thread", rootId, targetId ?? "latest"],
-    queryFn: ({ pageParam }) => threadsApi.read(rootId, pageParam),
-    initialPageParam: (targetId ? { around: targetId } : {}) as NoteCursor,
-    getNextPageParam: (page): NoteCursor | undefined =>
-      page.replies.next_cursor
-        ? { before: page.replies.next_cursor }
-        : undefined,
-    getPreviousPageParam: (page): NoteCursor | undefined =>
-      page.replies.newer_cursor
-        ? { after: page.replies.newer_cursor }
-        : undefined,
-    refetchInterval: 15000,
-  });
+  const query = useInfiniteQuery(threadQuery(rootId, targetId));
   const scroll = useTimelineScroll(query.data, !targetId);
   const highlighted = useRef(false);
   useLayoutEffect(() => {

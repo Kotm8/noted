@@ -57,3 +57,15 @@ class ChannelResponse(ChannelCreate):
             version = self.banner_storage_key.split("/")[-1]
             return f"/api/v1/channels/{self.id}/banner?v={version}"
         return None
+
+
+class SidebarMove(BaseModel):
+    kind: Literal["channel", "category"]
+    id: uuid.UUID
+    before_id: uuid.UUID | None = None
+    category_id: uuid.UUID | None = None
+
+
+class SidebarOrder(BaseModel):
+    categories: list[CategoryResponse]
+    channels: list[ChannelResponse]

@@ -43,15 +43,16 @@ class WatchMessagingService : FirebaseMessagingService() {
         )
             return
         val plan = payload.optString("kind") == "plan"
+        val ended = plan && payload.optString("phase") == "end"
         val id =
             payload.optString(
                 if (plan) "promptId"
-                else if (payload.optString("kind") == "diagnostic") "testId" else "messageId"
+                else if (payload.optString("kind") == "diagnostic") "testId" else "messageId",
             )
         if (runCatching { UUID.fromString(id) }.isFailure) return
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Noted reminders", NotificationManager.IMPORTANCE_HIGH)
+            NotificationChannel(CHANNEL, "Noted reminders", NotificationManager.IMPORTANCE_HIGH),
         )
         val open =
             Intent(this, WatchActivity::class.java)
@@ -63,7 +64,7 @@ class WatchMessagingService : FirebaseMessagingService() {
             NotificationCompat.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_noted)
                 .setContentTitle(
-                    if (hide) "Noted reminder" else payload.optString("title", "Noted").take(150)
+                    if (hide) "Noted reminder" else payload.optString("title", "Noted").take(150),
                 )
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -73,7 +74,7 @@ class WatchMessagingService : FirebaseMessagingService() {
                         0,
                         open,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                    )
+                    ),
                 )
                 .setLocalOnly(true)
                 .setAutoCancel(true)
@@ -86,10 +87,10 @@ class WatchMessagingService : FirebaseMessagingService() {
                     .putExtra("id", id)
                     .putExtra("revision", revision)
                     .putExtra("path", if (plan) "prompts" else "reminders")
-                    .putExtra("action", if (plan) "start" else "done")
+                    .putExtra("action", if (ended) "stop" else if (plan) "start" else "done")
             builder.addAction(
                 0,
-                if (plan) "Start activity" else "Done",
+                if (ended) "No activity" else if (plan) "Start activity" else "Done",
                 PendingIntent.getBroadcast(
                     this,
                     0,
@@ -100,7 +101,7 @@ class WatchMessagingService : FirebaseMessagingService() {
             if (plan)
                 builder.addAction(
                     0,
-                    "Delay / other activity",
+                    if (ended) "Snooze" else "Delay / other activity",
                     PendingIntent.getActivity(
                         this,
                         0,

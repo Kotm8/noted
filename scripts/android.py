@@ -182,6 +182,7 @@ def main() -> None:
         ":wear:assembleDebug",
         ":wear:testDebugUnitTest",
         ":wear:lintDebug",
+        ":wear:assembleDebugAndroidTest",
         ":watchface:assembleDebug",
     ]
     if args.command == "build":

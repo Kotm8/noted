@@ -2,8 +2,16 @@
 
 ## 0.2.3
 
+- Keep the startup logo visible until the first page is prepared, and load channel content before switching views across web, desktop, and Android.
+- Drag channels and whole categories on desktop, including moving channels between categories, with server-saved order and touch dragging disabled.
+- Swipe right near the left side to open Android navigation, or left on the sidebar to close it.
+- End-of-plan prompts offer No activity or Snooze while the same session is running, and skip the alert when another plan starts within 15 minutes.
+- Task-switch notification links open the activity sidebar on mobile, with finishing the current task selected as the default delay reason.
+- Improved watch readability, round-screen spacing, delay choices, and all three face layouts, with real Wear OS emulator captures.
+- New plans default to the current schedule time rounded to 15 minutes, with a one-hour duration capped at midnight.
 - Faster Windows CI builds through Rust dependency caching and release signing of the tested installer without recompiling.
 - Fixed updater signing failures caused by whitespace in the private signing key.
+- Isolated publisher test summaries from the real CI summary and resolved React Fast Refresh warnings.
 
 ## 0.2.2
 

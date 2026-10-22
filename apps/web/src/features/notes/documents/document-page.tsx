@@ -9,14 +9,10 @@ import type { Channel } from "../../workspaces/types";
 import { useWritingDraft } from "../../writing/use-writing-draft";
 import { MarkdownWritingArea } from "../../writing/markdown-writing-area";
 import { documentApi, type NoteDocument } from "./api";
+import { documentQuery } from "./queries";
 
 export function DocumentPage({ channel }: { channel: Channel }) {
-  const api = documentApi(channel.name);
-  const query = useQuery({
-    queryKey: ["channel-document", channel.id],
-    queryFn: () => api.get(channel.id),
-    refetchInterval: 15000,
-  });
+  const query = useQuery(documentQuery(channel));
   if (query.data)
     return (
       <DocumentEditor
