@@ -14,7 +14,7 @@
 }
 .installer-header > span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .installer-layout {
   display: grid;
@@ -31,7 +31,7 @@
 }
 .installer-navigation > p {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-md);
   line-height: 1.6;
 }
 .installer-navigation ol {
@@ -46,7 +46,7 @@
   align-items: center;
   gap: 12px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .installer-navigation li > span {
   display: inline-flex;
@@ -56,7 +56,7 @@
   height: 27px;
   border: 1px solid var(--border-default);
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .installer-navigation li[aria-current] {
   color: var(--text-primary);
@@ -69,7 +69,7 @@
   max-width: 210px;
   margin-top: 70px;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .installer-form {
   min-width: 0;
@@ -90,7 +90,7 @@
   align-items: center;
   gap: 12px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .installation-progress li[aria-current] {
   color: var(--accent);
@@ -109,7 +109,7 @@
 }
 .installation-step > p {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--font-base);
   line-height: 1.7;
   margin: 0 0 30px;
 }
@@ -156,13 +156,13 @@
 .cloudflare-guide summary {
   cursor: pointer;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--font-md);
   font-weight: 600;
 }
 .cloudflare-guide p,
 .cloudflare-guide ol {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.7;
   margin: 15px 0;
 }
@@ -188,7 +188,7 @@
   grid-template-columns: 125px minmax(0, 1fr);
   gap: 14px;
   padding: 7px 0;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .dns-example dt,
 .installation-review dt {
@@ -209,7 +209,7 @@
   align-items: center;
   gap: 5px;
   color: var(--link);
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .setup-reference-links a:hover {
   text-decoration: underline;
@@ -220,11 +220,96 @@
 .installation-review > div {
   padding: 10px 0;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .installation-step .setup-help {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-sm);
+}
+.setup-choices {
+  display: grid;
+  gap: 10px;
+}
+.installation-step .setup-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.setup-choice:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.setup-choice input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.setup-choice strong {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.setup-choice small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.installation-step > .setup-choices {
+  margin-bottom: 24px;
+}
+.setup-generated {
+  padding: 16px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface-sidebar);
+}
+.setup-generated > p {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: var(--font-md);
+  line-height: 1.7;
+}
+.setup-copy-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.setup-generated ul {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  line-height: 1.6;
+}
+.setup-devices {
+  margin-top: 26px;
+}
+.setup-devices h4 {
+  margin: 0 0 6px;
+  font-size: var(--font-base);
+}
+.setup-devices > .setup-help {
+  margin: 0 0 14px;
+}
+.setup-devices h4 small {
+  margin-left: 6px;
+  color: var(--text-faint);
+  font-weight: 400;
+}
+.phone-watch-step > .setup-help {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
 }
 @media (max-width: 760px) {
   .installer-header {
@@ -252,7 +337,7 @@
   .installer-navigation li {
     flex-direction: column;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--font-xs);
   }
   .installer-navigation .installer-memory-note {
     display: block;
@@ -288,7 +373,7 @@
   margin: 26px 0;
   list-style: decimal;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-md);
   line-height: 1.7;
 }
 
@@ -322,7 +407,7 @@
   margin-top: 0;
 }
 .android-server-setup .installation-step h4 {
-  font-size: 15px;
+  font-size: var(--font-body);
   margin-bottom: 8px;
 }
 .firebase-field-heading {
@@ -334,7 +419,7 @@
 }
 .firebase-field-heading label {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .firebase-json {
   width: 100%;
@@ -348,7 +433,7 @@
   background: var(--surface-sidebar);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.6;
 }
 .firebase-json:focus-visible {
@@ -385,19 +470,19 @@
 
 .installer-danger-zone h3 {
   color: var(--danger);
-  font-size: 14px;
+  font-size: var(--font-base);
   margin-bottom: 5px;
 }
 
 .installer-danger-zone p {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 
 .cleanup-summary {
   display: grid;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 
 .cleanup-summary > div {

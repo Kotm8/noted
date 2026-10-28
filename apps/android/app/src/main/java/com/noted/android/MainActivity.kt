@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.FrameLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
@@ -64,20 +65,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun showConnection() {
+    /** The browser splash replaces the content view, so the root may need re-attaching. */
+    private fun show(view: View) {
+        if (root.parent == null) setContentView(root)
         root.removeAllViews()
+        root.addView(view, FrameLayout.LayoutParams(-1, -1))
+    }
+
+    private fun showConnection() {
         val setup = ConnectionView(this, store.origin) { origin -> connect(origin, Uri.parse(origin)) }
-        root.addView(ScrollView(this).apply {
+        show(ScrollView(this).apply {
             isFillViewport = true
             addView(setup, FrameLayout.LayoutParams(-1, -2))
-        }, FrameLayout.LayoutParams(-1, -1))
+        })
     }
 
     private fun connect(origin: String, destination: Uri) {
         if (connecting) return
         connecting = true
-        root.removeAllViews()
-        root.addView(StartupView(this), FrameLayout.LayoutParams(-1, -1))
+        show(StartupView(this))
         network.execute {
             val result = runCatching {
                 AppAssociation.verify(this, origin)

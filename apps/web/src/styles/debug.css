@@ -23,13 +23,13 @@
 .debug-toolbar {
   margin: 18px 0 8px;
   color: var(--text-muted);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 
 .debug-checks > div {
   padding: 11px 0;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 
 .debug-checks dt {
@@ -72,7 +72,7 @@
 
 .debug-footnote {
   color: var(--text-muted);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   line-height: 1.6;
   margin-top: 16px;
 }

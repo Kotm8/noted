@@ -147,9 +147,7 @@ export function CleanupDialog({
             void inspect();
           }}
         >
-          {busy && !inspection && (
-            <LoaderCircle size={15} className="animate-spin" />
-          )}
+          {busy && !inspection && <LoaderCircle size={15} className="spin" />}
           Inspect Noted installation
         </Button>
         {inspection && (
@@ -221,7 +219,7 @@ export function CleanupDialog({
             }
           >
             {busy && inspection ? (
-              <LoaderCircle size={15} className="animate-spin" />
+              <LoaderCircle size={15} className="spin" />
             ) : (
               <Trash2 size={15} />
             )}

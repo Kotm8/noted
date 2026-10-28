@@ -31,6 +31,11 @@ try {
     await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
     await expect(page.getByRole("checkbox", { name: "Keep me signed in" })).toBeChecked();
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    const startup = page.getByRole("dialog", { name: "Start Noted with Windows?" });
+    await startup.getByRole("button", { name: "Not now", exact: true }).click();
+    await expect(startup).toHaveCount(0);
+    const preferences = JSON.parse(await readFile(resolve(temporary, "profile/startup.json"), "utf8"));
+    assert.equal(preferences.asked, true);
   }
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
@@ -68,7 +73,8 @@ try {
     await page.locator(".home-project-navigation").getByRole("button", { name: "Desktop check", exact: true }).click();
     await expect(page.locator(".note").filter({ hasText: "Native desktop persistence" })).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Connection", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Start Noted with Windows?" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Desktop app", exact: true }).click();
     await expect(page.locator(".desktop-server-address")).toHaveText("http://localhost:8000");
     await page.getByRole("button", { name: "Switch server", exact: true }).click();
     await expect(page.getByLabel("Server address", { exact: true })).toBeVisible();
@@ -81,7 +87,7 @@ try {
     const desktopUpdate = await call("/desktop/updates");
     assert.equal(desktopUpdate.supported, true);
     assert.equal(desktopUpdate.phase, "idle");
-    assert.equal(desktopUpdate.current_version, "0.2.6");
+    assert.equal(desktopUpdate.current_version, "0.3.0");
     assert.equal((await fetch(`${origin}/desktop/updates`)).status, 403);
     const updateForgery = await page.evaluate(async () => {
       const response = await fetch("/desktop/updates", {
@@ -94,7 +100,7 @@ try {
     assert.equal(updateForgery, 403);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Desktop app", exact: true }).click();
-    await expect(page.getByText("Installed version: 0.2.6", { exact: true })).toBeVisible();
+    await expect(page.getByText("Installed version: 0.3.0", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Check for updates", exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Restart and install", exact: true })).toHaveCount(0);
     await page.screenshot({ path: resolve(screenshots, "desktop-app-updates.png") });

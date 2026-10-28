@@ -77,7 +77,7 @@ export function AuthForm() {
         disabled={authentication.isPending}
       >
         {authentication.isPending ? (
-          <LoaderCircle className="animate-spin" size={17} />
+          <LoaderCircle className="spin" size={17} />
         ) : (
           <>Sign in</>
         )}

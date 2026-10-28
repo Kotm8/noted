@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.errors import ValidationError
+from app.notes.mentions import readable
 from app.search.repository import SearchRepository
 from app.search.schemas import SearchPage, SearchResult
 
@@ -46,7 +47,7 @@ class SearchService:
                     workspace_id=record.workspace_id,
                     channel_name=record.channel_name,
                     workspace_name=record.workspace_name,
-                    excerpt=make_excerpt(record.content, query),
+                    excerpt=make_excerpt(readable(record.content), query),
                     created_at=record.created_at,
                 )
                 for record in records

@@ -69,8 +69,44 @@ class WatchStore(context: Context) {
     fun registeredToken(): String? = preferences.getString("registered_token", null)
 
     fun saveRegisteredToken(token: String) {
-        preferences.edit().putString("registered_token", token).apply()
+        preferences
+            .edit()
+            .putString("registered_token", token)
+            .putLong("registered_at", System.currentTimeMillis())
+            .apply()
     }
+
+    /** When this watch last confirmed its push token with the server, or 0. */
+    fun registeredAt(): Long = preferences.getLong("registered_at", 0)
+
+    /**
+     * Notification commands already sent. Reopening the app from recents replays
+     * the launch intent, which must not show "Starting…" again.
+     */
+    fun handled(key: String): Boolean = key in commands()
+
+    fun markHandled(key: String) {
+        preferences
+            .edit()
+            .putString("handled_commands", (commands() + key).takeLast(20).joinToString("\n"))
+            .apply()
+    }
+
+    private fun commands(): List<String> =
+        preferences.getString("handled_commands", null)?.split("\n") ?: emptyList()
+
+    fun saveTestArrival(testId: String) {
+        preferences
+            .edit()
+            .putString("test_arrived_id", testId)
+            .putLong("test_arrived_at", System.currentTimeMillis())
+            .apply()
+    }
+
+    fun testArrival(testId: String): Long =
+        if (preferences.getString("test_arrived_id", null) == testId)
+            preferences.getLong("test_arrived_at", 0)
+        else 0
 
     fun clear() = synchronized(lock) { preferences.edit().clear().commit() }
 

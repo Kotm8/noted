@@ -14,8 +14,10 @@ export interface Category {
   position: number;
 }
 
+export type ChannelKind = "note" | "reminder" | "journal" | "document" | "tasks";
+
 export interface Channel {
-  kind?: "note" | "reminder" | "journal" | "document";
+  kind?: ChannelKind;
   id: string;
   workspace_id: string;
   category_id: string | null;
@@ -23,6 +25,7 @@ export interface Channel {
   banner_url: string | null;
   position: number;
   created_at: string;
+  pinned_at?: string | null;
 }
 
 export interface WorkspaceInput {
@@ -37,7 +40,7 @@ export interface CategoryInput {
 }
 
 export interface ChannelInput extends CategoryInput {
-  kind?: "note" | "reminder" | "journal" | "document";
+  kind?: ChannelKind;
   category_id: string | null;
 }
 

@@ -34,7 +34,7 @@ export function VideoAttachment({ file }: { file: Attachment }) {
         )}
         {playback.buffering && playback.started && !playback.failed && (
           <div className="video-buffering" role="status" aria-label="Buffering video">
-            <LoaderCircle className="animate-spin" size={27} />
+            <LoaderCircle className="spin" size={27} />
           </div>
         )}
         {playback.failed && (

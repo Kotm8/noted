@@ -16,10 +16,10 @@ export function DesktopUpdatesPanel() {
   const error = action.error?.message ?? query.error?.message ?? data?.error;
 
   return (
-    <section className="settings-panel desktop-updates-panel">
-      <h2>Desktop app</h2>
+    <section className="settings-section desktop-updates-panel">
+      <h3>Updates</h3>
       <p>
-        Noted checks for updates when it starts and every day while open. You
+        Noted checks for updates when it starts and every few hours while open. You
         choose when to download and install.
       </p>
       {data && (

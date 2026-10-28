@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ContentTooLargeError, ValidationError
 from app.core.security import utc_now
+from app.notes.mentions import readable
 from app.notes.models import Message
 from app.reminders.models import Reminder
 from app.schedule.recurrence import instants, occurs_on
@@ -104,5 +105,7 @@ def schedule_board(db: Session, owner_id: UUID, start: datetime, end: datetime) 
     return ScheduleBoard(
         plans=occurrences,
         sessions=[SessionResponse.model_validate(item) for item in sessions],
-        reminders=[ReminderFlag(**dict(item)) for item in reminders],
+        reminders=[
+            ReminderFlag(**{**item, "content": readable(item["content"])}) for item in reminders
+        ],
     )

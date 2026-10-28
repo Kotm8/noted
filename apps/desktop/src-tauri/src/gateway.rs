@@ -25,6 +25,8 @@ pub struct Gateway {
     pub port: u16,
     pub store: ProfileStore,
     pub installer: crate::installer::Installer,
+    pub devices: crate::devices::Devices,
+    pub startup: crate::startup::Startup,
     pub connection: RwLock<Option<Connection>>,
     pub client_updates: Arc<crate::client_updates::ClientUpdates>,
 }
@@ -270,6 +272,39 @@ pub fn router(state: Arc<Gateway>) -> Router {
         .route(
             "/desktop/setup/verify",
             axum::routing::post(crate::installer::verify),
+        )
+        .route(
+            "/desktop/server-address",
+            axum::routing::post(crate::address::change),
+        )
+        .route(
+            "/desktop/startup",
+            get(crate::startup::read).put(crate::startup::change),
+        )
+        .route("/desktop/devices", get(crate::devices::overview))
+        .route(
+            "/desktop/devices/tool",
+            axum::routing::post(crate::devices::download_tool),
+        )
+        .route(
+            "/desktop/devices/usb",
+            axum::routing::post(crate::devices::detect_usb),
+        )
+        .route(
+            "/desktop/devices/pair",
+            axum::routing::post(crate::devices::pair),
+        )
+        .route(
+            "/desktop/devices/connect",
+            axum::routing::post(crate::devices::reconnect),
+        )
+        .route(
+            "/desktop/devices/forget",
+            axum::routing::post(crate::devices::forget),
+        )
+        .route(
+            "/desktop/devices/install",
+            get(crate::devices::job).post(crate::devices::install),
         )
         .fallback(serve)
         .route("/desktop/session", axum::routing::put(remember_session))

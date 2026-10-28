@@ -2,7 +2,13 @@ export interface HostJob {
   id: string;
   action: "probe" | "transfer" | "domain" | "remove" | "cancel";
   status:
-    "queued" | "running" | "waiting_dns" | "succeeded" | "failed" | "needs_recovery" | "cancelled";
+    | "queued"
+    | "running"
+    | "waiting_dns"
+    | "succeeded"
+    | "failed"
+    | "needs_recovery"
+    | "cancelled";
   phase: string;
   detail: string;
   destination: string | null;

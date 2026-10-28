@@ -51,6 +51,44 @@ class WatchIcon(private val name: String, color: Int) : Drawable() {
                 path.lineTo(10f, 18f)
                 path.lineTo(21f, 5f)
             }
+            "swap" -> {
+                path.moveTo(4f, 8f)
+                path.lineTo(18f, 8f)
+                path.lineTo(15f, 5f)
+                path.moveTo(20f, 16f)
+                path.lineTo(6f, 16f)
+                path.lineTo(9f, 19f)
+            }
+            "idle" -> {
+                path.addCircle(12f, 12f, 8f, Path.Direction.CW)
+                path.moveTo(9f, 12f)
+                path.lineTo(15f, 12f)
+            }
+            "retry" -> {
+                path.addArc(5f, 5f, 19f, 19f, -60f, 300f)
+                path.moveTo(19f, 4f)
+                path.lineTo(18.5f, 8.5f)
+                path.lineTo(14f, 8f)
+            }
+            "home" -> {
+                path.moveTo(4f, 11f)
+                path.lineTo(12f, 4.5f)
+                path.lineTo(20f, 11f)
+                path.lineTo(20f, 20f)
+                path.lineTo(4f, 20f)
+                path.close()
+            }
+            "bell" -> {
+                path.moveTo(6f, 16f)
+                path.lineTo(6f, 11f)
+                path.arcTo(6f, 5f, 18f, 17f, 180f, 180f, false)
+                path.lineTo(18f, 16f)
+                path.lineTo(19.5f, 18f)
+                path.lineTo(4.5f, 18f)
+                path.close()
+                path.moveTo(10f, 20.5f)
+                path.lineTo(14f, 20.5f)
+            }
             "flag",
             "Flag" -> {
                 path.moveTo(5f, 21f)

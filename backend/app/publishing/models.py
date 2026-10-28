@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.notifications.models import DeliveryProgress
 
 
 class ScheduledMessage(Base):
@@ -56,16 +57,9 @@ class WritingPrompt(Base):
     read_revision: Mapped[int] = mapped_column(default=0)
 
 
-class WritingDelivery(Base):
+class WritingDelivery(DeliveryProgress, Base):
     __tablename__ = "writing_deliveries"
-
+    item_key = "prompt_id"
     prompt_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("writing_prompts.id", ondelete="CASCADE"), primary_key=True
     )
-    subscription_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("push_subscriptions.id", ondelete="CASCADE"), primary_key=True
-    )
-    revision: Mapped[int] = mapped_column(primary_key=True)
-    attempts: Mapped[int] = mapped_column(default=0)
-    retry_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

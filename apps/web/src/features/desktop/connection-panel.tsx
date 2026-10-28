@@ -20,9 +20,9 @@ export function ConnectionPanel() {
   }
 
   return (
-    <section className="settings-panel">
-      <h2>Connection</h2>
-      <p>Your desktop app connects to this Noted server.</p>
+    <section className="settings-section">
+      <h3>Connection</h3>
+      <p>This app connects to this Noted server.</p>
       <p className="desktop-server-address">{connection.serverUrl}</p>
       <p className="settings-hint">The server address is remembered. Sign in again after restarting the app.</p>
       {error && <Notice tone="error">{error}</Notice>}

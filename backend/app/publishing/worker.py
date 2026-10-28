@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -6,8 +5,6 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from app.core.config import Settings
-from app.core.security import utc_now
 from app.notes.models import Message
 from app.publishing.models import ScheduledMessage, WritingDelivery, WritingPrompt
 from app.publishing.recurrence import next_occurrence
@@ -16,8 +13,14 @@ from app.workspaces.models import Channel
 logger = logging.getLogger(__name__)
 
 
-def advance_due(engine: Engine, now: datetime, previous: datetime | None) -> None:
-    skip = previous is None or now - previous > timedelta(seconds=30)
+def advance_due(
+    engine: Engine,
+    now: datetime,
+    previous: datetime | None,
+    max_gap: timedelta = timedelta(seconds=30),
+) -> None:
+    """Post due scheduled messages; a gap longer than max_gap means downtime, so skip."""
+    skip = previous is None or now - previous > max_gap
     with Session(engine) as db:
         db.execute(text("SELECT pg_advisory_xact_lock(731492681)"))
         messages = db.scalars(
@@ -63,18 +66,3 @@ def advance_due(engine: Engine, now: datetime, previous: datetime | None) -> Non
             prompt.next_at = next_occurrence(prompt, now)
             db.execute(delete(WritingDelivery).where(WritingDelivery.prompt_id == prompt.id))
         db.commit()
-
-
-async def publishing_worker(engine: Engine, settings: Settings) -> None:
-    previous: datetime | None = None
-    while True:
-        now = utc_now()
-        try:
-            if settings.maintenance_path and settings.maintenance_path.exists():
-                previous = None
-            else:
-                await asyncio.to_thread(advance_due, engine, now, previous)
-                previous = now
-        except Exception:
-            logger.exception("Channel scheduling cycle failed")
-        await asyncio.sleep(5)

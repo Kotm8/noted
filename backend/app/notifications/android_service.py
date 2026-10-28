@@ -47,8 +47,7 @@ def pairing(db: Session, ticket: str) -> AndroidPairing:
         .where(
             AndroidPairing.ticket_hash == hash_token(ticket),
             AndroidPairing.expires_at > utc_now(),
-            LoginSession.revoked_at.is_(None),
-            LoginSession.expires_at > utc_now(),
+            LoginSession.live(),
         )
         .with_for_update(of=AndroidPairing)
     )
@@ -124,8 +123,7 @@ def authenticate_device(db: Session, authorization: str) -> tuple[PushSubscripti
         .where(
             PushSubscription.endpoint.like("fcm:%"),
             PushSubscription.keys["device_secret_hash"].astext == hash_token(secret),
-            LoginSession.revoked_at.is_(None),
-            LoginSession.expires_at > utc_now(),
+            LoginSession.live(),
         )
     ).first()
     if result is None:

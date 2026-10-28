@@ -19,7 +19,7 @@
 }
 .search-sidebar-title h2 {
   margin: 0;
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   font-weight: 600;
 }
 .search-input {
@@ -42,7 +42,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 .search-input input:focus-visible {
   outline: none;
@@ -67,7 +67,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--text-secondary);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 .search-tool:hover,
 .search-tool[aria-expanded="true"] {
@@ -92,12 +92,12 @@
   gap: 6px;
   margin: 0;
   color: var(--text-muted);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 .search-filters select {
   height: 34px;
   padding: 0 9px;
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 .search-filters select:disabled {
   opacity: 0.5;
@@ -108,7 +108,7 @@
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 .search-clear-filters:hover {
   color: var(--accent);
@@ -139,7 +139,7 @@
   justify-content: flex-start;
   gap: 8px;
   color: var(--text-muted);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .search-result-channel > span {
   margin-left: auto;
@@ -156,14 +156,14 @@
   margin: 10px 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   line-height: 1.6;
 }
 .search-result > time {
   display: block;
   margin-top: 6px;
   color: var(--text-faint);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .search-result mark {
   color: var(--text-primary);
@@ -172,7 +172,7 @@
 .search-count {
   margin: 0 0 13px;
   color: var(--text-muted);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 .search-empty {
   display: flex;
@@ -187,12 +187,12 @@
 .search-empty h3 {
   margin: 15px 0 5px;
   color: var(--text-secondary);
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   font-weight: 500;
 }
 .search-empty p,
 .search-status {
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   line-height: 1.6;
 }
 .search-load-more {

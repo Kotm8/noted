@@ -52,7 +52,7 @@ class Channel(Base):
     __tablename__ = "channels"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('note', 'reminder', 'journal', 'document')", name="ck_channel_kind"
+            "kind IN ('note', 'reminder', 'journal', 'document', 'tasks')", name="ck_channel_kind"
         ),
         ForeignKeyConstraint(
             ["category_id", "workspace_id"],
@@ -73,3 +73,4 @@ class Channel(Base):
     banner_size: Mapped[int | None]
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    pinned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

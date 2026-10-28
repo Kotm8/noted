@@ -85,7 +85,7 @@ export function NotesTimeline({
         <div ref={scroll.contentRef}>
           {query.isPending ? (
             <div className="feed-loading">
-              <LoaderCircle className="animate-spin" size={21} />
+              <LoaderCircle className="spin" size={21} />
               Opening your notes...
             </div>
           ) : query.isError ? (
@@ -106,7 +106,7 @@ export function NotesTimeline({
                     onClick={() => void loadOlderNotes()}
                   >
                     {query.isFetchingNextPage ? (
-                      <LoaderCircle className="animate-spin" size={14} />
+                      <LoaderCircle className="spin" size={14} />
                     ) : (
                       <ArrowUp size={14} />
                     )}
@@ -144,16 +144,18 @@ export function NotesTimeline({
         </div>
       </div>
 
-      {(targetId || !scroll.isAtBottom) && (
-        <button
-          className="jump-bottom"
-          onClick={targetId ? onReturnToLatest : scroll.jumpToLatest}
-        >
-          <ArrowDown size={15} />
-          Back to latest
-        </button>
-      )}
       <NoteComposer
+        above={
+          (targetId || !scroll.isAtBottom) && (
+            <button
+              className="jump-bottom"
+              onClick={targetId ? onReturnToLatest : scroll.jumpToLatest}
+            >
+              <ArrowDown size={15} />
+              Back to latest
+            </button>
+          )
+        }
         channel={channel}
         isSending={createNote.isPending}
         onSend={sendNote}

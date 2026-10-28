@@ -1,3 +1,5 @@
+import { readable } from "./mentions";
+
 interface MarkdownNode {
   type: string;
   checked?: boolean | null;
@@ -39,7 +41,7 @@ export function taskListPositions() {
             hProperties: {
               ...node.data?.hProperties,
               "data-task-offset": offset,
-              "data-task-label": line.slice(marker[0].length).trim(),
+              "data-task-label": readable(line.slice(marker[0].length).trim()),
             },
           };
         }

@@ -25,11 +25,13 @@ from app.notifications.models import (
     NotificationDelivery,
     PushSubscription,
 )
-from app.notifications.worker import dispatch_due
+from app.notifications.worker import dispatch_dismissals, dispatch_due
 from app.reminders.models import Reminder
 from app.schedule.prompts.delivery import dispatch_plan_prompts
+from app.wear.models import WatchDevice
 from tests.conftest import API, TEST_ORIGIN
 from tests.test_reminders import create, subscribe
+from tests.test_wear import pair as pair_watch
 
 
 @pytest.fixture
@@ -445,3 +447,67 @@ def test_installer_configuration_script_validates_key_and_writes_only_private_fi
     assert list(path.parent.iterdir()) == [path]
     if os.name != "nt":
         assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_one_phone_alert_replaces_chrome_and_watch_gets_a_fallback_copy(
+    owner, channel, db, app, firebase_files, monkeypatch
+):
+    owner.get(f"{API}/notifications/config")
+    pair(owner, firebase_files)
+    chrome = subscribe(owner, "mobile")
+    laptop = subscribe(owner)
+    pair_watch(owner)
+    watch = db.scalar(select(WatchDevice))
+    db.add(
+        PushSubscription(
+            session_id=watch.session_id,
+            device_id=watch.id,
+            kind="mobile",
+            endpoint="fcm:noted-fixture:watch-token-" + "b" * 64,
+            keys={},
+        )
+    )
+    create(owner, channel)
+    db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
+    db.commit()
+    native = Mock(return_value="accepted")
+    browser = Mock()
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", native)
+    monkeypatch.setattr("pywebpush.webpush", browser)
+    for _ in range(2):
+        dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
+    browser.assert_not_called()
+    assert sorted(call.args[0].split(":")[2][:5] for call in native.call_args_list) == [
+        "phone",
+        "watch",
+    ]
+    quiet = db.scalars(
+        select(PushSubscription.endpoint)
+        .join(NotificationDelivery)
+        .where(NotificationDelivery.attempts == 0)
+    ).all()
+    assert sorted(quiet) == sorted([chrome["endpoint"], laptop["endpoint"]])
+
+
+def test_acting_on_a_reminder_dismisses_it_on_every_device_once(
+    owner, channel, db, app, firebase_files, monkeypatch
+):
+    pair(owner, firebase_files)
+    message = create(owner, channel)
+    db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
+    db.commit()
+    send = Mock(return_value="accepted")
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
+    dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
+    dispatch_dismissals(db.get_bind(), app.state.settings.app_origin, app.state.settings)
+    assert send.call_count == 1
+    path = f"{API}/messages/{message['id']}/reminder/actions"
+    assert owner.post(path, json={"revision": 1, "action": "snooze"}).status_code == 200
+    for _ in range(2):
+        dispatch_dismissals(db.get_bind(), app.state.settings.app_origin, app.state.settings)
+        dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
+    assert send.call_count == 2
+    payload = json.loads(send.call_args.args[3])
+    assert payload == {"kind": "dismiss", "target": "reminder", "id": message["id"], "revision": 1}
+    assert send.call_args.kwargs["urgent"] is False
+    assert db.scalar(select(func.count()).select_from(NotificationDelivery)) == 0

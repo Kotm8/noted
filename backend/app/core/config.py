@@ -4,9 +4,9 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.2.6")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.3.0")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
-SCHEMA_REVISION = "0016_plan_end_prompts"
+SCHEMA_REVISION = "0017_channel_tasks_pins"
 API_VERSION = 1
 
 
@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     backup_path: Path | None = None
     maintenance_path: Path | None = None
     instance_id: str = "development"
+    background_worker: bool = True
 
     @field_validator("app_origin")
     @classmethod

@@ -96,12 +96,18 @@ class Host:
                 receipt = self.transfer_factory(self.config, self.docker, self.phase).run(
                     request, installed, directory, pause, lambda: self.reopen(installed)
                 )
+                moved = receipt["destination"] != installed["origin"]
                 self.job.update(
                     **receipt,
                     status="waiting_dns",
                     phase="waiting_dns",
-                    detail="The destination is ready. Change the domain's DNS to the new IP. "
-                    "Writes on this source remain paused until transfer is verified or cancelled.",
+                    detail=(
+                        f"The destination is ready at {receipt['destination']}. "
+                        "Noted checks it automatically; no DNS change is needed. "
+                        if moved
+                        else "The destination is ready. Change the domain's DNS to the new IP. "
+                    )
+                    + "Writes on this source remain paused until transfer is verified or cancelled.",
                 )
             elif action == "cancel":
                 self.config.maintenance.unlink(missing_ok=True)

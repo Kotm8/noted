@@ -7,7 +7,7 @@
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   line-height: 1.6;
 }
 .notice-icon {

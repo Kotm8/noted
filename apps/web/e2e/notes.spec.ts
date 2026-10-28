@@ -33,15 +33,15 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
   await expect(page.getByRole("heading", { name: "python", exact: true })).toBeVisible();
 
   const composer = page.getByRole("textbox", { name: "Message python" });
-  const emptyComposer = await page.locator(".composer").boundingBox();
-  expect(emptyComposer?.height).toBeGreaterThanOrEqual(44);
+  const emptyComposer = await composer.boundingBox();
+  expect(emptyComposer?.height).toBeGreaterThanOrEqual(38);
   expect(emptyComposer?.height).toBeLessThanOrEqual(50);
   await composer.fill(
     "**Keep small thoughts.**\n\n```python\nprint('Привет, мир')\n```\n\n- An idea\n- A useful snippet",
   );
-  const expandedComposer = await page.locator(".composer").boundingBox();
+  const expandedComposer = await composer.boundingBox();
   expect(expandedComposer!.height).toBeGreaterThan(emptyComposer!.height);
-  await composer.press("Enter");
+  await composer.press("Control+Enter");
   await expect(page.locator(".note")).toHaveCount(1);
   await expect(
     page.locator(".note strong").filter({ hasText: "Keep small thoughts." }),
@@ -167,7 +167,7 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
 
   for (const [index, content] of examples.entries()) {
     await composer.fill(content);
-    await composer.press("Enter");
+    await composer.press("Control+Enter");
     await expect(page.locator(".note")).toHaveCount(index + 3);
   }
 

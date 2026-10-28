@@ -85,7 +85,7 @@
     flex: 1;
   }
   .channel-heading h1 {
-    font-size: calc(15px * var(--text-scale, 1));
+    font-size: var(--font-body);
   }
   .channel-intro {
     padding: 22px 18px;
@@ -98,14 +98,14 @@
   }
 
   .markdown {
-    font-size: calc(14px * var(--text-scale, 1));
+    font-size: var(--font-base);
   }
 
   .date-divider {
     gap: 9px;
     margin-right: 14px;
     margin-left: 14px;
-    font-size: calc(10px * var(--text-scale, 1));
+    font-size: var(--font-xs);
   }
 
   .note-actions {
@@ -117,11 +117,11 @@
   }
 
   .composer textarea {
-    font-size: calc(15px * var(--text-scale, 1));
+    font-size: var(--font-body);
   }
 
   .composer-footer {
-    font-size: calc(10px * var(--text-scale, 1));
+    font-size: var(--font-xs);
   }
 
   .channel-options {

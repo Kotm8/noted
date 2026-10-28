@@ -1,10 +1,16 @@
 import type { SetupStepProps } from "../types";
 
-export function ServerStep({ draft, update, rootOnly = false }: SetupStepProps & { rootOnly?: boolean }) {
+export function ServerStep({
+  draft,
+  update,
+  rootOnly = false,
+}: SetupStepProps & { rootOnly?: boolean }) {
   return (
     <section className="installation-step">
       <h1>Your server</h1>
-      <p>A name for this installation and the SSH details from your VPS provider.</p>
+      <p>
+        A name for this installation and the SSH details from your VPS provider.
+      </p>
       <label>
         Server name
         <input
@@ -17,7 +23,9 @@ export function ServerStep({ draft, update, rootOnly = false }: SetupStepProps &
           placeholder="My notes"
           onChange={(event) => update("serverName", event.target.value)}
         />
-        <small id="server-name-help">Shown in the installer and server settings.</small>
+        <small id="server-name-help">
+          Shown in the installer and server settings.
+        </small>
       </label>
       <div className="setup-address-row">
         <label>
@@ -54,7 +62,11 @@ export function ServerStep({ draft, update, rootOnly = false }: SetupStepProps &
           autoComplete="off"
           onChange={(event) => update("sshUser", event.target.value)}
         />
-        <small id="ssh-user-help">{rootOnly ? "Initial setup requires root on Ubuntu 24.04/26.04 or Debian 12/13 (x86_64)." : "Use root, or an account allowed to administer Docker."}</small>
+        <small id="ssh-user-help">
+          {rootOnly
+            ? "Initial setup requires root on Ubuntu 24.04/26.04 or Debian 12/13 (x86_64)."
+            : "Use root, or an account allowed to administer Docker."}
+        </small>
       </label>
       <label>
         SSH password
@@ -69,7 +81,8 @@ export function ServerStep({ draft, update, rootOnly = false }: SetupStepProps &
           onChange={(event) => update("sshPassword", event.target.value)}
         />
         <small id="ssh-password-help">
-          The server password from your provider. Your Noted password is chosen later.
+          The server password from your provider. Your Noted password is chosen
+          later.
         </small>
       </label>
     </section>

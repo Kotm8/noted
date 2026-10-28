@@ -1,5 +1,8 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Menu as MenuIcon, MoreHorizontal, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Menu, MenuItem } from "../../../components/ui/menu";
+import { channelApi } from "../api";
 import { ChannelIcon } from "./channel-icon";
 import type { Channel, OpenManagement, Workspace } from "../types";
 
@@ -22,6 +25,14 @@ export function ChannelHeader({
   onOpenSearch,
   onScheduling,
 }: ChannelHeaderProps) {
+  const queryClient = useQueryClient();
+  const pin = useMutation({
+    mutationFn: (pinned: boolean) => channelApi.setPinned(channel!.id, pinned),
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({ queryKey: ["channels"] });
+      toast.success(updated.pinned_at ? "Pinned to Home" : "Unpinned");
+    },
+  });
   return (
     <header className="channel-header">
       <button
@@ -68,6 +79,9 @@ export function ChannelHeader({
             )}
             <MenuItem onSelect={() => onScheduling("writing")}>
               Writing prompt
+            </MenuItem>
+            <MenuItem onSelect={() => pin.mutate(!channel.pinned_at)}>
+              {channel.pinned_at ? "Unpin from Home" : "Pin to Home"}
             </MenuItem>
             <MenuItem
               onSelect={() =>

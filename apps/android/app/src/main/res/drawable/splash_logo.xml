@@ -1,0 +1,6 @@
+<!-- The startup logo (112x110dp) plus 24dp below it, so when Chrome centres this splash
+     the logo lands where the native and web startup screens draw it above their progress bar. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="112dp" android:height="134dp" android:viewportWidth="98" android:viewportHeight="116.95">
+    <path android:fillColor="#CCCCCC" android:pathData="M26.7,32H39.5V37.7C42.4,33.2 46.4,30.8 51.9,30.8C61.2,30.8 65.6,37 65.6,47V71H52.8V48.6C52.8,42.7 51.2,40 47.1,40C42.1,40 39.5,43.7 39.5,50.4V71H26.7V32Z" />
+    <path android:fillColor="#E2C15A" android:pathData="M67.5,72C71.48,72 74.7,69.09 74.7,65.5C74.7,61.91 71.48,59 67.5,59C63.52,59 60.3,61.91 60.3,65.5C60.3,69.09 63.52,72 67.5,72Z" />
+</vector>

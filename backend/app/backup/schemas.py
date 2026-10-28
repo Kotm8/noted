@@ -9,6 +9,7 @@ from app.publishing.schemas import ScheduledFields, WritingFields
 from app.reminders.schemas import ReminderSchedule
 from app.schedule.schemas import PlanCreate, PlanFields
 from app.time_tracking.schemas import ActivityCreate
+from app.workspaces.schemas import ChannelKind
 
 
 class BackupRecord(BaseModel):
@@ -47,7 +48,7 @@ class BackupCategory(BackupRecord):
 
 
 class BackupChannel(BackupCategory):
-    kind: Literal["note", "reminder", "journal", "document"] = "note"
+    kind: ChannelKind = "note"
     category_id: UUID | None
     created_at: AwareDatetime
     image: BackupBlob | None = None
@@ -158,7 +159,7 @@ class BackupWritingPrompt(WritingFields, BackupRecord):
 
 class BackupContent(BackupRecord):
     format: Literal["noted-content-backup"] = "noted-content-backup"
-    version: Literal[1, 2, 3, 4, 5, 6] = 1
+    version: Literal[1, 2, 3, 4, 5, 6, 7] = 1
     created_at: AwareDatetime
     workspaces: list[BackupWorkspace]
     categories: list[BackupCategory]

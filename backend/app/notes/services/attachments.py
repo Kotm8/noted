@@ -8,7 +8,7 @@ from app.core.security import utc_now
 from app.core.storage_limits import MAX_BATCH_SIZE, MAX_FILES
 from app.notes.models import Attachment, Message
 from app.notes.repository import AttachmentRepository, MessageRepository
-from app.notes.services.messages import MessageService
+from app.notes.services.messages import MessageService, channel_content
 from app.publishing.repository import complete_writing
 from app.reminders.schemas import ReminderSchedule
 from app.reminders.service import attach_reminder
@@ -34,10 +34,7 @@ class AttachmentService:
         reminder: ReminderSchedule | None = None,
     ) -> Message:
         channel = ChannelService(self.db).get_channel(channel_id, owner_id)
-        if channel.kind == "journal":
-            raise ValidationError("Create a journal entry in this channel.")
-        if channel.kind == "document":
-            raise ValidationError("Edit the Markdown page in this Notes channel.")
+        content = channel_content(channel, content)
         if not files or len(files) > MAX_FILES:
             raise ValidationError(f"Choose between 1 and {MAX_FILES} files.")
         if len(content) > 40000:

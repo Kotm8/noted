@@ -46,8 +46,8 @@ export function AccountStep({ draft, update }: SetupStepProps) {
       <Notice>
         <strong>Private, owner only</strong>
         <p>
-          One account for this server. Invitations can come later. Your SSH password and Noted
-          password serve different purposes.
+          One account for this server. Invitations can come later. Your SSH
+          password and Noted password serve different purposes.
         </p>
       </Notice>
     </section>

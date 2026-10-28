@@ -72,6 +72,14 @@ export const channelApi = {
     return fetchAllPages<Channel>(`/workspaces/${workspaceId}/channels`);
   },
 
+  listAll(): Promise<Channel[]> {
+    return request<Channel[]>("/channels");
+  },
+
+  setPinned(id: string, pinned: boolean): Promise<Channel> {
+    return request<Channel>(`/channels/${id}/pin`, "PUT", { pinned });
+  },
+
   create(workspaceId: string, data: ChannelInput): Promise<Channel> {
     return request<Channel>(
       `/workspaces/${workspaceId}/channels`,

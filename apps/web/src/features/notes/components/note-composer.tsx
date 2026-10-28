@@ -1,5 +1,22 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowUp, Clock3, LoaderCircle, Plus, X, FileText } from "lucide-react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import {
+  ChevronDown,
+  Clock3,
+  FileText,
+  Hash,
+  LoaderCircle,
+  Plus,
+  SendHorizontal,
+  Slash,
+  CaseSensitive,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatFileSize } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
@@ -9,8 +26,19 @@ import { ScheduleDialog } from "../../reminders/components/schedule-dialog";
 import { noteCommands, parseNoteCommand } from "../../reminders/commands";
 import type { ReminderSchedule } from "../../reminders/types";
 import { ScheduleMessageDialog } from "../../publishing/schedule-message-dialog";
+import { applyEdit, inList } from "../../../lib/list-editing";
+import { Menu, MenuItem } from "../../../components/ui/menu";
+import {
+  useFormatting,
+  useFormattingVisible,
+} from "../../writing/use-formatting";
+import { chatEnter } from "../chat-enter";
+import { toStored } from "../mentions";
+import { useMentionPicker } from "./mention-picker";
 
 interface NoteComposerProps {
+  /** Floats just above the composer, whatever its current height. */
+  above?: ReactNode;
   channel: Channel;
   isSending: boolean;
   onSend: (
@@ -23,6 +51,7 @@ interface NoteComposerProps {
 }
 
 export function NoteComposer({
+  above,
   channel,
   isSending,
   onSend,
@@ -41,6 +70,11 @@ export function NoteComposer({
     delay: number;
   } | null>(null);
   const submitting = useRef(false);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const mentions = useMentionPicker(inputRef, draft);
+  const stored = (text: string) => toStored(text, mentions.refs.current);
+  const formatting = useFormatting(inputRef);
+  const [formattingVisible, toggleFormatting] = useFormattingVisible();
 
   function addFiles(incoming: File[]) {
     const next = [...files, ...incoming];
@@ -66,8 +100,7 @@ export function NoteComposer({
   async function sendNote() {
     if (
       (!draft.trim() && !files.length) ||
-      isSending ||
-      submitting.current ||
+      (files.length > 0 && (isSending || submitting.current)) ||
       scheduling ||
       scheduledDraft !== null
     )
@@ -81,7 +114,7 @@ export function NoteComposer({
         return;
       }
       setScheduling({
-        content,
+        content: stored(content),
         draft,
         files: [...files],
         delay: command?.delay ?? 10,
@@ -90,28 +123,27 @@ export function NoteComposer({
     }
 
     submitting.current = true;
+    // Clear at once so typing during the request starts a new message instead
+    // of being appended to the one already on its way. Messages sent meanwhile
+    // wait their turn, so they arrive in the order they were written.
+    setDraft("");
+    const send = queue.current.then(() => onSend(stored(sentContent), files));
+    queue.current = send.catch(() => undefined);
     try {
-      await onSend(sentContent, files);
+      await send;
       setFiles([]);
-      clearSentDraft(sentContent);
       onSent?.();
       inputRef.current?.focus();
     } catch {
-      return;
+      setDraft((typed) => (typed ? `${sentContent}\n${typed}` : sentContent));
     } finally {
       submitting.current = false;
     }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
-      event.preventDefault();
-      if (!event.repeat) void sendNote();
-    }
+    if (mentions.onKeyDown(event) || formatting.onKeyDown(event)) return;
+    chatEnter(event, () => void sendNote());
 
     if (event.key === "ArrowUp" && !draft) {
       event.preventDefault();
@@ -131,6 +163,7 @@ export function NoteComposer({
         addFiles(Array.from(event.dataTransfer.files));
       }}
     >
+      {above}
       {files.length > 0 && (
         <div className="pending-files">
           {files.map((file, index) => (
@@ -168,6 +201,7 @@ export function NoteComposer({
           event.target.value = "";
         }}
       />
+      {mentions.menu}
       <form
         className="composer"
         onSubmit={(event) => {
@@ -175,15 +209,7 @@ export function NoteComposer({
           void sendNote();
         }}
       >
-        <button
-          className="icon-button attach-button"
-          type="button"
-          aria-label="Add files"
-          disabled={isSending}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Plus size={21} />
-        </button>
+        {formattingVisible && formatting.toolbar}
         <textarea
           ref={inputRef}
           aria-label={`Message ${channel.name}`}
@@ -193,6 +219,7 @@ export function NoteComposer({
           rows={1}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
+          onSelect={mentions.onSelect}
           onPaste={(event) => {
             const pasted = Array.from(event.clipboardData.files);
             if (pasted.length && !isSending) {
@@ -201,34 +228,120 @@ export function NoteComposer({
             }
           }}
         />
-        {channel.kind === "note" && (
+        <div className="composer-actions">
+          <button
+            className="icon-button attach-button"
+            type="button"
+            aria-label="Add files"
+            title="Add files"
+            disabled={isSending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Plus size={19} />
+          </button>
+          <button
+            className="icon-button composer-format-toggle"
+            type="button"
+            aria-label={
+              formattingVisible ? "Hide formatting" : "Show formatting"
+            }
+            title={formattingVisible ? "Hide formatting" : "Show formatting"}
+            aria-pressed={formattingVisible}
+            onClick={toggleFormatting}
+          >
+            <CaseSensitive size={19} />
+          </button>
           <button
             className="icon-button"
             type="button"
-            aria-label="Schedule message"
-            title={
-              files.length ? "Send later supports text messages" : "Send later"
-            }
-            disabled={!draft.trim() || files.length > 0 || isSending}
-            onClick={() => setScheduledDraft(draft)}
+            aria-label="Mention a channel"
+            title="Mention a channel"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              const input = inputRef.current;
+              if (!input) return;
+              const { selectionStart: start, selectionEnd: end } = input;
+              const space =
+                start > 0 && !/\s/.test(draft[start - 1]) ? " " : "";
+              applyEdit(input, { start, end, text: `${space}#` });
+            }}
           >
-            <Clock3 size={18} />
+            <Hash size={17} />
           </button>
-        )}
-        <Button
-          size="icon"
-          type="submit"
-          className="send-button"
-          aria-label="Send note"
-          disabled={(!draft.trim() && !files.length) || isSending}
-        >
-          {isSending ? (
-            <LoaderCircle size={18} className="animate-spin" />
-          ) : (
-            <ArrowUp size={20} strokeWidth={1.75} />
-          )}
-        </Button>
+          <Menu
+            align="start"
+            trigger={
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Commands"
+                title="Commands"
+              >
+                <Slash size={16} />
+              </button>
+            }
+          >
+            {noteCommands.map((command) => (
+              <MenuItem
+                key={command.name}
+                onSelect={() => {
+                  setDraft((text) =>
+                    text.startsWith(command.name)
+                      ? text
+                      : `${command.name} ${text}`,
+                  );
+                  requestAnimationFrame(() => inputRef.current?.focus());
+                }}
+              >
+                <span className="command-menu-item">
+                  <strong>{command.name}</strong>
+                  <small>{command.description}</small>
+                </span>
+              </MenuItem>
+            ))}
+          </Menu>
+          <span className="composer-actions-gap" />
+          <div className="send-group">
+            <Button
+              size="icon"
+              type="submit"
+              className="send-button"
+              aria-label="Send note"
+              disabled={
+                (!draft.trim() && !files.length) ||
+                (files.length > 0 && isSending)
+              }
+            >
+              {isSending ? (
+                <LoaderCircle size={18} className="spin" />
+              ) : (
+                <SendHorizontal size={17} strokeWidth={1.75} />
+              )}
+            </Button>
+            {channel.kind === "note" && (
+              <Menu
+                trigger={
+                  <button
+                    className="icon-button send-options"
+                    type="button"
+                    aria-label="Send options"
+                    title="Send options"
+                    disabled={!draft.trim() || files.length > 0 || isSending}
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                }
+              >
+                <MenuItem onSelect={() => setScheduledDraft(draft)}>
+                  <Clock3 size={15} />
+                  Schedule message
+                </MenuItem>
+              </Menu>
+            )}
+          </div>
+        </div>
       </form>
+      {formatting.dialog}
 
       <div className="composer-footer">
         {draft.startsWith("/") &&
@@ -248,6 +361,12 @@ export function NoteComposer({
                 {command.description}
               </button>
             ))}
+        {inList(draft, draft.length) && (
+          <span className="draft-status">
+            Enter adds an item · Enter on an empty item ends the list ·
+            Ctrl+Enter sends
+          </span>
+        )}
         {draft && (
           <span className="draft-status">Draft saved on this device</span>
         )}
@@ -273,7 +392,7 @@ export function NoteComposer({
         <ScheduleMessageDialog
           channelId={channel.id}
           channelName={channel.name}
-          content={scheduledDraft}
+          content={stored(scheduledDraft)}
           onClose={() => setScheduledDraft(null)}
           onSaved={() => {
             clearSentDraft(scheduledDraft);

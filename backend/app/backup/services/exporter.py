@@ -172,6 +172,8 @@ class BackupExporter:
                     document[name] = [
                         {key: row[key] for key in publishing_fields} for row in rows[name]
                     ]
+            if any(row["kind"] == "tasks" for row in rows["channels"]):
+                document["version"] = 7
             raw = json.dumps(document, default=str, ensure_ascii=False).encode()
             if len(raw) > MAX_METADATA:
                 raise ContentTooLargeError("The content metadata exceeds the 16 MB backup limit.")

@@ -95,7 +95,9 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
     exact: true,
   });
   await expect(calendar).toBeVisible();
-  await page.screenshot({ path: "../../.local/reminders-calendar-desktop.png" });
+  await page.screenshot({
+    path: "../../.local/reminders-calendar-desktop.png",
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   const calendarBounds = await calendar.boundingBox();
   expect(calendarBounds!.x).toBeGreaterThanOrEqual(0);
@@ -132,13 +134,14 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
   await page
     .getByRole("button", { name: "Notifications", exact: true })
     .click();
+  const snoozeSaved = page.waitForResponse(
+    (response) =>
+      response.url().includes("/notifications/settings") &&
+      response.request().method() === "PUT" &&
+      response.ok(),
+  );
   await page.getByLabel("Default snooze (minutes)").fill("25");
-  await page
-    .getByRole("button", { name: "Save preferences", exact: true })
-    .click();
-  await expect(
-    page.getByText("Notification settings saved", { exact: true }),
-  ).toBeVisible();
+  await snoozeSaved;
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page.reload();
   await expect(

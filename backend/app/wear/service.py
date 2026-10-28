@@ -1,4 +1,6 @@
+import json
 from datetime import timedelta
+from uuid import uuid4
 
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
@@ -11,8 +13,11 @@ from app.core.errors import AuthenticationError, ConflictError, RateLimitError
 from app.core.security import generate_token, hash_token, utc_now
 from app.home.service import HomeService
 from app.notifications.android_schemas import PairingResponse
+from app.notifications.delivery import send_push
 from app.notifications.firebase import load_configuration
+from app.notifications.models import PushSubscription
 from app.notifications.schemas import NotificationSettings
+from app.notifications.service import notification_key
 from app.schedule.board import schedule_board
 from app.schedule.prompts.schemas import PromptResponse
 from app.schedule.prompts.service import due_prompts
@@ -20,7 +25,13 @@ from app.schedule.schemas import ReminderFlag
 from app.time_tracking.schemas import ActivityResponse
 from app.time_tracking.service import TrackingService
 from app.wear.models import WatchDevice, WatchPairing
-from app.wear.schemas import WatchCredentials, WatchPairingInput, WatchSettings, WatchSnapshot
+from app.wear.schemas import (
+    WatchCredentials,
+    WatchPairingInput,
+    WatchSettings,
+    WatchSnapshot,
+    WatchTestResult,
+)
 
 
 def begin_pairing(db: Session, current: AuthenticatedSession) -> PairingResponse:
@@ -55,8 +66,7 @@ def finish_pairing(db: Session, data: WatchPairingInput, settings: Settings) -> 
         .where(
             WatchPairing.ticket_hash == hash_token(data.ticket.get_secret_value()),
             WatchPairing.expires_at > utc_now(),
-            LoginSession.expires_at > utc_now(),
-            LoginSession.revoked_at.is_(None),
+            LoginSession.live(),
         )
         .with_for_update(of=WatchPairing)
     )
@@ -74,8 +84,7 @@ def finish_pairing(db: Session, data: WatchPairingInput, settings: Settings) -> 
             .join(LoginSession)
             .where(
                 LoginSession.user_id == parent.user_id,
-                LoginSession.expires_at > utc_now(),
-                LoginSession.revoked_at.is_(None),
+                LoginSession.live(),
             )
         )
         or 0
@@ -113,8 +122,7 @@ def authenticate(db: Session, authorization: str) -> AuthenticatedSession:
         .join(WatchDevice)
         .where(
             WatchDevice.secret_hash == hash_token(token),
-            LoginSession.revoked_at.is_(None),
-            LoginSession.expires_at > utc_now(),
+            LoginSession.live(),
         )
     )
     user = db.get(User, session.user_id) if session else None
@@ -168,3 +176,30 @@ def snapshot(db: Session, current: AuthenticatedSession, settings: Settings) -> 
         ),
         firebase=config.client if config else None,
     )
+
+
+def send_test(db: Session, current: AuthenticatedSession, settings: Settings) -> WatchTestResult:
+    """Pushes straight to this watch, bypassing the phone, so the watch's diagnostics
+    can show whether its own Firebase delivery works. The watch reports arrival itself."""
+    subscription = db.scalar(
+        select(PushSubscription).where(PushSubscription.session_id == current.session.id)
+    )
+    if subscription is None:
+        raise ConflictError("This watch isn't registered for notifications yet.")
+    _, private_key = notification_key(db)
+    test_id = uuid4()
+    payload = json.dumps(
+        {
+            "kind": "diagnostic",
+            "testId": str(test_id),
+            "title": f"{settings.server_name} / Watch test",
+            "body": "Server-to-watch notifications are working.",
+        }
+    )
+    outcome = send_push(
+        subscription, private_key, settings.app_origin, payload, ttl=60, settings=settings
+    )
+    if outcome == "expired":
+        db.delete(subscription)
+        db.commit()
+    return WatchTestResult(test_id=test_id, outcome=outcome)

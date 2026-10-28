@@ -36,6 +36,34 @@ object WatchData {
         return items(snapshot.optJSONArray("activities")).find { it.optString("id") == id }
     }
 
+    /** Seconds tracked since local midnight; a session from yesterday counts from midnight. */
+    fun trackedToday(
+        snapshot: JSONObject,
+        now: Instant = Instant.now(),
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): Long {
+        val midnight = now.atZone(zone).toLocalDate().atStartOfDay(zone).toInstant()
+        val sessions = items(snapshot.optJSONObject("board")?.optJSONArray("sessions"))
+        return sessions.sumOf { session ->
+            val start = runCatching { Instant.parse(session.getString("started_at")) }.getOrNull()
+            val end =
+                if (session.isNull("ended_at")) now
+                else runCatching { Instant.parse(session.getString("ended_at")) }.getOrNull()
+            if (start == null || end == null) 0L
+            else maxOf(0L, minOf(end, now).epochSecond - maxOf(start, midnight).epochSecond)
+        }
+    }
+
+    fun hours(seconds: Long): String =
+        if (seconds < 3600) "${seconds / 60}m" else "${seconds / 3600}h ${seconds / 60 % 60}m"
+
+    /** The planned block happening right now, if any. */
+    fun currentPlan(snapshot: JSONObject, now: Instant = Instant.now()): JSONObject? =
+        items(snapshot.optJSONObject("board")?.optJSONArray("plans")).find {
+            !Instant.parse(it.getString("start_at")).isAfter(now) &&
+                Instant.parse(it.getString("end_at")).isAfter(now)
+        }
+
     fun plans(snapshot: JSONObject): List<JSONObject> =
         items(snapshot.getJSONObject("board").optJSONArray("plans"))
             .filter { Instant.parse(it.getString("end_at")).isAfter(Instant.now()) }

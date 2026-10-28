@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { notificationsApi, type NotificationPreferences } from "./api";
 import { isAndroidApp } from "./android";
@@ -15,8 +14,11 @@ export function NotificationsPanel() {
     queryKey: ["notification-settings"],
     queryFn: notificationsApi.settings,
   });
-  const [minutes, setMinutes] = useState<number | null>(null);
+  const [minutes, setMinutes] = useState<string | null>(null);
+  const pending = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(pending.current), []);
   const save = useMutation({
+    scope: { id: "notification-settings" },
     mutationFn: notificationsApi.save,
     onMutate: (values) => {
       const previous = client.getQueryData<NotificationPreferences>([
@@ -27,7 +29,6 @@ export function NotificationsPanel() {
     },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["notification-settings"] });
-      toast.success("Notification settings saved");
     },
     onError: (error, _values, context) => {
       if (context?.previous)
@@ -46,16 +47,7 @@ export function NotificationsPanel() {
         <Notice tone="error">{settings.error.message}</Notice>
       )}
       {settings.data && (
-        <form
-          className="management-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate({
-              ...settings.data!,
-              snooze_minutes: minutes ?? settings.data!.snooze_minutes,
-            });
-          }}
-        >
+        <div className="management-form">
           <label>
             Default snooze (minutes)
             <input
@@ -64,7 +56,18 @@ export function NotificationsPanel() {
               max={10080}
               required
               value={minutes ?? settings.data.snooze_minutes}
-              onChange={(event) => setMinutes(Number(event.target.value))}
+              onChange={(event) => {
+                const text = event.target.value;
+                const value = Number(text);
+                setMinutes(text);
+                window.clearTimeout(pending.current);
+                if (!Number.isInteger(value) || value < 1 || value > 10080)
+                  return;
+                pending.current = window.setTimeout(() => {
+                  save.mutate({ ...settings.data!, snooze_minutes: value });
+                  setMinutes(null);
+                }, 600);
+              }}
             />
           </label>
           <label className="notification-enabled">
@@ -100,10 +103,10 @@ export function NotificationsPanel() {
               }
             />
           </label>
-          <Button disabled={save.isPending} type="submit">
-            Save preferences
-          </Button>
-        </form>
+          <p className="settings-hint" role="status">
+            {save.isPending ? "Saving..." : ""}
+          </p>
+        </div>
       )}
       {!isAndroidApp() && (
         <section className="browser-notification-settings">

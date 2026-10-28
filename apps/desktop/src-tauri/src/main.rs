@@ -1,12 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod address;
 mod client_updates;
 mod connection;
+mod devices;
 mod gateway;
 mod installer;
 mod proxy;
 mod security;
 mod session_vault;
+mod startup;
 
 use connection::{server_url, Connection, ProfileStore};
 use std::{net::TcpListener, sync::Arc};
@@ -25,6 +28,10 @@ fn open_link(url: &url::Url) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![startup::AUTOSTART_ARGUMENT]),
+        ))
         .setup(|app| {
             let mut directory = app.path().app_config_dir()?;
             if cfg!(debug_assertions) {
@@ -53,10 +60,14 @@ fn main() {
                 port: profile.gateway_port,
                 store,
                 installer: installer::Installer::new(directory.join("setup.json")),
+                devices: devices::Devices::new(&directory),
+                startup: startup::Startup::new(&directory),
                 connection: RwLock::new(connection),
                 client_updates: client_updates::ClientUpdates::new(),
             });
             state.client_updates.schedule(app.handle().clone());
+            let minimized = std::env::args().any(|argument| argument == startup::AUTOSTART_ARGUMENT)
+                && state.startup.load().minimized;
             let launch = format!("{origin}/?launch={}", state.secret);
             tauri::async_runtime::spawn(async move {
                 let listener = tokio::net::TcpListener::from_std(listener).unwrap();
@@ -70,6 +81,7 @@ fn main() {
                     .inner_size(1280.0, 840.0)
                     .min_inner_size(800.0, 560.0)
                     .background_color(tauri::window::Color(31, 31, 31, 255))
+                    .visible(!minimized)
                     .on_navigation(move |url| {
                         if url.origin().ascii_serialization() == origin {
                             true
@@ -103,7 +115,13 @@ fn main() {
                         window.additional_browser_args(&format!("--remote-debugging-port={port}"));
                 }
             }
-            window.build()?;
+            let window = window.build()?;
+            if minimized {
+                // Built hidden and minimized before showing, so it lands on the taskbar
+                // without flashing open.
+                window.minimize()?;
+                window.show()?;
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

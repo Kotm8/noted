@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- androidbrowserhelper writes the TWA splash image here before sharing it with the browser. -->
+<paths>
+    <files-path name="twa_splash" path="twa_splash/" />
+</paths>

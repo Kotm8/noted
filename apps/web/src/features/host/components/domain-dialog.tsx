@@ -20,7 +20,10 @@ export function DomainDialog({
     mutationFn: hostApi.domain,
     onSuccess: (job) => {
       setPassword("");
-      onQueued({ ...job, destination: `https://${domain.trim().toLowerCase()}` });
+      onQueued({
+        ...job,
+        destination: `https://${domain.trim().toLowerCase()}`,
+      });
       onClose();
     },
   });
@@ -38,7 +41,11 @@ export function DomainDialog({
         className="host-form"
         onSubmit={(event) => {
           event.preventDefault();
-          change.mutate({ domain, current_password: password, dns_confirmed: true });
+          change.mutate({
+            domain,
+            current_password: password,
+            dns_confirmed: true,
+          });
         }}
       >
         <label>
@@ -55,14 +62,17 @@ export function DomainDialog({
         </label>
         <ol className="host-instructions">
           <li>
-            In Cloudflare DNS, add an A record for the new hostname pointing to this VPS. Add AAAA
-            only if the VPS serves IPv6.
+            In Cloudflare DNS, add an A record for the new hostname pointing to
+            this VPS. Add AAAA only if the VPS serves IPv6.
           </li>
-          <li>Start with DNS only. Keep the old DNS record during verification.</li>
+          <li>
+            Start with DNS only. Keep the old DNS record during verification.
+          </li>
           <li>Wait for DNS to resolve. Leave ports 80 and 443 reachable.</li>
           <li>
-            After switching, sign in at the new address. Keep DNS only for 250 MB attachments and
-            large backup imports. Cloudflare's Free/Pro proxy limits uploads to 100 MB per request.
+            After switching, sign in at the new address. Keep DNS only for 250
+            MB attachments and large backup imports. Cloudflare's Free/Pro proxy
+            limits uploads to 100 MB per request.
           </li>
         </ol>
         <label className="check-label">
@@ -85,12 +95,17 @@ export function DomainDialog({
           />
         </label>
         <p className="settings-hint">
-          Noted verifies the new HTTPS address and restores the previous domain if verification
-          fails. Your account and content remain unchanged.
+          Noted verifies the new HTTPS address and restores the previous domain
+          if verification fails. Your account and content remain unchanged.
         </p>
         {change.error && <Notice tone="error">{change.error.message}</Notice>}
         <div className="host-actions">
-          <Button variant="secondary" type="button" onClick={onClose} disabled={change.isPending}>
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={onClose}
+            disabled={change.isPending}
+          >
             Cancel
           </Button>
           <Button disabled={!dns || !password || !domain || change.isPending}>

@@ -26,7 +26,7 @@
 .auth-brand p {
   margin: 12px 0 0;
   color: var(--text-muted);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 
 .auth-form-section {
@@ -43,7 +43,7 @@
 .form-intro {
   margin: 0 0 24px;
   color: var(--text-secondary);
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   line-height: 1.6;
 }
 
@@ -58,7 +58,7 @@
   max-width: 340px;
   margin-top: 28px;
   color: var(--text-faint);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 .auth-form .remember-sign-in {
   display: flex;
@@ -66,7 +66,7 @@
   align-items: center;
   gap: 9px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .auth-form .remember-sign-in input {
   width: 16px;

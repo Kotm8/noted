@@ -14,7 +14,7 @@
   color: var(--text-secondary);
   background: var(--surface-header);
   text-align: left;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 .sidebar-settings:hover {
   color: var(--text-primary);
@@ -25,12 +25,12 @@
   width: 38px;
   padding-top: 4px;
   color: var(--text-faint);
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
 .edited-label {
   color: var(--text-muted);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .note[data-highlighted="true"] {
   border-left-color: var(--accent);
@@ -81,7 +81,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   font-weight: 500;
 }
 .file-attachment small,
@@ -89,7 +89,7 @@
   display: block;
   margin-top: 4px;
   color: var(--text-muted);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .file-attachment:hover {
   border-color: var(--border-default);
@@ -161,14 +161,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-secondary);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   font-weight: 500;
 }
 .video-caption small {
   display: block;
   margin-top: 3px;
   color: var(--text-muted);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .video-error {
   display: flex;
@@ -179,7 +179,7 @@
   padding: 16px;
   color: var(--text-secondary);
   text-align: center;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 .video-error small {
   color: var(--text-muted);

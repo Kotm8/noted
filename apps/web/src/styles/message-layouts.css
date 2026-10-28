@@ -9,7 +9,7 @@
   display: block;
   margin: 10px 26px 4px;
   color: var(--text-faint);
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
 .note-day-start > .note-minute-marker,
@@ -65,7 +65,7 @@
 .appearance-save-status {
   min-height: 17px;
   margin: -12px 0 0 !important;
-  font-size: calc(11px * var(--text-scale, 1)) !important;
+  font-size: var(--font-xs) !important;
 }
 .message-layout-options {
   display: grid;
@@ -93,12 +93,12 @@
   outline-offset: 2px;
 }
 .message-layout-option strong {
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   font-weight: 500;
 }
 .message-layout-description {
   color: var(--text-muted);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   line-height: 1.5;
 }
 .message-layout-sample {

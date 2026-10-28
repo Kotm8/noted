@@ -1,7 +1,7 @@
 .home-space-name {
   padding: 0 18px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-base);
 }
 .sidebar-global-navigation {
   display: grid;
@@ -18,7 +18,7 @@
 }
 .home-project-label {
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: 1px;
   padding: 12px 10px;
@@ -32,7 +32,7 @@
   border-radius: 4px;
   background: transparent;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .home-project-navigation > button:hover {
   background: var(--surface-hover);
@@ -63,7 +63,7 @@
   color: var(--text-muted);
 }
 .home-header .channel-heading h1 {
-  font-size: 13px;
+  font-size: var(--font-md);
   font-weight: 500;
 }
 .home-scroll {
@@ -87,7 +87,7 @@
 }
 .home-eyebrow {
   display: block;
-  font-size: 10px;
+  font-size: var(--font-xs);
   font-weight: 500;
   letter-spacing: 1.3px;
   color: var(--text-muted);
@@ -102,7 +102,7 @@
 .home-greeting p {
   margin-top: 9px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .home-date {
   display: flex;
@@ -111,7 +111,7 @@
   flex-shrink: 0;
 }
 .home-date > span {
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   text-align: right;
@@ -139,7 +139,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--font-base);
   font-weight: 600;
 }
 .home-section-heading h2 > svg {
@@ -151,7 +151,7 @@
   justify-content: flex-start;
   gap: 6px;
   padding: 4px 0;
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--text-muted);
   border: 0;
   background: transparent;
@@ -186,7 +186,7 @@
   position: relative;
   padding-top: 13px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
 .home-hour::after {
@@ -215,7 +215,7 @@
 .home-event-kicker {
   display: block;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--font-xs);
   margin-bottom: 9px;
   overflow-wrap: anywhere;
 }
@@ -233,14 +233,14 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   line-height: 1.6;
   font-weight: 500;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .home-timeline-body p {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
   margin: 7px 0;
 }
@@ -260,7 +260,7 @@
   gap: 5px;
   padding: 3px 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-xs);
   background: transparent;
   border: 0;
 }
@@ -277,19 +277,49 @@
   margin-bottom: 8px;
 }
 .home-day-side .home-section-heading h2 {
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .home-day-side .home-section-heading > button {
-  font-size: 10px;
+  font-size: var(--font-xs);
+}
+.home-pinned {
+  margin-bottom: 26px;
+}
+.home-pinned button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  margin-inline: -8px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  text-align: left;
+}
+.home-pinned button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.home-pinned span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-pinned small {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  white-space: nowrap;
 }
 .home-section-caption {
-  font-size: 10px;
+  font-size: var(--font-xs);
   line-height: 1.6;
   color: var(--text-faint);
   margin-bottom: 8px;
 }
 .home-count {
-  font-size: 10px;
+  font-size: var(--font-xs);
   padding: 2px 5px;
   border-radius: 3px;
   color: var(--accent);
@@ -336,7 +366,7 @@
   border: 0;
   padding: 0;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.6;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -350,7 +380,7 @@
 .home-event-meta,
 .home-missed-content > time {
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--font-xs);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -369,14 +399,14 @@
   background: transparent;
   padding: 9px 12px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
   margin-top: 28px;
 }
 .home-plan-button:hover {
   background: var(--surface-hover);
 }
 .home-empty {
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.8;
   color: var(--text-muted);
   padding: 16px 0;
@@ -392,13 +422,13 @@
   margin-top: 16px;
 }
 .home-free-day p {
-  font-size: 12px;
+  font-size: var(--font-sm);
   margin: 9px 0 15px;
 }
 .home-timezone {
   display: block;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--font-xs);
   margin-top: 20px;
 }
 @media (max-width: 1100px) {
@@ -443,7 +473,7 @@
     font-size: calc(29px * var(--text-scale, 1));
   }
   .home-greeting p {
-    font-size: 12px;
+    font-size: var(--font-sm);
     line-height: 1.7;
   }
   .home-timeline-event {
@@ -454,7 +484,7 @@
     left: 40px;
   }
   .home-hour {
-    font-size: 10px;
+    font-size: var(--font-xs);
   }
   .home-hour::after {
     right: -3px;

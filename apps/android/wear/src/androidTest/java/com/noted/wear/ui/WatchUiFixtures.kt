@@ -6,6 +6,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object WatchUiFixtures {
+    const val PROMPT_ID = "3f6a7b8c-9d0e-4f1a-8b2c-3d4e5f6a7b8c"
+    const val OLD_PROMPT_ID = "4a7b8c9d-0e1f-4a2b-9c3d-4e5f6a7b8c9d"
     private val now = Instant.now()
 
     fun planTime() = WatchData.time(now.plusSeconds(1800).toString(), "Europe/Moscow")
@@ -13,7 +15,7 @@ object WatchUiFixtures {
     fun reminderTime() = WatchData.time(now.plusSeconds(900).toString())
 
     fun prompt() =
-        plan("plan-prompt", "Walk outside", 1800)
+        plan(PROMPT_ID, "Walk outside", 1800)
             .put("plan_id", "walk")
             .put("activity_id", "walk")
             .put("revision", 1)
@@ -22,7 +24,10 @@ object WatchUiFixtures {
 
     fun snapshot(): JSONObject {
         val plans =
-            JSONArray().put(plan("walk", "Walk outside", 1800)).put(plan("read", "Reading", 7200))
+            JSONArray()
+                .put(plan("deep", "Deep work", -1800, 5400))
+                .put(plan("walk", "Walk outside", 1800))
+                .put(plan("read", "Reading", 7200))
         return JSONObject()
             .put(
                 "settings",
@@ -82,14 +87,14 @@ object WatchUiFixtures {
     }
 
     private fun activity(id: String, name: String, icon: String) =
-        JSONObject().put("id", id).put("name", name).put("icon", icon)
+        JSONObject().put("id", id).put("name", name).put("icon", icon).put("color", "#e2c15a")
 
-    private fun plan(id: String, title: String, seconds: Long) =
+    private fun plan(id: String, title: String, seconds: Long, length: Long = 1800) =
         JSONObject()
             .put("id", id)
             .put("title", title)
             .put("activity_id", id)
             .put("timezone", "Europe/Moscow")
             .put("start_at", now.plusSeconds(seconds).toString())
-            .put("end_at", now.plusSeconds(seconds + 1800).toString())
+            .put("end_at", now.plusSeconds(seconds + length).toString())
 }

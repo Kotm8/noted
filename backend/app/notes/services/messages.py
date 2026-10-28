@@ -1,3 +1,4 @@
+import re
 from uuid import UUID
 
 from sqlalchemy import update
@@ -11,7 +12,20 @@ from app.notes.repository import MessageRepository
 from app.notes.schemas import MessageCreate, MessagePage, MessageResponse, MessageUpdate
 from app.publishing.repository import complete_writing
 from app.reminders.service import attach_reminder
+from app.workspaces.models import Channel
 from app.workspaces.services.channels import ChannelService
+
+TASK_PREFIX = re.compile(r"^\s*[-*+] \[[ xX]\] ")
+
+
+def channel_content(channel: Channel, content: str) -> str:
+    if channel.kind == "journal":
+        raise ValidationError("Create a journal entry in this channel.")
+    if channel.kind == "document":
+        raise ValidationError("Edit the Markdown page in this Notes channel.")
+    if channel.kind == "tasks" and content.strip() and not TASK_PREFIX.match(content):
+        return "- [ ] " + content.strip().replace("\n", "\n  ")
+    return content
 
 
 class MessageService:
@@ -86,11 +100,8 @@ class MessageService:
 
     def create_message(self, channel_id: UUID, data: MessageCreate, owner_id: UUID) -> Message:
         channel = self.channels.get_channel(channel_id, owner_id)
-        if channel.kind == "journal":
-            raise ValidationError("Create a journal entry in this channel.")
-        if channel.kind == "document":
-            raise ValidationError("Edit the Markdown page in this Notes channel.")
-        message = self.repository.create(channel_id, owner_id, data.content)
+        content = channel_content(channel, data.content)
+        message = self.repository.create(channel_id, owner_id, content)
         attach_reminder(self.db, message, data.reminder)
         complete_writing(self.db, channel_id, utc_now())
         self.db.commit()

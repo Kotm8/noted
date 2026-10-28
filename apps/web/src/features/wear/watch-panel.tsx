@@ -6,7 +6,6 @@ import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { Select } from "../../components/ui/select";
 import { isAndroidApp } from "../notifications/android";
-import { WatchPreview } from "./watch-preview";
 
 interface WatchSettings {
   face: "W07" | "W16" | "W24";
@@ -17,7 +16,48 @@ interface WatchSettings {
   favorites: string[];
 }
 
-export function WatchPanel() {
+/** Pairing happens in the Android app, which hands the ticket to the watch. */
+export function WatchPairing() {
+  const [message, setMessage] = useState("");
+  const pair = useMutation({
+    mutationFn: () => request<{ ticket: string }>("/wear/pairings", "POST"),
+    onSuccess: ({ ticket }) => {
+      const parameters = new URLSearchParams({
+        origin: window.location.origin,
+        ticket,
+      });
+      window.location.href = `intent://watch/connect?${parameters}#Intent;scheme=noted;package=com.noted.android;end`;
+      setMessage("Choose your watch in the Android pairing screen.");
+    },
+  });
+  return (
+    <fieldset className="settings-fieldset">
+      <legend>Connect your watch</legend>
+      <p>
+        Install the Noted watch app, then pair it from the Noted Android app.
+        The watch gets its own session, which you can revoke in Server ›
+        Sessions. On Wear OS 6 or newer, install the included face from Watch
+        settings inside the watch app. No separate face APK is needed.
+      </p>
+      {isAndroidApp() ? (
+        <Button disabled={pair.isPending} onClick={() => pair.mutate()}>
+          <Watch size={16} />
+          {pair.isPending ? "Preparing..." : "Pair watch"}
+        </Button>
+      ) : (
+        <Notice>Open Settings › Devices in the Noted Android app to pair.</Notice>
+      )}
+      {pair.error && <Notice tone="error">{pair.error.message}</Notice>}
+      {message && <p className="settings-hint">{message}</p>}
+      <p className="settings-hint">
+        Pairing and task controls work without Firebase. Background push uses
+        this server's Android notification configuration.
+      </p>
+    </fieldset>
+  );
+}
+
+export function WatchAppearancePanel() {
   const client = useQueryClient();
   const [message, setMessage] = useState("");
   const [draft, setDraft] = useState<WatchSettings | null>(null);
@@ -51,17 +91,6 @@ export function WatchPanel() {
       setMessage("Watch preferences saved.");
     },
   });
-  const pair = useMutation({
-    mutationFn: () => request<{ ticket: string }>("/wear/pairings", "POST"),
-    onSuccess: ({ ticket }) => {
-      const parameters = new URLSearchParams({
-        origin: window.location.origin,
-        ticket,
-      });
-      window.location.href = `intent://watch/connect?${parameters}#Intent;scheme=noted;package=com.noted.android;end`;
-      setMessage("Choose your watch in the Android pairing screen.");
-    },
-  });
   const value = draft ?? settings.data;
   function update(change: Partial<WatchSettings>) {
     if (!value || save.isPending) return;
@@ -72,64 +101,22 @@ export function WatchPanel() {
   }
   return (
     <section className="settings-panel">
-      <h2>Watch</h2>
+      <h2>Watch appearance</h2>
       <p>
-        Change activities, follow plans, and handle reminders on Wear OS. Time
-        is always shown in 24-hour format.
+        How the Noted watch face and app look. Saved to your account, and the
+        watch picks changes up on its next sync. Time is always shown in
+        24-hour format.
       </p>
-      <fieldset className="settings-fieldset">
-        <legend>Connect your watch</legend>
-        <p>
-          Install the Noted watch APK, then pair it from the Noted Android app.
-          The watch gets its own session, which you can revoke in Sessions.
-          On Wear OS 6 or newer, install the included face from Watch settings
-          inside the watch app. No separate face APK is needed.
-        </p>
-        {isAndroidApp() ? (
-          <Button disabled={pair.isPending} onClick={() => pair.mutate()}>
-            <Watch size={16} />
-            {pair.isPending ? "Preparing..." : "Pair watch"}
-          </Button>
-        ) : (
-          <Notice>
-            Open Settings &gt; Watch in the Noted Android app to pair.
-          </Notice>
-        )}
-        <p className="settings-hint">
-          Pairing and task controls work without Firebase. Background push uses
-          this server's Android notification configuration.
-        </p>
-      </fieldset>
       {settings.isPending && <p role="status">Loading watch preferences...</p>}
-      {(settings.error || save.error || pair.error) && (
+      {(settings.error || save.error) && (
         <Notice tone="error">
-          {(settings.error || save.error || pair.error)?.message}
+          {(settings.error || save.error)?.message}
         </Notice>
       )}
       {value && (
         <>
-          <WatchPreview
-            face={value.face}
-            accent={value.accent}
-            hidden={value.hide_contents}
-          />
           <fieldset className="settings-fieldset" disabled={save.isPending}>
             <legend>Watch face content</legend>
-            <label>
-              Layout
-              <Select
-                label="Watch layout"
-                value={value.face}
-                options={[
-                  { value: "W07", label: "Next up" },
-                  { value: "W16", label: "Quiet queue" },
-                  { value: "W24", label: "Above / below" },
-                ]}
-                onChange={(face) =>
-                  update({ face: face as WatchSettings["face"] })
-                }
-              />
-            </label>
             <label className="color-control">
               <span>Accent</span>
               <input
@@ -184,9 +171,11 @@ export function WatchPanel() {
               Hide task names and reminder contents on the watch face
             </label>
             <p className="settings-hint">
-              Change edge data such as steps and battery using the watch face's
-              Customize screen. Sleep needs a compatible installed data
-              provider.
+              Pick the face on the watch: hold it, then Customize. Noted has
+              ten: Hero, Planned ring, Big timer, Colour field, Now / next,
+              Written round, Day rings, Hero + health, Morning, and Agenda.
+              Steps and battery come from the watch. For sleep, choose a sleep
+              app such as Samsung Health for the face's sleep slot in Customize.
             </p>
           </fieldset>
           <fieldset className="settings-fieldset" disabled={save.isPending}>

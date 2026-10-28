@@ -241,7 +241,7 @@ test("Android Back closes panels before returning from channels and Calendar to 
     .getByRole("button", { name: "Time tracking", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Schedule start", exact: true })
+    .getByRole("button", { name: "Schedule timezone", exact: true })
     .click();
   await expect(page.getByRole("menu")).toBeVisible();
   await page.goBack();
@@ -298,7 +298,7 @@ test("startup draws the logo, handles failed connections, and respects reduced m
     await page
       .locator("#noted-startup .startup-dot")
       .evaluate((el) => getComputedStyle(el).animationDelay),
-  ).toBe("0.68s");
+  ).toBe("0.68s, 1.1s");
   await expect(
     page.getByRole("heading", { name: "Let's reconnect." }),
   ).toBeVisible();

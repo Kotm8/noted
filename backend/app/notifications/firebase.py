@@ -171,7 +171,7 @@ def access_token(configuration: FirebaseConfiguration) -> str:
 
 
 def send_firebase(
-    endpoint: str, storage: Path, origin: str, payload: str, ttl: int
+    endpoint: str, storage: Path, origin: str, payload: str, ttl: int, *, urgent: bool = True
 ) -> Literal["accepted", "expired", "failed"]:
     requests = import_module("requests")
     auth_errors = import_module("google.auth.exceptions")
@@ -190,7 +190,7 @@ def send_firebase(
                     "token": token,
                     "data": {"payload": payload, "origin": origin, "project": project},
                     "android": {
-                        "priority": "HIGH",
+                        "priority": "HIGH" if urgent else "NORMAL",
                         "ttl": f"{ttl}s",
                         "restricted_package_name": "com.noted.android",
                     },

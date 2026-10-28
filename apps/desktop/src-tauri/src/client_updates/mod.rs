@@ -67,7 +67,8 @@ impl ClientUpdates {
             tokio::time::sleep(Duration::from_secs(5)).await;
             loop {
                 let _ = updates.start(app.clone(), Action::Check, None);
-                tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await;
+                // Noted can stay open for days when it starts with Windows.
+                tokio::time::sleep(Duration::from_secs(6 * 60 * 60)).await;
             }
         });
     }

@@ -3,14 +3,20 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { categoryApi, channelApi, workspaceApi } from "../api";
-import type { Category, Channel, ManagementAction, Workspace } from "../types";
+import type {
+  Category,
+  Channel,
+  ChannelKind,
+  ManagementAction,
+  Workspace,
+} from "../types";
 
 export interface ManagementFormValues {
   name: string;
   icon: string;
   categoryId: string;
   image?: File | null;
-  kind?: "note" | "reminder" | "journal" | "document";
+  kind?: ChannelKind;
 }
 
 async function saveEntity(

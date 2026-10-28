@@ -128,3 +128,59 @@ def test_watch_delay_requires_reason_and_switches_without_moving_plan(owner, mon
     assert owner.get(f"{API}/time-tracking/tracker").json()["active"]["activity_id"] == other["id"]
     unchanged = owner.get(f"{API}/schedule/plans/{plan['id']}").json()
     assert unchanged["start_minute"] == plan["start_minute"]
+
+
+def test_watch_reads_why_a_prompt_no_longer_applies(owner, monkeypatch) -> None:
+    from app.schedule.prompts import service
+    from tests.test_plan_prompts import NOW, due, planned
+
+    monkeypatch.setattr(service, "utc_now", lambda: NOW)
+    task = activity(owner, "Writing")
+    planned(owner, task["id"])
+    prompt = due(owner)[0]
+    headers = {"Authorization": f"Bearer {pair(owner)['secret']}"}
+    path = f"{API}/wear/prompts/{prompt['id']}"
+    assert owner.get(path, headers=headers).json()["status"] == "pending"
+    started = owner.post(
+        f"{path}/actions",
+        headers=headers,
+        json={"action": "start", "revision": prompt["revision"], "request_id": str(uuid4())},
+    )
+    assert started.status_code == 200, started.text
+    assert owner.get(path, headers=headers).json()["status"] == "started"
+    assert owner.get(f"{API}/wear/prompts/{uuid4()}", headers=headers).status_code == 404
+
+
+def test_watch_test_notification_goes_only_to_this_watch(owner, db, monkeypatch) -> None:
+    from unittest.mock import Mock
+
+    from sqlalchemy import select
+
+    from app.notifications.models import PushSubscription
+    from app.wear.models import WatchDevice
+
+    headers = {"Authorization": f"Bearer {pair(owner)['secret']}"}
+    assert owner.post(f"{API}/wear/push/test", headers=headers).status_code == 409
+    watch = db.scalar(select(WatchDevice))
+    db.add(
+        PushSubscription(
+            session_id=watch.session_id,
+            device_id=watch.id,
+            kind="mobile",
+            endpoint="fcm:noted-fixture:watch-token-" + "c" * 64,
+            keys={},
+        )
+    )
+    db.commit()
+    endpoints = []
+    send = Mock(
+        side_effect=lambda subscription, *_, **__: (
+            endpoints.append(subscription.endpoint) or "accepted"
+        )
+    )
+    monkeypatch.setattr("app.wear.service.send_push", send)
+    response = owner.post(f"{API}/wear/push/test", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["outcome"] == "accepted"
+    assert response.json()["test_id"] in send.call_args.args[3]
+    assert endpoints == ["fcm:noted-fixture:watch-token-" + "c" * 64]

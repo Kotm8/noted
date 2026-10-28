@@ -55,7 +55,7 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     exact: true,
   });
   await composer.fill("- [ ] Pack charger\n- [x] Bring notebook");
-  await composer.press("Enter");
+  await composer.press("Control+Enter");
   const checkboxSaved = page.waitForResponse(
     (response) =>
       response.url().includes("/messages/") &&
@@ -80,7 +80,9 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
   await pane
     .getByRole("textbox", { name: "Thread reply" })
     .fill("- [ ] Child task");
-  await pane.getByRole("textbox", { name: "Thread reply" }).press("Enter");
+  await pane
+    .getByRole("textbox", { name: "Thread reply" })
+    .press("Control+Enter");
   await expect(
     pane.getByRole("checkbox", { name: "Child task" }),
   ).toBeVisible();

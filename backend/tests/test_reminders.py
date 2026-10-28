@@ -265,7 +265,7 @@ def test_delivery_retries_failures_and_forgets_expired_subscriptions(
 def test_stale_desktop_presence_does_not_suppress_phone(owner, channel, db, monkeypatch):
     owner.get(f"{API}/notifications/config")
     desktop = subscribe(owner)
-    subscribe(owner, "mobile")
+    phone = subscribe(owner, "mobile")
     owner.post(
         f"{API}/notifications/presence",
         json={"device_id": desktop["device_id"], "kind": "desktop", "focused": True},
@@ -277,7 +277,8 @@ def test_stale_desktop_presence_does_not_suppress_phone(owner, channel, db, monk
     send = Mock()
     monkeypatch.setattr("pywebpush.webpush", send)
     dispatch_due(db.get_bind(), "https://noted.example.com")
-    assert send.call_count == 2
+    assert send.call_count == 1
+    assert send.call_args.kwargs["subscription_info"]["endpoint"] == phone["endpoint"]
 
 
 def test_real_push_encryption_and_vapid_signing(owner, channel, db, monkeypatch):

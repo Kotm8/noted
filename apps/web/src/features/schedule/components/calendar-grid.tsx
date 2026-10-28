@@ -10,6 +10,8 @@ import type {
   TrackingPreferences,
 } from "../../time-tracking/types";
 import {
+  addDays,
+  dateRangeLabel,
   dayLabel,
   duration,
   minuteLabel,
@@ -51,6 +53,8 @@ function segments(start: string, end: string, date: string, timezone: string) {
 
 export interface GridProps {
   days: string[];
+  /** Days whose week is still loading, so empty rows aren't shown as empty. */
+  loading?: Set<string>;
   selected: string;
   mode: "week" | "day";
   activities: Activity[];
@@ -84,119 +88,125 @@ export function CalendarGrid(props: GridProps) {
     </div>
   );
   return (
-    <div className="schedule-timeline-scroll">
-      <div
-        className={`schedule-grid ${mode === "day" ? "schedule-activity-grid" : ""}`}
-        style={{ "--schedule-hours": span / 60 } as CSSProperties}
-      >
-        <div className="schedule-axis-row">
-          <span>{mode === "day" ? "ACTIVITY" : preferences.timezone}</span>
-          {axis}
-          {mode === "day" && <span>TRACKED</span>}
-        </div>
-        {mode === "day" && props.data.reminders.length > 0 && (
-          <div className="schedule-day-reminders">
-            <span>
-              <Flag size={13} />
-              Reminders
-            </span>
-            <div>
-              <ReminderFlags
-                reminders={props.data.reminders}
-                date={days[0]}
-                preferences={preferences}
-                onSelect={props.onReminder}
-              />
-            </div>
-            <span />
-          </div>
-        )}
-        {mode === "week"
-          ? days.map((date) => (
-              <div
-                className={`schedule-week-row ${date === props.selected ? "selected-day" : ""}`}
-                key={date}
-              >
-                <button
-                  className="schedule-day-label"
-                  onClick={() => props.onDay(date)}
-                  title={`Open ${dayLabel(date)} in Day view`}
-                >
-                  <span>{dayLabel(date, { weekday: "short" })}</span>
-                  <strong>{Number(date.slice(8))}</strong>
-                  <small>Plan</small>
-                  <small>Actual</small>
-                </button>
-                <CalendarTracks {...props} date={date} />
-              </div>
-            ))
-          : activities
-              .filter(
-                (item) =>
-                  !item.archived ||
-                  props.data.plans.some((plan) => plan.activity_id === item.id),
-              )
-              .map((item) => {
-                const first = Date.parse(
-                  wallTime(days[0], 0, preferences.timezone),
-                );
-                const end = Date.parse(
-                  wallTime(days[0], 1440, preferences.timezone),
-                );
-                const seconds = props.data.sessions
-                  .filter((session) => session.activity_id === item.id)
-                  .reduce(
-                    (sum, session) =>
-                      sum +
-                      Math.max(
-                        0,
-                        (Math.min(
-                          Date.parse(
-                            session.ended_at ??
-                              new Date(props.now).toISOString(),
-                          ),
-                          end,
-                        ) -
-                          Math.max(Date.parse(session.started_at), first)) /
-                          1000,
-                      ),
-                    0,
-                  );
-                return (
-                  <div className="schedule-activity-row" key={item.id}>
-                    <div className="schedule-lane-label">
-                      <ActivityIcon activity={item} />
-                      <span>
-                        {item.name}
-                        <small>Plan above · actual below</small>
-                      </span>
-                      <button
-                        className="icon-button"
-                        aria-label={`Start ${item.name}`}
-                        disabled={item.archived}
-                        onClick={() => props.onStart(item.id)}
-                      >
-                        <Play size={13} />
-                      </button>
-                    </div>
-                    <CalendarTracks
-                      {...props}
-                      date={days[0]}
-                      activityId={item.id}
-                    />
-                    <span className="schedule-lane-total">
-                      {duration(seconds)}
-                    </span>
-                  </div>
-                );
-              })}
-        {!activities.length && mode === "day" && (
-          <p className="schedule-empty">
-            <Info size={16} />
-            Add activities in Settings to plan your day.
-          </p>
-        )}
+    <div
+      className={`schedule-grid ${mode === "day" ? "schedule-activity-grid" : ""}`}
+      style={{ "--schedule-hours": span / 60 } as CSSProperties}
+    >
+      <div className="schedule-axis-row">
+        <span>{mode === "day" ? "ACTIVITY" : preferences.timezone}</span>
+        {axis}
+        {mode === "day" && <span>TRACKED</span>}
       </div>
+      {mode === "day" && props.data.reminders.length > 0 && (
+        <div className="schedule-day-reminders">
+          <span>
+            <Flag size={13} />
+            Reminders
+          </span>
+          <div>
+            <ReminderFlags
+              reminders={props.data.reminders}
+              date={days[0]}
+              preferences={preferences}
+              onSelect={props.onReminder}
+            />
+          </div>
+          <span />
+        </div>
+      )}
+      {mode === "week"
+        ? days.flatMap((date, index) => [
+            ...(index % 7
+              ? []
+              : [
+                  <div className="schedule-week-divider" key={`week-${date}`}>
+                    {dateRangeLabel(date, addDays(date, 6))}
+                  </div>,
+                ]),
+            <div
+              className={`schedule-week-row${date === props.selected ? " selected-day" : ""}${props.loading?.has(date) ? " loading" : ""}`}
+              key={date}
+              data-week={index % 7 ? undefined : date}
+              aria-busy={props.loading?.has(date) || undefined}
+            >
+              <button
+                className="schedule-day-label"
+                onClick={() => props.onDay(date)}
+                title={`Open ${dayLabel(date)} in Day view`}
+              >
+                <span>{dayLabel(date, { weekday: "short" })}</span>
+                <strong>{Number(date.slice(8))}</strong>
+                <small>Plan</small>
+                <small>Actual</small>
+              </button>
+              <CalendarTracks {...props} date={date} />
+            </div>,
+          ])
+        : activities
+            .filter(
+              (item) =>
+                !item.archived ||
+                props.data.plans.some((plan) => plan.activity_id === item.id),
+            )
+            .map((item) => {
+              const first = Date.parse(
+                wallTime(days[0], 0, preferences.timezone),
+              );
+              const end = Date.parse(
+                wallTime(days[0], 1440, preferences.timezone),
+              );
+              const seconds = props.data.sessions
+                .filter((session) => session.activity_id === item.id)
+                .reduce(
+                  (sum, session) =>
+                    sum +
+                    Math.max(
+                      0,
+                      (Math.min(
+                        Date.parse(
+                          session.ended_at ?? new Date(props.now).toISOString(),
+                        ),
+                        end,
+                      ) -
+                        Math.max(Date.parse(session.started_at), first)) /
+                        1000,
+                    ),
+                  0,
+                );
+              return (
+                <div className="schedule-activity-row" key={item.id}>
+                  <div className="schedule-lane-label">
+                    <ActivityIcon activity={item} />
+                    <span>
+                      {item.name}
+                      <small>Plan above · actual below</small>
+                    </span>
+                    <button
+                      className="icon-button"
+                      aria-label={`Start ${item.name}`}
+                      disabled={item.archived}
+                      onClick={() => props.onStart(item.id)}
+                    >
+                      <Play size={13} />
+                    </button>
+                  </div>
+                  <CalendarTracks
+                    {...props}
+                    date={days[0]}
+                    activityId={item.id}
+                  />
+                  <span className="schedule-lane-total">
+                    {duration(seconds)}
+                  </span>
+                </div>
+              );
+            })}
+      {!activities.length && mode === "day" && (
+        <p className="schedule-empty">
+          <Info size={16} />
+          Add activities in Settings to plan your day.
+        </p>
+      )}
     </div>
   );
 }

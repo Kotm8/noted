@@ -1,6 +1,10 @@
 import { useRef } from "react";
-import { Bold, Italic, ListTodo } from "lucide-react";
+import { applyEdit, listEnter } from "../../lib/list-editing";
 import { Markdown } from "../notes/components/markdown";
+import { useMentionPicker } from "../notes/components/mention-picker";
+import { useMentionDirectory } from "../notes/mention-context";
+import { toEditable, toStored } from "../notes/mentions";
+import { useFormatting } from "./use-formatting";
 
 export function MarkdownWritingArea({
   content,
@@ -18,68 +22,49 @@ export function MarkdownWritingArea({
   onEdit: () => void;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
-  function format(kind: "bold" | "italic" | "task") {
-    const input = textarea.current;
-    if (!input) return;
-    const { selectionStart: start, selectionEnd: end } = input;
-    const selected = content.slice(start, end);
-    const inserted =
-      kind === "bold"
-        ? `**${selected || "text"}**`
-        : kind === "italic"
-          ? `*${selected || "text"}*`
-          : `- [ ] ${selected || "Task"}`;
-    onChange(content.slice(0, start) + inserted + content.slice(end));
-    input.focus();
-    requestAnimationFrame(() =>
-      input.setSelectionRange(start, start + inserted.length),
-    );
-  }
+  const { channels } = useMentionDirectory();
+  const shown = toEditable(content, channels);
+  const mentions = useMentionPicker(textarea, shown.text, shown.refs, true);
+  for (const [name, id] of shown.refs) mentions.refs.current.set(name, id);
+  const change = (text: string) =>
+    onChange(toStored(text, mentions.refs.current));
+  const formatting = useFormatting(textarea);
+
   return (
     <>
-      {editing && (
-        <div
-          className="markdown-format-tools"
-          role="toolbar"
-          aria-label="Markdown formatting"
-        >
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Bold"
-            onClick={() => format("bold")}
-          >
-            <Bold size={15} />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Italic"
-            onClick={() => format("italic")}
-          >
-            <Italic size={15} />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Checklist"
-            onClick={() => format("task")}
-          >
-            <ListTodo size={15} />
-          </button>
-        </div>
-      )}
+      {editing && formatting.toolbar}
+      {formatting.dialog}
       {editing ? (
-        <textarea
-          autoFocus
-          ref={textarea}
-          className="journal-entry-body"
-          aria-label={label}
-          placeholder="Start writing…"
-          maxLength={200000}
-          value={content}
-          onChange={(event) => onChange(event.target.value)}
-        />
+        <div className="writing-input">
+          {mentions.menu}
+          <textarea
+            autoFocus
+            ref={textarea}
+            className="journal-entry-body"
+            aria-label={label}
+            placeholder="Start writing…"
+            maxLength={200000}
+            value={shown.text}
+            onChange={(event) => change(event.target.value)}
+            onSelect={mentions.onSelect}
+            onKeyDown={(event) => {
+              if (mentions.onKeyDown(event) || formatting.onKeyDown(event))
+                return;
+              const input = event.currentTarget;
+              const edit =
+                event.key === "Enter" && !event.nativeEvent.isComposing
+                  ? listEnter(
+                      input.value,
+                      input.selectionStart,
+                      input.selectionEnd,
+                    )
+                  : null;
+              if (!edit) return;
+              event.preventDefault();
+              applyEdit(input, edit);
+            }}
+          />
+        </div>
       ) : (
         <div className="journal-reading">
           <Markdown

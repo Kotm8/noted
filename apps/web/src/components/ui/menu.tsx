@@ -5,9 +5,11 @@ import { useAndroidBackLayer } from "../../lib/android-navigation";
 export function Menu({
   trigger,
   children,
+  align = "end",
 }: {
   trigger: ReactNode;
   children: ReactNode;
+  align?: "start" | "end";
 }) {
   const [open, setOpen] = useState(false);
   useAndroidBackLayer(open, () => setOpen(false));
@@ -17,7 +19,7 @@ export function Menu({
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="dropdown-content"
-          align="end"
+          align={align}
           sideOffset={6}
         >
           {children}

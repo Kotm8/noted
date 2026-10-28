@@ -88,6 +88,7 @@ test("account appearance, sessions, search controls and workspace icon imports w
     await page.getByRole("button", { name: "Close dialog", exact: true }).click();
     await expect(page.locator(`.notes-list.layout-${layout} .note`)).toHaveCount(3);
     if (layout === "quiet") {
+      await page.mouse.move(0, 0);
       await expect(page.locator(".note-group-follow .note-time").first()).toBeHidden();
       await page.locator(".note-group-follow .note").first().focus();
       await expect(page.locator(".note-group-follow .note-time").first()).toBeVisible();
@@ -117,7 +118,7 @@ test("account appearance, sessions, search controls and workspace icon imports w
     await page.reload();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("radio", { name: "Quiet timestamp gutter", exact: true })).toBeChecked();
-    await page.getByRole("button", { name: "Sessions", exact: true }).click();
+    await page.getByRole("button", { name: "Server", exact: true }).click();
     await expect(page.getByText("This device", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Chrome on Android", exact: true })).toBeVisible();
     await page.screenshot({ path: "../../.local/screenshots/sessions-desktop.png", fullPage: true });

@@ -46,6 +46,18 @@ async function enterServerAndAccount() {
   await screen.findByRole("heading", { name: "Android notifications" });
 }
 
+const noDevices = {
+  tool: { ready: false, source: null, path: null },
+  serverVersion: null,
+  devices: [],
+};
+
+async function skipDevices() {
+  await screen.findByRole("heading", { name: "Phone and watch apps" });
+  fireEvent.click(screen.getByRole("radio", { name: /Skip for now/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+}
+
 beforeEach(() => vi.spyOn(window, "scrollTo").mockImplementation(() => {}));
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -107,7 +119,8 @@ describe("desktop server setup", () => {
     );
     fill("Android app JSON", googleServicesJson);
     fill("Service-account JSON", serviceAccountJson);
-    fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await skipDevices();
     await screen.findByRole("heading", { name: "Review your setup" });
     expect(screen.getByText("Firebase: noted-fixture")).toBeVisible();
     expect(
@@ -154,7 +167,7 @@ describe("desktop server setup", () => {
       <DesktopSetup initialJob={null} close={vi.fn()} connected={vi.fn()} />,
     );
     await enterServerAndAccount();
-    fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByRole("alert");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Publish the Noted release",
@@ -185,6 +198,7 @@ describe("desktop server setup", () => {
           commit: plan.releaseCommit,
           manifestSha256: plan.manifestSha256,
         });
+      if (path.endsWith("/devices")) return respond(noDevices);
       if (path.endsWith("/verify"))
         return verified
           ? respond({ ...waiting, status: "complete" })
@@ -200,7 +214,8 @@ describe("desktop server setup", () => {
       <DesktopSetup initialJob={null} close={vi.fn()} connected={connected} />,
     );
     await enterServerAndAccount();
-    fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await skipDevices();
     await screen.findByRole("heading", { name: "Review your setup" });
     expect(
       screen.getByRole("button", { name: "Install on server" }),
@@ -264,6 +279,7 @@ describe("desktop server setup", () => {
           commit: plan.releaseCommit,
           manifestSha256: plan.manifestSha256,
         });
+      if (path.endsWith("/devices")) return respond(noDevices);
       return respond({
         status: "cleaned",
         phase: "cleanup",
@@ -294,7 +310,8 @@ describe("desktop server setup", () => {
       screen.queryByRole("button", { name: "Clean Noted from VPS" }),
     ).not.toBeInTheDocument();
     await enterServerAndAccount();
-    fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await skipDevices();
     await screen.findByRole("heading", { name: "Review your setup" });
     const request = fetcher.mock.calls.find(([path]) =>
       path.endsWith("/release"),

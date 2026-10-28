@@ -5,6 +5,8 @@ export interface InstallationDraft {
   sshUser: string;
   sshPassword: string;
   domain: string;
+  /** False when Noted uses an address made from the server IP instead. */
+  ownDomain: boolean;
   cloudflare: boolean;
   username: string;
   password: string;
@@ -31,6 +33,7 @@ export const initialInstallation: InstallationDraft = {
   sshUser: "root",
   sshPassword: "",
   domain: "",
+  ownDomain: true,
   cloudflare: true,
   username: "",
   password: "",

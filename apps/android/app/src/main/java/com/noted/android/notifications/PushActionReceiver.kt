@@ -32,6 +32,9 @@ class PushActionReceiver : BroadcastReceiver() {
         if (action == "plan_delay" && reason.isNullOrBlank()) return
         val revision = intent.getIntExtra("revision", 0)
         if (revision <= 0) return
+        intent.getStringExtra("tag")?.let {
+            PushNotifications.cancelRevision(context, it, revision)
+        }
         val data =
             Data.Builder()
                 .putString("origin", origin)

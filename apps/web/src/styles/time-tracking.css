@@ -9,7 +9,7 @@
   width: 100%;
   padding: 9px;
   border-radius: 4px;
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   text-align: left;
   color: var(--text-secondary);
   background: transparent;
@@ -17,7 +17,7 @@
 .sidebar-global-navigation button > span {
   margin-left: auto;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--font-xs);
 }
 .sidebar-global-navigation button:hover {
   background: var(--surface-hover);
@@ -46,19 +46,19 @@
   align-items: center;
   gap: 6px;
   color: var(--accent);
-  font-size: 9px;
+  font-size: var(--font-2xs);
   letter-spacing: 0.04em;
 }
 .planned-task-prompt > strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-md);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 .planned-task-prompt > p {
   margin: 5px 0 13px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 .planned-task-prompt > p > span {
   color: var(--text-muted);
@@ -81,7 +81,7 @@
   padding: 8px 2px;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 .plan-prompt-other:hover {
   color: var(--text-primary);
@@ -93,13 +93,13 @@
   gap: 10px;
 }
 .planned-task-prompt label {
-  font-size: 11px;
+  font-size: var(--font-xs);
   gap: 6px;
 }
 .planned-task-prompt .select-trigger {
   width: 100%;
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 .planned-task-prompt .select-trigger > span {
   overflow: hidden;
@@ -117,7 +117,7 @@
   border-radius: 4px;
   color: var(--text-secondary);
   background: var(--surface-input);
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 .plan-delay-choices button[aria-pressed="true"] {
   color: var(--accent);
@@ -125,14 +125,14 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .planned-task-prompt form > small {
-  font-size: 10px;
+  font-size: var(--font-xs);
   line-height: 1.5;
   color: var(--text-faint);
 }
 .planned-task-prompt textarea {
   width: 100%;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .plan-prompt-form-actions {
   display: flex;
@@ -153,7 +153,7 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 .activity-mark {
   display: inline-flex;
@@ -203,14 +203,14 @@
   min-width: 0;
 }
 .tracker-label strong {
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   font-weight: 500;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
 }
 .tracker-label small {
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   color: var(--text-muted);
 }
 .tracker-label > span {
@@ -219,7 +219,7 @@
   gap: 7px;
 }
 .tracker-elapsed {
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
@@ -257,7 +257,7 @@
 }
 .tracker-picker-heading > span {
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: var(--font-2xs);
   letter-spacing: 0.08em;
 }
 .tracker-picker-heading .icon-button {
@@ -286,7 +286,7 @@
 }
 .tracker-activities > button > span:not(.activity-mark) {
   flex: 1;
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   overflow-wrap: anywhere;
 }
 .tracker-activities > button > svg {
@@ -296,7 +296,7 @@
   color: var(--accent);
 }
 .tracker-activities > p {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
   padding: 12px 8px;
 }
@@ -310,7 +310,7 @@
   margin: 3px 0;
   background: transparent;
   text-align: left;
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .tracker-manage:hover {
   color: var(--text-primary);
@@ -324,29 +324,22 @@
 .tracker-transport > span {
   flex: 1;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--font-xs);
   padding-left: 5px;
 }
 .tracker-transport .icon-button {
   width: 27px;
   height: 27px;
 }
-.tracking-settings-tabs {
-  display: flex;
-  gap: 6px;
-  margin: 23px 0 27px;
-  border-bottom: 1px solid var(--border-subtle);
+.tracking-section {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
 }
-.tracking-settings-tabs button {
-  background: transparent;
-  padding: 8px 12px;
-  color: var(--text-muted);
-  border-bottom: 1px solid transparent;
-  font-size: 12px;
-}
-.tracking-settings-tabs button[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
+.tracking-section > h3 {
+  margin: 0 0 14px;
+  font-size: var(--font-md);
+  font-weight: 600;
 }
 .tracking-section-heading {
   display: flex;
@@ -356,7 +349,7 @@
   margin-bottom: 16px;
 }
 .tracking-settings h3 {
-  font-size: 15px;
+  font-size: var(--font-body);
   font-weight: 500;
   margin-bottom: 12px;
 }
@@ -377,12 +370,12 @@
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .tracking-activity-row small {
   display: block;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--font-xs);
   margin-top: 3px;
 }
 .tracking-activity-row .icon-button {
@@ -411,7 +404,7 @@
 }
 .tracking-activity-form legend {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
   margin-bottom: 10px;
 }
 .tracking-icon-options,
@@ -454,7 +447,7 @@
   align-items: center;
   gap: 8px !important;
   margin: 0 0 0 6px !important;
-  font-size: 11px !important;
+  font-size: var(--font-xs) !important;
 }
 .tracking-custom-color input {
   width: 32px !important;
@@ -470,7 +463,7 @@
   margin-bottom: 20px;
 }
 .tracking-history-heading strong {
-  font-size: 13px;
+  font-size: var(--font-md);
   font-weight: 400;
   color: var(--accent);
 }
@@ -488,19 +481,19 @@
   flex: 1;
 }
 .tracking-session-row strong {
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-weight: 500;
 }
 .tracking-session-row small {
   display: block;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-xs);
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
 .tracking-session-row > span:last-of-type {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .tracking-session-row > svg {
   color: var(--text-muted);

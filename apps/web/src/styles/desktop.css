@@ -23,7 +23,16 @@
   background: var(--surface-floating);
   border: 1px solid var(--border-default);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--font-md);
+  /* Download progress fills the notice from the left, as in Nuvio. */
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 22%, transparent) var(--update-progress, 0%),
+    transparent var(--update-progress, 0%)
+  );
+}
+.desktop-update-notice[data-phase="error"] > span {
+  color: var(--danger);
 }
 
 .desktop-update-actions {
@@ -43,4 +52,9 @@
   margin-top: 20px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+
+.desktop-startup-options {
+  display: grid;
+  gap: 10px;
 }

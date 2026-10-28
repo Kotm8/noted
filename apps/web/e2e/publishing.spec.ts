@@ -50,8 +50,9 @@ test("schedule, review, edit and cancel without losing the draft", async ({
     exact: true,
   });
   await composer.fill("A little note for later");
+  await page.getByRole("button", { name: "Send options", exact: true }).click();
   await page
-    .getByRole("button", { name: "Schedule message", exact: true })
+    .getByRole("menuitem", { name: "Schedule message", exact: true })
     .click();
   let dialog = page.getByRole("dialog", { name: "Send later", exact: true });
   await expect(dialog.getByLabel("Scheduled message")).toHaveValue(
@@ -59,8 +60,9 @@ test("schedule, review, edit and cancel without losing the draft", async ({
   );
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(composer).toHaveValue("A little note for later");
+  await page.getByRole("button", { name: "Send options", exact: true }).click();
   await page
-    .getByRole("button", { name: "Schedule message", exact: true })
+    .getByRole("menuitem", { name: "Schedule message", exact: true })
     .click();
   await dialog
     .getByRole("button", { name: "Schedule message", exact: true })
@@ -113,7 +115,7 @@ test("schedule, review, edit and cancel without losing the draft", async ({
   await composer.fill("With a file");
   await page.getByLabel("Attach files").setInputFiles(file);
   await expect(
-    page.getByRole("button", { name: "Schedule message", exact: true }),
+    page.getByRole("button", { name: "Send options", exact: true }),
   ).toBeDisabled();
   await expect(composer).toHaveValue("With a file");
 });

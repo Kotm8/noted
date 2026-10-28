@@ -21,7 +21,7 @@ pub fn checksum(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn trusted(url: &url::Url) -> bool {
+pub(crate) fn trusted(url: &url::Url) -> bool {
     url.scheme() == "https"
         && url.username().is_empty()
         && url.password().is_none()
@@ -32,7 +32,7 @@ fn trusted(url: &url::Url) -> bool {
         })
 }
 
-async fn download(
+pub(crate) async fn download(
     client: &Client,
     url: &str,
     binary: bool,
@@ -170,17 +170,12 @@ pub fn deployment(raw: &[u8], expected: &str) -> Result<Vec<u8>, String> {
     Ok(unpacked)
 }
 
-pub async fn load(repo: &str, commit: Option<&str>) -> Result<Release, String> {
-    repository(repo)?;
-    let suffix = match commit {
-        Some(commit) if matches(r"^[a-f0-9]{40}$", commit) => format!("tags/main-{commit}"),
-        Some(_) => return Err("Invalid release commit.".into()),
-        None => "latest".into(),
-    };
-    let client = Client::builder()
+/// Follows redirects only to GitHub hosts, so release files can't be served from elsewhere.
+pub(crate) fn github_client(timeout: Duration) -> Result<Client, String> {
+    Client::builder()
         .user_agent("Noted-desktop-installer")
         .connect_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_secs(60))
+        .timeout(timeout)
         .redirect(Policy::custom(|attempt| {
             if attempt.previous().len() < 5 && trusted(attempt.url()) {
                 attempt.follow()
@@ -189,7 +184,17 @@ pub async fn load(repo: &str, commit: Option<&str>) -> Result<Release, String> {
             }
         }))
         .build()
-        .map_err(|_| "Could not initialize release downloads.")?;
+        .map_err(|_| "Could not initialize release downloads.".into())
+}
+
+pub async fn load(repo: &str, commit: Option<&str>) -> Result<Release, String> {
+    repository(repo)?;
+    let suffix = match commit {
+        Some(commit) if matches(r"^[a-f0-9]{40}$", commit) => format!("tags/main-{commit}"),
+        Some(_) => return Err("Invalid release commit.".into()),
+        None => "latest".into(),
+    };
+    let client = github_client(Duration::from_secs(60))?;
     let data: Value = serde_json::from_slice(
         &download(
             &client,

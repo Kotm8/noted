@@ -12,6 +12,8 @@ object SurfaceUpdates {
                 ElapsedComplication::class.java,
                 AgendaComplication::class.java,
                 NextPlanComplication::class.java,
+                PlanComplication::class.java,
+                ColourComplication::class.java,
             )
             .forEach { type ->
                 ComplicationDataSourceUpdateRequester.create(context, ComponentName(context, type))

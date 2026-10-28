@@ -1,10 +1,21 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ColumnElement,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    and_,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.security import utc_now
 from app.db.base import Base
 
 
@@ -41,6 +52,11 @@ class LoginSession(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     user_agent: Mapped[str | None] = mapped_column(String(512))
+
+    @classmethod
+    def live(cls, now: datetime | None = None) -> ColumnElement[bool]:
+        """Filter for sessions that are neither revoked nor expired."""
+        return and_(cls.revoked_at.is_(None), cls.expires_at > (now or utc_now()))
 
 
 class Installation(Base):

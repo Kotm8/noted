@@ -16,7 +16,6 @@ import com.noted.android.MainActivity
 import com.noted.android.R
 import com.noted.android.connection.ConnectionStore
 import com.noted.android.connection.ServerAddress
-import com.noted.android.watch.WatchConnection
 import java.util.UUID
 import org.json.JSONObject
 
@@ -77,7 +76,7 @@ object PushNotifications {
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
-                .setLocalOnly(WatchConnection.receivesOwnNotifications(context, origin))
+                .setOnlyAlertOnce(true)
                 .addExtras(
                     android.os.Bundle().apply {
                         putInt("noted_revision", payload.optInt("revision"))
@@ -203,7 +202,14 @@ object PushNotifications {
             context.getSystemService(NotificationManager::class.java).activeNotifications.find {
                 it.tag == tag && it.id == 0
             }
-        if (current?.notification?.extras?.getInt("noted_revision") == revision)
-            NotificationManagerCompat.from(context).cancel(tag, 0)
+        val shown = current?.notification?.extras?.getInt("noted_revision") ?: return
+        if (shown <= revision) NotificationManagerCompat.from(context).cancel(tag, 0)
+    }
+
+    /** Clears a notification after it was handled on another device. */
+    fun dismiss(context: Context, origin: String, payload: JSONObject) {
+        val id = payload.optString("id")
+        if (runCatching { UUID.fromString(id) }.isFailure) return
+        cancelRevision(context, "$origin:$id", payload.optInt("revision"))
     }
 }

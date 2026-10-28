@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.auth.models import LoginSession
 from app.core.security import utc_now
+from app.notifications import routing
 from app.notifications.models import DevicePresence, PushSubscription
 from app.publishing import delivery
 from app.publishing.models import WritingDelivery, WritingPrompt
@@ -55,7 +56,7 @@ def test_writing_push_uses_channel_context_deduplicates_and_respects_focus(
     db.commit()
     send = Mock(return_value="accepted")
     monkeypatch.setattr(delivery, "utc_now", lambda: now)
-    monkeypatch.setattr(delivery, "send_push", send)
+    monkeypatch.setattr(routing, "send_push", send)
     delivery.dispatch_writing(db.get_bind(), app.state.settings, now - timedelta(seconds=1))
     delivery.dispatch_writing(db.get_bind(), app.state.settings, now - timedelta(seconds=1))
     assert send.call_count == (0 if focused else 1)
@@ -97,7 +98,7 @@ def test_writing_push_does_not_replay_before_restart_or_send_when_muted(
     )
     db.commit()
     send = Mock(return_value="accepted")
-    monkeypatch.setattr(delivery, "send_push", send)
+    monkeypatch.setattr(routing, "send_push", send)
     delivery.dispatch_writing(db.get_bind(), app.state.settings, now + timedelta(seconds=1))
     send.assert_not_called()
     owner.put(f"{API}/notifications/settings", json={"android_enabled": False})

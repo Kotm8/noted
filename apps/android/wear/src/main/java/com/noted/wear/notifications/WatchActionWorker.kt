@@ -1,7 +1,6 @@
 package com.noted.wear.notifications
 
 import android.content.Context
-import androidx.core.app.NotificationManagerCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.noted.wear.data.WatchHttpException
@@ -12,7 +11,7 @@ import org.json.JSONObject
 class WatchActionWorker(context: Context, parameters: WorkerParameters) :
     Worker(context, parameters) {
     override fun doWork(): Result {
-        if (System.currentTimeMillis() - inputData.getLong("requested_at", 0) > 300000)
+        if (System.currentTimeMillis() - inputData.getLong("requested_at", 0) > 3600000)
             return Result.failure()
         val store = WatchStore(applicationContext)
         if (store.credentials()?.optString("device_id") != inputData.getString("device_id"))
@@ -27,7 +26,6 @@ class WatchActionWorker(context: Context, parameters: WorkerParameters) :
         if (action == "snooze") data.put("minutes", inputData.getInt("minutes", 10))
         return try {
             WatchRepository(applicationContext).request("$path/$id/actions", data)
-            NotificationManagerCompat.from(applicationContext).cancel(id, 0)
             runCatching { WatchRepository(applicationContext).refresh() }
             Result.success()
         } catch (error: WatchHttpException) {

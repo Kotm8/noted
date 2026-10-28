@@ -74,16 +74,18 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
       .locator(".tracking-activity-row")
       .filter({ hasText: "Building Noted" }),
   ).toBeVisible();
-  await settings.getByRole("button", { name: "Schedule", exact: true }).click();
-  await choose(page, "Schedule start", "06:00");
-  await choose(page, "Schedule end", "24:00 · midnight");
+  await page.getByRole("textbox", { name: "Schedule start" }).fill("6");
+  await page.getByRole("textbox", { name: "Schedule end" }).fill("24:00");
+  await page.getByRole("textbox", { name: "Schedule end" }).blur();
+  const scheduleSaved = page.waitForResponse(
+    (response) =>
+      response.url().includes("/time-tracking/preferences") &&
+      response.request().method() === "PUT" &&
+      response.request().postData()!.includes("Europe/Moscow") &&
+      response.ok(),
+  );
   await choose(page, "Schedule timezone", "Europe/Moscow");
-  await settings
-    .getByRole("button", { name: "Save schedule settings", exact: true })
-    .click();
-  await expect(
-    page.getByText("Schedule settings saved", { exact: true }),
-  ).toBeVisible();
+  await scheduleSaved;
   await settings
     .getByRole("button", { name: "Close dialog", exact: true })
     .click();

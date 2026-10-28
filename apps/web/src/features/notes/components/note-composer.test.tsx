@@ -15,7 +15,7 @@ const channel = {
 beforeEach(() => window.localStorage.clear());
 
 describe("NoteComposer", () => {
-  it("sends on Enter and clears the draft only after success", async () => {
+  it("sends on Enter and clears the draft", async () => {
     const onSend = vi.fn().mockResolvedValue(undefined);
     render(
       <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
@@ -23,8 +23,29 @@ describe("NoteComposer", () => {
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "A thought worth keeping" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(onSend).toHaveBeenCalledWith("A thought worth keeping", []);
-    await waitFor(() => expect(input).toHaveValue(""));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith("A thought worth keeping", []));
+    expect(input).toHaveValue("");
+  });
+
+  it("sends a message written during a send after it, in order", async () => {
+    let finish = () => {};
+    const onSend = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)))
+      .mockResolvedValue(undefined);
+    render(
+      <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
+    );
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "First" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    fireEvent.change(input, { target: { value: "Second" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input).toHaveValue("");
+    expect(onSend).toHaveBeenCalledTimes(1);
+    finish();
+    await waitFor(() => expect(onSend).toHaveBeenLastCalledWith("Second", []));
   });
 
   it("preserves a failed note as a draft", async () => {

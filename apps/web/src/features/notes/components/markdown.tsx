@@ -7,6 +7,9 @@ import ReactMarkdown, { type ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { CodeBlock } from "./code-block";
+import { useMentionDirectory } from "../mention-context";
+import { lineBreaks } from "../line-breaks";
+import { channelMentions } from "../mentions";
 import { taskListPositions } from "../task-list";
 
 interface MarkdownProps {
@@ -67,11 +70,17 @@ function TaskInput({
 }
 
 export function Markdown({ content, onContentChange, pending }: MarkdownProps) {
+  const { channels, open } = useMentionDirectory();
   return (
     <TaskSettings.Provider value={{ content, onContentChange, pending }}>
       <div className="markdown">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm, taskListPositions]}
+          remarkPlugins={[
+            remarkGfm,
+            taskListPositions,
+            [channelMentions, channels],
+            lineBreaks,
+          ]}
           rehypePlugins={[rehypeHighlight]}
           skipHtml
           components={{
@@ -80,16 +89,31 @@ export function Markdown({ content, onContentChange, pending }: MarkdownProps) {
             pre: ({ children, className }) => (
               <CodeBlock className={className}>{children}</CodeBlock>
             ),
-            a: ({ children, href, title }) => (
-              <a
-                href={href}
-                title={title}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {children}
-              </a>
-            ),
+            a: ({ children, href, title, className }) =>
+              className === "channel-mention" ? (
+                <a
+                  className={className}
+                  href={href || undefined}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    const channel = channels.find((item) =>
+                      href?.endsWith(`/c/${item.id}`),
+                    );
+                    if (channel) open(channel);
+                  }}
+                >
+                  {children}
+                </a>
+              ) : (
+                <a
+                  href={href}
+                  title={title}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {children}
+                </a>
+              ),
             img: ({ alt }) => (
               <span className="external-image">
                 [Image: {alt || "external image"}]

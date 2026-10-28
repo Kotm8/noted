@@ -77,6 +77,7 @@ def app(database_url: str, engine: Engine, tmp_path: Path) -> FastAPI:
             cookie_secure=False,
             storage_path=tmp_path / "attachments",
             backup_path=tmp_path / "backups",
+            background_worker=False,
         )
     )
 

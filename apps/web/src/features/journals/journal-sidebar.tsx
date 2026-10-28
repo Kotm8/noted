@@ -40,7 +40,7 @@ export function JournalSidebar({
         </Notice>
       ) : (
         <div className="feed-loading">
-          <LoaderCircle size={20} className="animate-spin" />
+          <LoaderCircle size={20} className="spin" />
         </div>
       )}
     </WritingSidebar>

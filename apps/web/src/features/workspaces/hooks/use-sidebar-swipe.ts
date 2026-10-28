@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef } from "react";
+import { isMobileLayout } from "../../../lib/layout";
 import { isAndroidApp } from "../../notifications/android";
 
 export function useSidebarSwipe(
@@ -23,7 +24,7 @@ export function useSidebarSwipe(
     function start(event: TouchEvent) {
       reset();
       if (
-        !window.matchMedia("(max-width: 760px)").matches ||
+        !isMobileLayout() ||
         event.touches.length !== 1 ||
         document.querySelector('[role="dialog"], [role="menu"]') ||
         window.getSelection()?.toString()

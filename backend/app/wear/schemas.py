@@ -42,5 +42,10 @@ class WatchSnapshot(BaseModel):
     firebase: FirebaseClient | None
 
 
+class WatchTestResult(BaseModel):
+    test_id: UUID
+    outcome: Literal["accepted", "expired", "failed"]
+
+
 class WatchToken(BaseModel):
     token: SecretStr = Field(min_length=20, max_length=4096)

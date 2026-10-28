@@ -8,12 +8,15 @@ export interface DragValues {
   start_minute: number;
   end_minute: number;
   activity_id?: string;
+  /** Screen x of a right-click, so the plan form can open beside it. */
+  anchorX?: number;
 }
 interface Options {
   preferences: TrackingPreferences;
   pending: boolean;
   create: (values: DragValues) => void;
   change: (id: string, values: DragValues) => void;
+  copy: (id: string, values: DragValues) => void;
 }
 interface Gesture {
   pointer: number;
@@ -29,6 +32,7 @@ interface Gesture {
   end: number;
   moved: boolean;
   valid: boolean;
+  copying: boolean;
   result?: DragValues;
   ghost?: HTMLElement;
 }
@@ -77,7 +81,7 @@ export function useScheduleGestures(
       if (gesture?.track.hasPointerCapture(gesture.pointer))
         gesture.track.releasePointerCapture(gesture.pointer);
       gesture = null;
-      document.body.classList.remove("schedule-dragging");
+      document.body.classList.remove("schedule-dragging", "schedule-copying");
     }
     function paint() {
       if (!gesture?.moved) return;
@@ -128,11 +132,15 @@ export function useScheduleGestures(
       g.ghost ??= Object.assign(document.createElement("div"), {
         className: "schedule-drag-ghost",
       });
+      g.ghost.classList.toggle("copy", g.copying);
+      g.source?.classList.toggle("schedule-gesture-source", !g.copying);
+      document.body.classList.toggle("schedule-copying", g.copying);
       if (g.ghost.parentElement !== track) track.append(g.ghost);
       g.ghost.style.left = `${((start - p.start_minute) / (p.end_minute - p.start_minute)) * 100}%`;
       g.ghost.style.width = `${((end - start) / (p.end_minute - p.start_minute)) * 100}%`;
-      g.ghost.textContent = `${minuteLabel(start)}–${minuteLabel(end)}`;
-      tooltip.textContent = `${minuteLabel(start)}–${minuteLabel(end)} · ${end - start}m${g.valid ? "" : " · move onto a row"}`;
+      const label = `${g.copying ? "Copy · " : ""}${minuteLabel(start)}–${minuteLabel(end)}`;
+      g.ghost.textContent = label;
+      tooltip.textContent = `${label} · ${end - start}m${g.valid ? "" : " · move onto a row"}`;
       tooltip.style.left = `${clamp(g.x + 14, 8, innerWidth - 245)}px`;
       tooltip.style.top = `${clamp(g.y - 38, 8, innerHeight - 45)}px`;
       tooltip.hidden = false;
@@ -147,12 +155,10 @@ export function useScheduleGestures(
         scroller.scrollLeft += 12;
       if (gesture.x < box.left + 30 && gesture.x > box.left - 10)
         scroller.scrollLeft -= 12;
-      const vertical = root!;
-      const bounds = vertical.getBoundingClientRect();
-      if (gesture.y > bounds.bottom - 25 && gesture.y < bounds.bottom + 10)
-        vertical.scrollTop += 8;
-      if (gesture.y < bounds.top + 25 && gesture.y > bounds.top - 10)
-        vertical.scrollTop -= 8;
+      if (gesture.y > box.bottom - 25 && gesture.y < box.bottom + 10)
+        scroller.scrollTop += 8;
+      if (gesture.y < box.top + 25 && gesture.y > box.top - 10)
+        scroller.scrollTop -= 8;
       paint();
       frame = requestAnimationFrame(scroll);
     }
@@ -187,12 +193,15 @@ export function useScheduleGestures(
         end: Number(source?.dataset.end),
         moved: false,
         valid: true,
+        copying: false,
       };
     }
     function move(event: PointerEvent) {
       if (!gesture || gesture.pointer !== event.pointerId) return;
       gesture.x = event.clientX;
       gesture.y = event.clientY;
+      gesture.copying =
+        gesture.kind === "move" && (event.ctrlKey || event.metaKey);
       if (
         !gesture.moved &&
         Math.hypot(
@@ -204,7 +213,6 @@ export function useScheduleGestures(
       if (!gesture.moved) {
         gesture.moved = true;
         gesture.track.setPointerCapture(event.pointerId);
-        gesture.source?.classList.add("schedule-gesture-source");
         document.body.classList.add("schedule-dragging");
         frame = requestAnimationFrame(scroll);
       }
@@ -223,6 +231,8 @@ export function useScheduleGestures(
         armSuppression();
         if (!g.valid || !g.result) return;
         if (g.kind === "create") latest.current.create(g.result);
+        else if (g.copying)
+          latest.current.copy(g.source!.dataset.plan!, g.result);
         else latest.current.change(g.source!.dataset.plan!, g.result);
       } else if (g.kind === "create") {
         const start = Math.min(
@@ -272,6 +282,33 @@ export function useScheduleGestures(
           });
         }
       }
+    }
+    function contextMenu(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      const track = target.closest<HTMLElement>("[data-draw]");
+      if (!track || target.closest("[data-plan]") || latest.current.pending)
+        return;
+      event.preventDefault();
+      const p = latest.current.preferences;
+      const start = clamp(
+        Math.floor(minuteAt(track, event.clientX) / 15) * 15,
+        p.start_minute,
+        p.end_minute - 15,
+      );
+      latest.current.create({
+        date: track.dataset.date!,
+        start_minute: start,
+        end_minute: Math.min(start + 60, p.end_minute),
+        anchorX: event.clientX,
+        ...(track.dataset.activity
+          ? { activity_id: track.dataset.activity }
+          : {}),
+      });
+    }
+    function modifier(event: KeyboardEvent) {
+      if (!gesture?.moved || event.key !== "Control") return;
+      gesture.copying = gesture.kind === "move" && event.type === "keydown";
+      paint();
     }
     function key(event: KeyboardEvent) {
       if (event.key === "Escape" && gesture) {
@@ -324,8 +361,11 @@ export function useScheduleGestures(
     root.addEventListener("pointermove", move);
     document.addEventListener("pointerup", up);
     root.addEventListener("pointercancel", clear);
+    root.addEventListener("contextmenu", contextMenu);
     document.addEventListener("click", click, true);
     document.addEventListener("keydown", key, true);
+    document.addEventListener("keydown", modifier);
+    document.addEventListener("keyup", modifier);
     return () => {
       clear();
       tooltip.remove();
@@ -333,8 +373,11 @@ export function useScheduleGestures(
       root.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
       root.removeEventListener("pointercancel", clear);
+      root.removeEventListener("contextmenu", contextMenu);
       document.removeEventListener("click", click, true);
       document.removeEventListener("keydown", key, true);
+      document.removeEventListener("keydown", modifier);
+      document.removeEventListener("keyup", modifier);
     };
   }, [rootRef]);
 }

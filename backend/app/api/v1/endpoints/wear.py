@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.services.sessions import AuthenticatedSession, SessionService
 from app.core.config import Settings
-from app.core.errors import ConflictError
+from app.core.errors import ConflictError, NotFoundError
 from app.dependencies.auth import get_current_session
 from app.dependencies.config import get_settings
 from app.dependencies.database import get_db
@@ -15,6 +15,7 @@ from app.notifications.android_service import native_endpoint
 from app.notifications.models import PushSubscription
 from app.reminders.schemas import ReminderAction, ReminderResponse
 from app.reminders.service import ReminderService
+from app.schedule.prompts.models import PlanPrompt
 from app.schedule.prompts.schemas import PromptAction, PromptResponse
 from app.schedule.prompts.service import act_on_prompt
 from app.time_tracking.schemas import TrackerAction, TrackerResponse
@@ -26,6 +27,7 @@ from app.wear.schemas import (
     WatchPairingInput,
     WatchSettings,
     WatchSnapshot,
+    WatchTestResult,
     WatchToken,
 )
 
@@ -90,6 +92,22 @@ def tracker(
     return TrackingService(db).act(current.user.id, data)
 
 
+@router.get("/prompts/{prompt_id}", response_model=PromptResponse)
+def read_prompt(
+    prompt_id: UUID,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(watch_session),
+) -> PromptResponse:
+    """The snapshot lists only waiting prompts. A watch opening an older notification
+    reads the prompt's status here to say why it no longer applies."""
+    item = db.scalar(
+        select(PlanPrompt).where(PlanPrompt.owner_id == current.user.id, PlanPrompt.id == prompt_id)
+    )
+    if item is None:
+        raise NotFoundError("Task prompt not found")
+    return PromptResponse.model_validate(item)
+
+
 @router.post("/prompts/{prompt_id}/actions", response_model=PromptResponse)
 def prompt(
     prompt_id: UUID,
@@ -147,6 +165,15 @@ def push(
     else:
         subscription.endpoint = endpoint
     db.commit()
+
+
+@router.post("/push/test", response_model=WatchTestResult)
+def test_push(
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(watch_session),
+    settings: Settings = Depends(get_settings),
+) -> WatchTestResult:
+    return service.send_test(db, current, settings)
 
 
 @router.delete("/device", status_code=204)

@@ -16,7 +16,7 @@ export function AuthScreen({ setup }: { setup: boolean }) {
         )}
         <AuthForm />
       </section>
-      <footer className="auth-footer">Self-hosted · Noted 0.2.6</footer>
+      <footer className="auth-footer">Self-hosted · Noted 0.3.0</footer>
       <SwitchServerButton />
     </main>
   );

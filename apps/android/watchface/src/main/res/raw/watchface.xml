@@ -1,127 +1,831 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  One face with a Layout choice in the watch's Customize screen. Complication
+  slots must sit at the top of the scene, so Noted's data slots cover the whole
+  face and each draws its value where the chosen layout wants it. Their bounds
+  cover the face too, because a slot's content is clipped to its bounds.
+-->
 <WatchFace width="400" height="400">
     <Metadata key="CLOCK_TYPE" value="DIGITAL" />
     <Metadata key="PREVIEW_TIME" value="10:08:00" />
+    <UserConfigurations>
+        <ListConfiguration id="layout" displayName="layout" screenReaderText="layout" defaultValue="hero">
+            <ListOption id="hero" displayName="layout_hero" screenReaderText="layout_hero" />
+            <ListOption id="ring" displayName="layout_ring" screenReaderText="layout_ring" />
+            <ListOption id="timer" displayName="layout_timer" screenReaderText="layout_timer" />
+            <ListOption id="colour" displayName="layout_colour" screenReaderText="layout_colour" />
+            <ListOption id="nownext" displayName="layout_nownext" screenReaderText="layout_nownext" />
+            <ListOption id="round" displayName="layout_round" screenReaderText="layout_round" />
+            <ListOption id="rings" displayName="layout_rings" screenReaderText="layout_rings" />
+            <ListOption id="health" displayName="layout_health" screenReaderText="layout_health" />
+            <ListOption id="morning" displayName="layout_morning" screenReaderText="layout_morning" />
+            <ListOption id="agenda" displayName="layout_agenda" screenReaderText="layout_agenda" />
+        </ListConfiguration>
+    </UserConfigurations>
     <Scene backgroundColor="#080A09">
-        <DigitalClock x="60" y="52" width="280" height="65">
-            <TimeText x="0" y="0" width="280" height="65" format="hh:mm" hourFormat="24" align="CENTER">
-                <Font family="SYNC_TO_DEVICE" size="60" weight="MEDIUM" color="#EFEEE7" />
-            </TimeText>
-        </DigitalClock>
-        <PartText x="80" y="110" width="240" height="18">
-            <Text align="CENTER">
-                <Font family="SYNC_TO_DEVICE" size="11" color="#9CA09D">
-                    <Template>%s / %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template>
-                </Font>
-            </Text>
-        </PartText>
-        <ComplicationSlot x="60" y="132" width="280" height="190" slotId="1" displayName="agenda" supportedTypes="SMALL_IMAGE EMPTY">
+        <ListConfiguration id="layout">
+            <ListOption id="hero">
+                <Group name="g1" x="0" y="0" width="400" height="400">
+                    <DigitalClock x="60" y="58" width="280" height="60">
+                        <TimeText x="0" y="0" width="280" height="60" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="54" weight="MEDIUM" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="80" y="120" width="240" height="19">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="12" color="#9CA09D">
+                                <Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper>
+                            </Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+            <ListOption id="ring">
+                <Group name="g2" x="0" y="0" width="400" height="400">
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Arc centerX="200" centerY="200" width="372" height="372" startAngle="0" endAngle="360">
+                            <Stroke color="#1E231D" thickness="10" />
+                        </Arc>
+                    </PartDraw>
+                    <PartText x="80" y="96" width="240" height="19">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="12" color="#9CA09D">
+                                <Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper>
+                            </Font>
+                        </Text>
+                    </PartText>
+                    <DigitalClock x="40" y="118" width="320" height="100">
+                        <TimeText x="0" y="0" width="320" height="100" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="88" weight="LIGHT" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                </Group>
+            </ListOption>
+            <ListOption id="timer">
+                <Group name="g3" x="0" y="0" width="400" height="400">
+                    <DigitalClock x="70" y="54" width="140" height="36">
+                        <TimeText x="0" y="0" width="140" height="36" format="hh:mm" hourFormat="24" align="END">
+                            <Font family="SYNC_TO_DEVICE" size="28" weight="MEDIUM" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="218" y="64" width="130" height="20">
+                        <Text align="START">
+                            <Font family="SYNC_TO_DEVICE" size="12" color="#9CA09D">
+                                <Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper>
+                            </Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+            <ListOption id="colour">
+                <Group name="g4" x="0" y="0" width="400" height="400">
+                    <PartText x="80" y="58" width="240" height="19">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="12" color="#9CA09D">
+                                <Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper>
+                            </Font>
+                        </Text>
+                    </PartText>
+                    <DigitalClock x="30" y="80" width="340" height="94">
+                        <TimeText x="0" y="0" width="340" height="94" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="84" weight="BOLD" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                </Group>
+            </ListOption>
+            <ListOption id="nownext">
+                <Group name="g5" x="0" y="0" width="400" height="400">
+                    <PartText x="100" y="58" width="200" height="17">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="11" color="#9CA09D">NOW</Font>
+                        </Text>
+                    </PartText>
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Line startX="24" startY="200" endX="376" endY="200">
+                            <Stroke color="#2A302A" thickness="1" />
+                        </Line>
+                        <RoundRectangle x="136" y="174" width="128" height="52" cornerRadiusX="26" cornerRadiusY="26">
+                            <Fill color="#080A09" />
+                            <Stroke color="#2A302A" thickness="1" />
+                        </RoundRectangle>
+                    </PartDraw>
+                    <DigitalClock x="136" y="178" width="128" height="44">
+                        <TimeText x="0" y="0" width="128" height="44" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="34" weight="BOLD" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="100" y="229" width="200" height="16">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="10" color="#9CA09D">
+                                <Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper>
+                            </Font>
+                        </Text>
+                    </PartText>
+                    <PartText x="100" y="254" width="200" height="17">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="11" color="#9CA09D">NEXT</Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+            <ListOption id="round">
+                <Group name="g6" x="0" y="0" width="400" height="400">
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Arc centerX="200" centerY="200" width="352" height="352" startAngle="0" endAngle="360">
+                            <Stroke color="#1F241E" thickness="1" />
+                        </Arc>
+                    </PartDraw>
+                    <DigitalClock x="30" y="128" width="340" height="104">
+                        <TimeText x="0" y="0" width="340" height="104" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="96" weight="BOLD" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="80" y="236" width="240" height="20">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="13" color="#9CA09D">
+                                <Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper>
+                            </Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+            <ListOption id="agenda">
+                <Group name="g7" x="0" y="0" width="400" height="400">
+                    <DigitalClock x="60" y="52" width="280" height="65">
+                        <TimeText x="0" y="0" width="280" height="65" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="60" weight="MEDIUM" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="80" y="110" width="240" height="18">
+                        <Text align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="11" color="#9CA09D">
+                                <Template>%s / %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template>
+                            </Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+        <ListOption id="rings">
+                <Group name="g21" x="0" y="0" width="400" height="400">
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Arc centerX="200" centerY="200" width="372" height="372" startAngle="0" endAngle="360">
+                            <Stroke color="#1D221C" thickness="9" cap="BUTT" />
+                        </Arc>
+                    </PartDraw>
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Arc centerX="200" centerY="200" width="336" height="336" startAngle="0" endAngle="360">
+                            <Stroke color="#1D221C" thickness="9" cap="BUTT" />
+                        </Arc>
+                    </PartDraw>
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Arc centerX="200" centerY="200" width="300" height="300" startAngle="0" endAngle="360">
+                            <Stroke color="#1D221C" thickness="9" cap="BUTT" />
+                        </Arc>
+                    </PartDraw>
+                    <Condition>
+                        <Expressions>
+                            <Expression name="walked">[STEP_PERCENT] &gt; 0</Expression>
+                        </Expressions>
+                        <Compare expression="walked">
+                            <PartDraw x="0" y="0" width="400" height="400">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Arc centerX="200" centerY="200" width="372" height="372" startAngle="0" endAngle="360">
+                                    <Transform target="endAngle" value="min([STEP_PERCENT], 100) * 3.6" />
+                                    <Stroke color="#A8C4B0" thickness="9" cap="ROUND" />
+                                </Arc>
+                            </PartDraw>
+                        </Compare>
+                    </Condition>
+                    <PartText x="80" y="112" width="240" height="20">
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="11" weight="NORMAL" color="#9CA09D"><Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper></Font>
+                        </Text>
+                    </PartText>
+                    <DigitalClock x="60" y="128" width="280" height="78">
+                        <TimeText x="0" y="0" width="280" height="78" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="64" weight="MEDIUM" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="60" y="242" width="280" height="24">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C4B0"><Template>%d steps<Parameter expression="[STEP_COUNT]" /></Template></Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+            <ListOption id="health">
+                <Group name="g22" x="0" y="0" width="400" height="400">
+                    <DigitalClock x="60" y="48" width="280" height="62">
+                        <TimeText x="0" y="0" width="280" height="62" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="50" weight="MEDIUM" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="80" y="108" width="240" height="20">
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="11" weight="NORMAL" color="#9CA09D"><Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper></Font>
+                        </Text>
+                    </PartText>
+                    <PartText x="40" y="232" width="110" height="30">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="19" weight="NORMAL" color="#EFEEE7"><Template>%d<Parameter expression="[STEP_COUNT]" /></Template></Font>
+                        </Text>
+                    </PartText>
+                    <PartText x="40" y="262" width="110" height="18">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="10" weight="NORMAL" color="#9CA09D">STEPS</Font>
+                        </Text>
+                    </PartText>
+                    <PartText x="145" y="262" width="110" height="18">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="10" weight="NORMAL" color="#9CA09D">SLEEP</Font>
+                        </Text>
+                    </PartText>
+                    <PartText x="250" y="232" width="110" height="30">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="19" weight="NORMAL" color="#EFEEE7"><Template>%d%%<Parameter expression="[BATTERY_PERCENT]" /></Template></Font>
+                        </Text>
+                    </PartText>
+                    <PartText x="250" y="262" width="110" height="18">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="10" weight="NORMAL" color="#9CA09D">BATTERY</Font>
+                        </Text>
+                    </PartText>
+                </Group>
+            </ListOption>
+            <ListOption id="morning">
+                <Group name="g23" x="0" y="0" width="400" height="400">
+                    <DigitalClock x="40" y="100" width="320" height="94">
+                        <TimeText x="0" y="0" width="320" height="94" format="hh:mm" hourFormat="24" align="CENTER">
+                            <Font family="SYNC_TO_DEVICE" size="82" weight="LIGHT" color="#EFEEE7" />
+                        </TimeText>
+                    </DigitalClock>
+                    <PartText x="80" y="192" width="240" height="20">
+                        <Text align="CENTER" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="11" weight="NORMAL" color="#9CA09D"><Upper><Template>%s %d %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY]" /><Parameter expression="[MONTH_S]" /></Template></Upper></Font>
+                        </Text>
+                    </PartText>
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <RoundRectangle x="90" y="250" width="220" height="8" cornerRadiusX="4" cornerRadiusY="4">
+                            <Fill color="#1D221C" />
+                        </RoundRectangle>
+                    </PartDraw>
+                    <PartText x="90" y="264" width="220" height="24">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <Text align="START" ellipsis="TRUE">
+                            <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C4B0"><Template>%d steps<Parameter expression="[STEP_COUNT]" /></Template></Font>
+                        </Text>
+                    </PartText>
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <RoundRectangle x="90" y="292" width="220" height="8" cornerRadiusX="4" cornerRadiusY="4">
+                            <Fill color="#1D221C" />
+                        </RoundRectangle>
+                    </PartDraw>
+                    <PartDraw x="0" y="0" width="400" height="400">
+                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                        <RoundRectangle x="90" y="292" width="220" height="8" cornerRadiusX="4" cornerRadiusY="4">
+                            <Transform target="width" value="min([STEP_PERCENT], 100) * 2.2" />
+                            <Fill color="#A8C4B0" />
+                        </RoundRectangle>
+                    </PartDraw>
+                </Group>
+            </ListOption>
+        </ListConfiguration>
+
+        <!-- Colour field: the activity's colour fills the lower half. Drawn first so text sits on it. -->
+        <ComplicationSlot x="0" y="190" width="400" height="210" slotId="7" displayName="colour" supportedTypes="SMALL_IMAGE EMPTY" isCustomizable="FALSE">
+            <BoundingBox x="0" y="0" width="400" height="210" />
+            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.ColourComplication" primaryProviderType="SMALL_IMAGE" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
+            <Complication type="SMALL_IMAGE">
+                <Group name="g8" x="0" y="0" width="400" height="210">
+                    <ListConfiguration id="layout">
+                        <ListOption id="colour">
+                            <PartImage x="0" y="0" width="400" height="210">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Image resource="[COMPLICATION.SMALL_IMAGE]" />
+                            </PartImage>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
+            </Complication>
+        </ComplicationSlot>
+
+        <ComplicationSlot x="60" y="132" width="280" height="190" slotId="1" displayName="agenda" supportedTypes="SMALL_IMAGE EMPTY" isCustomizable="FALSE">
             <BoundingBox x="0" y="0" width="280" height="190" />
             <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.AgendaComplication" primaryProviderType="SMALL_IMAGE" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
             <Complication type="SMALL_IMAGE">
-                <PartImage x="0" y="0" width="280" height="190">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <Image resource="[COMPLICATION.SMALL_IMAGE]" />
-                </PartImage>
+                <Group name="g9" x="0" y="0" width="280" height="190">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartImage x="0" y="0" width="280" height="190">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Image resource="[COMPLICATION.SMALL_IMAGE]" />
+                            </PartImage>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
         </ComplicationSlot>
-        <ComplicationSlot x="80" y="324" width="240" height="32" slotId="2" displayName="elapsed" supportedTypes="LONG_TEXT EMPTY">
-            <BoundingBox x="0" y="0" width="240" height="32" />
+
+        <!-- Plan progress: the ring that empties, the minutes left, and the next plan as its title. -->
+        <ComplicationSlot x="0" y="0" width="400" height="400" slotId="8" displayName="plan" supportedTypes="RANGED_VALUE EMPTY" isCustomizable="FALSE">
+            <BoundingBox x="0" y="0" width="400" height="400" />
+            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.PlanComplication" primaryProviderType="RANGED_VALUE" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
+            <Complication type="RANGED_VALUE">
+                <Group name="g10" x="0" y="0" width="400" height="400">
+                    <ListConfiguration id="layout">
+                        <ListOption id="hero">
+                            <PartText x="60" y="292" width="280" height="22">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" color="#9CA09D">
+                                        <Upper><Template>Next %s<Parameter expression="[COMPLICATION.TITLE]" /></Template></Upper>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="ring">
+                            <Group name="g11" x="0" y="0" width="400" height="400">
+                                <Condition>
+                                    <Expressions>
+                                        <Expression name="planned">[COMPLICATION.RANGED_VALUE_VALUE] &gt; 0</Expression>
+                                    </Expressions>
+                                    <Compare expression="planned">
+                                        <PartDraw x="0" y="0" width="400" height="400">
+                                            <Variant mode="AMBIENT" target="alpha" value="0" />
+                                            <Arc centerX="200" centerY="200" width="372" height="372" startAngle="0" endAngle="360">
+                                                <Transform target="endAngle" value="[COMPLICATION.RANGED_VALUE_VALUE] * 360" />
+                                                <Stroke color="#E2C15A" thickness="10" cap="ROUND" />
+                                            </Arc>
+                                        </PartDraw>
+                                    </Compare>
+                                </Condition>
+                                <PartText x="60" y="289" width="280" height="24">
+                                    <Text align="CENTER" ellipsis="TRUE">
+                                        <Font family="SYNC_TO_DEVICE" size="15" color="#9CA09D">
+                                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                        </Font>
+                                    </Text>
+                                </PartText>
+                            </Group>
+                        </ListOption>
+                        <ListOption id="timer">
+                            <PartText x="60" y="300" width="280" height="20">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="13" color="#9CA09D">
+                                        <Upper><Template>Next %s<Parameter expression="[COMPLICATION.TITLE]" /></Template></Upper>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="nownext">
+                            <PartText x="40" y="269" width="320" height="38">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="24" color="#A8C4B0">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TITLE]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="round">
+                            <PartText x="60" y="262" width="280" height="22">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="13" color="#9CA09D">
+                                        <Upper><Template>Next %s<Parameter expression="[COMPLICATION.TITLE]" /></Template></Upper>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    <ListOption id="rings">
+                            <Condition>
+                                <Expressions>
+                                    <Expression name="planned">[COMPLICATION.RANGED_VALUE_VALUE] &gt; 0</Expression>
+                                </Expressions>
+                                <Compare expression="planned">
+                                    <PartDraw x="0" y="0" width="400" height="400">
+                                        <Variant mode="AMBIENT" target="alpha" value="0" />
+                                        <Arc centerX="200" centerY="200" width="300" height="300" startAngle="0" endAngle="360">
+                                            <Transform target="endAngle" value="[COMPLICATION.RANGED_VALUE_VALUE] * 360" />
+                                            <Stroke color="#E2C15A" thickness="9" cap="ROUND" />
+                                        </Arc>
+                                    </PartDraw>
+                                </Compare>
+                            </Condition>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
+            </Complication>
+        </ComplicationSlot>
+
+        <!-- The current activity's name. -->
+        <ComplicationSlot x="0" y="0" width="400" height="400" slotId="6" displayName="activity" supportedTypes="LONG_TEXT EMPTY" isCustomizable="FALSE">
+            <BoundingBox x="0" y="0" width="400" height="400" />
+            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.ActivityComplication" primaryProviderType="LONG_TEXT" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
+            <Complication type="LONG_TEXT">
+                <Group name="g12" x="0" y="0" width="400" height="400">
+                    <ListConfiguration id="layout">
+                        <ListOption id="hero">
+                            <PartText x="40" y="173" width="320" height="43">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="27" color="#EFEEE7">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="ring">
+                            <PartText x="60" y="224" width="280" height="35">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="22" color="#E2C15A">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="timer">
+                            <PartText x="60" y="103" width="280" height="28">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" color="#D9D8D2">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="colour">
+                            <Group name="g13" x="0" y="0" width="400" height="400">
+                                <!-- Dark text sits on the colour; in always-on the colour goes, so light text takes over. -->
+                                <PartText x="40" y="218" width="320" height="51">
+                                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                                    <Text align="CENTER" ellipsis="TRUE">
+                                        <Font family="SYNC_TO_DEVICE" size="32" weight="BOLD" color="#0C0E0B">
+                                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                        </Font>
+                                    </Text>
+                                </PartText>
+                                <PartText x="40" y="218" width="320" height="51" alpha="0">
+                                    <Variant mode="AMBIENT" target="alpha" value="255" />
+                                    <Text align="CENTER" ellipsis="TRUE">
+                                        <Font family="SYNC_TO_DEVICE" size="32" weight="BOLD" color="#B9BDB5">
+                                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                        </Font>
+                                    </Text>
+                                </PartText>
+                            </Group>
+                        </ListOption>
+                        <ListOption id="nownext">
+                            <PartText x="40" y="75" width="320" height="43">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="27" color="#E2C15A">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="round">
+                            <PartText x="0" y="0" width="400" height="400">
+                                <TextCircular centerX="200" centerY="200" width="330" height="330" startAngle="300" endAngle="60" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="#E2C15A">
+                                        <Upper><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Upper>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="agenda">
+                            <PartText x="100" y="155" width="200" height="35" alpha="0">
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="20" color="#B0B6AA">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    <ListOption id="rings">
+                            <PartText x="60" y="204" width="280" height="34">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="NORMAL" color="#E2C15A"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="health">
+                            <PartText x="40" y="132" width="320" height="42">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="25" weight="NORMAL" color="#EFEEE7"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="morning">
+                            <PartText x="60" y="54" width="280" height="26">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="15" weight="NORMAL" color="#E2C15A"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
+            </Complication>
+        </ComplicationSlot>
+
+        <!-- Elapsed time, or today's total when nothing is tracked. -->
+        <ComplicationSlot x="0" y="0" width="400" height="400" slotId="2" displayName="elapsed" supportedTypes="LONG_TEXT EMPTY" isCustomizable="FALSE">
+            <BoundingBox x="0" y="0" width="400" height="400" />
             <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.ElapsedComplication" primaryProviderType="LONG_TEXT" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="240" height="32">
-                    <Text align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="23" color="#E2C15A">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </Text>
-                </PartText>
+                <Group name="g14" x="0" y="0" width="400" height="400">
+                    <ListConfiguration id="layout">
+                        <ListOption id="hero">
+                            <PartText x="40" y="209" width="320" height="54">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="34" weight="MEDIUM" color="#E2C15A">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="ring">
+                            <PartText x="60" y="259" width="280" height="28">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" color="#9CA09D">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="timer">
+                            <PartText x="10" y="121" width="380" height="179">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="112" weight="MEDIUM" color="#E2C15A">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="colour">
+                            <PartText x="40" y="266" width="320" height="35">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="22" color="#0C0E0B">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="nownext">
+                            <PartText x="40" y="117" width="320" height="33">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="21" color="#EFEEE7">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="round">
+                            <PartText x="0" y="0" width="400" height="400">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="200" centerY="200" width="330" height="330" startAngle="230" endAngle="130" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="#E2C15A">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="agenda">
+                            <PartText x="80" y="322" width="240" height="36">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="23" color="#E2C15A">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    <ListOption id="health">
+                            <PartText x="40" y="172" width="320" height="46">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="28" weight="MEDIUM" color="#E2C15A"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="morning">
+                            <PartText x="60" y="78" width="280" height="24">
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#9CA09D"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
         </ComplicationSlot>
+
+        <!-- Edge slots for steps, battery, and anything else, on the Agenda layout. -->
         <ComplicationSlot x="0" y="80" width="85" height="240" slotId="3" displayName="left" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
             <BoundingOval x="0" y="0" width="85" height="240" />
             <DefaultProviderPolicy defaultSystemProvider="STEP_COUNT" defaultSystemProviderType="SHORT_TEXT" />
             <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="85" height="240">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <TextCircular centerX="200" centerY="120" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
-                            <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </TextCircular>
-                </PartText>
+                <Group name="g15" x="0" y="0" width="85" height="240">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartText x="0" y="0" width="85" height="240">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="200" centerY="120" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                                        <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="85" height="240">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <TextCircular centerX="200" centerY="120" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </TextCircular>
-                </PartText>
+                <Group name="g16" x="0" y="0" width="85" height="240">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartText x="0" y="0" width="85" height="240">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="200" centerY="120" width="358" height="358" startAngle="235" endAngle="305" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
         </ComplicationSlot>
         <ComplicationSlot x="315" y="80" width="85" height="240" slotId="4" displayName="right" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
             <BoundingOval x="0" y="0" width="85" height="240" />
             <DefaultProviderPolicy defaultSystemProvider="WATCH_BATTERY" defaultSystemProviderType="SHORT_TEXT" />
             <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="85" height="240">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <TextCircular centerX="-115" centerY="120" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
-                            <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </TextCircular>
-                </PartText>
+                <Group name="g17" x="0" y="0" width="85" height="240">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartText x="0" y="0" width="85" height="240">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="-115" centerY="120" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                                        <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="85" height="240">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <TextCircular centerX="-115" centerY="120" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </TextCircular>
-                </PartText>
+                <Group name="g18" x="0" y="0" width="85" height="240">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartText x="0" y="0" width="85" height="240">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="-115" centerY="120" width="358" height="358" startAngle="55" endAngle="125" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
         </ComplicationSlot>
-        <ComplicationSlot x="85" y="340" width="230" height="60" slotId="5" displayName="bottom" supportedTypes="SHORT_TEXT LONG_TEXT EMPTY">
-            <BoundingOval x="0" y="0" width="230" height="60" />
+        <ComplicationSlot x="60" y="220" width="280" height="180" slotId="5" displayName="bottom" supportedTypes="SHORT_TEXT LONG_TEXT RANGED_VALUE EMPTY">
+            <BoundingBox x="0" y="0" width="280" height="180" />
             <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
             <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="230" height="60">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <TextCircular centerX="115" centerY="-140" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
-                            <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </TextCircular>
-                </PartText>
+                <Group name="g19" x="0" y="0" width="280" height="180">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartText x="25" y="120" width="230" height="60">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="115" centerY="-140" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                                        <Template>%s %s<Parameter expression="[COMPLICATION.TITLE]" /><Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                    <ListOption id="rings">
+                            <PartText x="0" y="46" width="280" height="24">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C9E0"><Template>Sleep %s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="health">
+                            <PartText x="85" y="12" width="110" height="30">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="19" weight="NORMAL" color="#EFEEE7"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="morning">
+                            <PartText x="30" y="2" width="220" height="24">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="START" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C9E0"><Template>Sleep %s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
             <Complication type="LONG_TEXT">
-                <PartText x="0" y="0" width="230" height="60">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                    <TextCircular centerX="115" centerY="-140" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </TextCircular>
-                </PartText>
+                <Group name="g20" x="0" y="0" width="280" height="180">
+                    <ListConfiguration id="layout">
+                        <ListOption id="agenda">
+                            <PartText x="25" y="120" width="230" height="60">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <TextCircular centerX="115" centerY="-140" width="358" height="358" startAngle="215" endAngle="145" direction="COUNTER_CLOCKWISE" align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="#B7BBB8">
+                                        <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                    </Font>
+                                </TextCircular>
+                            </PartText>
+                        </ListOption>
+                    <ListOption id="rings">
+                            <PartText x="0" y="46" width="280" height="24">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C9E0"><Template>Sleep %s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="health">
+                            <PartText x="85" y="12" width="110" height="30">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="19" weight="NORMAL" color="#EFEEE7"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="morning">
+                            <PartText x="30" y="2" width="220" height="24">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="START" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C9E0"><Template>Sleep %s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
-        </ComplicationSlot>
-        <ComplicationSlot x="100" y="155" width="200" height="35" slotId="6" displayName="agenda" supportedTypes="SHORT_TEXT EMPTY">
-            <BoundingBox x="0" y="0" width="200" height="35" />
-            <DefaultProviderPolicy primaryProvider="com.noted.android/com.noted.wear.surfaces.ActivityComplication" primaryProviderType="SHORT_TEXT" defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY" />
-            <Complication type="SHORT_TEXT">
-                <PartText x="0" y="0" width="200" height="35" alpha="0">
-                    <Variant mode="AMBIENT" target="alpha" value="255" />
-                    <Text align="CENTER" ellipsis="TRUE">
-                        <Font family="SYNC_TO_DEVICE" size="20" color="#B0B6AA">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </Text>
-                </PartText>
+            <Complication type="RANGED_VALUE">
+                <Group name="g24" x="0" y="0" width="280" height="180">
+                    <ListConfiguration id="layout">
+                        <ListOption id="rings">
+                            <PartText x="0" y="46" width="280" height="24">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C9E0"><Template>Sleep %s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="health">
+                            <PartText x="85" y="12" width="110" height="30">
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                                <Text align="CENTER" ellipsis="TRUE">
+                                    <Font family="SYNC_TO_DEVICE" size="19" weight="NORMAL" color="#EFEEE7"><Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                </Text>
+                            </PartText>
+                        </ListOption>
+                        <ListOption id="morning">
+                            <Group name="g25" x="0" y="0" width="280" height="180">
+                                <PartText x="30" y="2" width="220" height="24">
+                                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                                    <Text align="START" ellipsis="TRUE">
+                                        <Font family="SYNC_TO_DEVICE" size="14" weight="NORMAL" color="#A8C9E0"><Template>Sleep %s<Parameter expression="[COMPLICATION.TEXT]" /></Template></Font>
+                                    </Text>
+                                </PartText>
+                                <PartDraw x="0" y="0" width="280" height="180">
+                                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                                    <RoundRectangle x="30" y="30" width="220" height="8" cornerRadiusX="4" cornerRadiusY="4">
+                                        <Transform target="width" value="min([COMPLICATION.RANGED_VALUE_VALUE] / [COMPLICATION.RANGED_VALUE_MAX], 1) * 220" />
+                                        <Fill color="#A8C9E0" />
+                                    </RoundRectangle>
+                                </PartDraw>
+                            </Group>
+                        </ListOption>
+                    </ListConfiguration>
+                </Group>
             </Complication>
         </ComplicationSlot>
     </Scene>

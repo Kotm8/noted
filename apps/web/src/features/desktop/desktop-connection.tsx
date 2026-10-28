@@ -1,15 +1,27 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { AuthBrand } from "../auth/components/auth-brand";
 import { DesktopConnectionContext, isDesktop } from "./connection-context";
 import { desktopRequest } from "./desktop-request";
-import { DesktopSetup } from "../installer/desktop-setup";
 import type { InstallationJob } from "../installer/desktop-types";
 import "../../styles/desktop.css";
 import { ConnectionScreen } from "../../components/connection-screen";
 import { finishStartup } from "../../lib/startup";
+
+const DesktopSetup = lazy(() =>
+  import("../installer/desktop-setup").then((module) => ({
+    default: module.DesktopSetup,
+  })),
+);
 
 interface Profile {
   serverUrl: string | null;
@@ -107,14 +119,16 @@ function DesktopConnection({ children }: { children: ReactNode }) {
 
   if (setup) {
     return (
-      <DesktopSetup
-        initialJob={job}
-        close={() => setSetup(false)}
-        connected={async () => {
-          setProfile(await connectionRequest());
-          setSetup(false);
-        }}
-      />
+      <Suspense fallback={<ConnectionScreen />}>
+        <DesktopSetup
+          initialJob={job}
+          close={() => setSetup(false)}
+          connected={async () => {
+            setProfile(await connectionRequest());
+            setSetup(false);
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -162,7 +176,7 @@ function DesktopConnection({ children }: { children: ReactNode }) {
           disabled={busy || !address.trim()}
         >
           {busy ? (
-            <LoaderCircle size={16} className="animate-spin" />
+            <LoaderCircle size={16} className="spin" />
           ) : (
             <ArrowRight size={16} />
           )}

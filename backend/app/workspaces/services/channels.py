@@ -4,11 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError, ValidationError
+from app.core.security import utc_now
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
 from app.notes.models import Message
 from app.publishing.models import ScheduledMessage
-from app.workspaces.models import Channel
+from app.workspaces.models import Channel, Workspace
 from app.workspaces.repository import ChannelRepository
 from app.workspaces.schemas import ChannelCreate
 from app.workspaces.services.categories import CategoryService
@@ -50,6 +51,24 @@ class ChannelService:
     ) -> list[Channel]:
         self.workspaces.get_workspace(workspace_id, owner_id)
         return self.repository.list_for_workspace(workspace_id, limit, offset)
+
+    def list_all(self, owner_id: UUID) -> list[Channel]:
+        return list(
+            self.db.scalars(
+                select(Channel)
+                .join(Workspace)
+                .where(Workspace.owner_id == owner_id)
+                .order_by(Workspace.position, Workspace.created_at, Channel.position, Channel.id)
+            )
+        )
+
+    def set_pinned(self, channel_id: UUID, pinned: bool, owner_id: UUID) -> Channel:
+        channel = self.get_channel(channel_id, owner_id)
+        if pinned != (channel.pinned_at is not None):
+            channel.pinned_at = utc_now() if pinned else None
+            self.db.commit()
+            self.db.refresh(channel)
+        return channel
 
     def create_channel(self, workspace_id: UUID, data: ChannelCreate, owner_id: UUID) -> Channel:
         self.workspaces.get_workspace(workspace_id, owner_id)

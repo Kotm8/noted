@@ -149,8 +149,8 @@ export function applyAppearance(preferences: AppearancePreferences) {
     "--border-default": mix(background, 80, text),
     "--text-primary": text,
     "--text-secondary": mix(text, 77, background),
-    "--text-muted": mix(text, 62, background),
-    "--text-faint": mix(text, 49, background),
+    "--text-muted": mix(text, 66, background),
+    "--text-faint": mix(text, 56, background),
     "--accent": accent,
     "--accent-hover": mix(accent, 86, text),
     "--accent-text": luminance(accent) > 0.35 ? "#201e1a" : "#f4f4ef",
@@ -177,8 +177,8 @@ export function applyAppearance(preferences: AppearancePreferences) {
       "--border-subtle": "#2b2b2b",
       "--border-default": "#3c3c3c",
       "--text-secondary": "#b5b5b5",
-      "--text-muted": "#9d9d9d",
-      "--text-faint": "#868686",
+      "--text-muted": "#a3a3a3",
+      "--text-faint": "#939393",
     });
   }
 

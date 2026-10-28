@@ -11,12 +11,17 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.CapabilityClient
+import com.google.android.gms.wearable.Wearable
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.noted.wear.R
 import com.noted.wear.data.WatchStore
+import com.noted.wear.navigation.WatchIntentRouter
 import com.noted.wear.ui.WatchActivity
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import org.json.JSONObject
 
 class WatchMessagingService : FirebaseMessagingService() {
@@ -32,7 +37,49 @@ class WatchMessagingService : FirebaseMessagingService() {
             return
         val raw = message.data["payload"] ?: return
         if (raw.length > 4096) return
-        runCatching { show(JSONObject(raw), credentials, snapshot) }
+        runCatching {
+            val payload = JSONObject(raw)
+            if (payload.optString("kind") == "dismiss") dismiss(payload)
+            else if (payload.optString("kind") == "diagnostic") {
+                recordTest(payload)
+                show(payload, credentials, snapshot)
+            } else if (!phoneNearby())
+                show(payload, credentials, snapshot)
+        }
+    }
+
+    /** Diagnostics on the watch wait for this to know the server's test really arrived. */
+    private fun recordTest(payload: JSONObject) {
+        val id = payload.optString("testId")
+        if (runCatching { UUID.fromString(id) }.isFailure) return
+        WatchStore(this).saveTestArrival(id)
+    }
+
+    /** The phone's own notification is mirrored here, so only alert when it can't be. */
+    private fun phoneNearby(): Boolean =
+        runCatching {
+                Tasks.await(
+                        Wearable.getCapabilityClient(this)
+                            .getCapability("noted_phone", CapabilityClient.FILTER_REACHABLE),
+                        3,
+                        TimeUnit.SECONDS,
+                    )
+                    .nodes
+                    .isNotEmpty()
+            }
+            .getOrDefault(false)
+
+    private fun dismiss(payload: JSONObject) {
+        val id = payload.optString("id")
+        if (runCatching { UUID.fromString(id) }.isFailure) return
+        val shown =
+            getSystemService(NotificationManager::class.java)
+                .activeNotifications
+                .find { it.tag == id && it.id == 0 }
+                ?.notification
+                ?.extras
+                ?.getInt("noted_revision") ?: return
+        if (shown <= payload.optInt("revision")) NotificationManagerCompat.from(this).cancel(id, 0)
     }
 
     private fun show(payload: JSONObject, credentials: JSONObject, snapshot: JSONObject) {
@@ -57,7 +104,7 @@ class WatchMessagingService : FirebaseMessagingService() {
         val open =
             Intent(this, WatchActivity::class.java)
                 .setData(Uri.parse("noted-watch://open/$id"))
-                .putExtra(if (plan) "prompt_id" else "message_id", id)
+                .putExtra(if (plan) WatchIntentRouter.PROMPT else WatchIntentRouter.MESSAGE, id)
         val hide = snapshot.optJSONObject("settings")?.optBoolean("hide_contents") == true
         val body = if (hide) "Open Noted to view." else payload.optString("body").take(2000)
         val builder =
@@ -78,6 +125,10 @@ class WatchMessagingService : FirebaseMessagingService() {
                 )
                 .setLocalOnly(true)
                 .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+                .addExtras(
+                    android.os.Bundle().apply { putInt("noted_revision", payload.optInt("revision")) },
+                )
         val revision = payload.optInt("revision")
         if (revision > 0) {
             val action =
@@ -86,17 +137,32 @@ class WatchMessagingService : FirebaseMessagingService() {
                     .putExtra("device_id", credentials.getString("device_id"))
                     .putExtra("id", id)
                     .putExtra("revision", revision)
-                    .putExtra("path", if (plan) "prompts" else "reminders")
-                    .putExtra("action", if (ended) "stop" else if (plan) "start" else "done")
+                    .putExtra("path", "reminders")
+                    .putExtra("action", "done")
+            // Starting or stopping changes the tracker, so it opens the watch app,
+            // which confirms with the server before saying it happened.
+            val command =
+                Intent(open)
+                    .setData(Uri.parse("noted-watch://command/$id/$revision"))
+                    .putExtra(WatchIntentRouter.ACTION, if (ended) "stop" else "start")
+                    .putExtra(WatchIntentRouter.REVISION, revision)
             builder.addAction(
                 0,
                 if (ended) "No activity" else if (plan) "Start activity" else "Done",
-                PendingIntent.getBroadcast(
-                    this,
-                    0,
-                    action,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                ),
+                if (plan)
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        command,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    )
+                else
+                    PendingIntent.getBroadcast(
+                        this,
+                        0,
+                        action,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    ),
             )
             if (plan)
                 builder.addAction(
@@ -107,7 +173,7 @@ class WatchMessagingService : FirebaseMessagingService() {
                         0,
                         Intent(open)
                             .setData(Uri.parse("noted-watch://delay/$id"))
-                            .putExtra("delay", true),
+                            .putExtra(WatchIntentRouter.DELAY, true),
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                     ),
                 )

@@ -12,8 +12,8 @@ android {
         applicationId = "com.noted.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.2.6"
+        versionCode = 12
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { buildConfig = true }
@@ -48,6 +48,7 @@ dependencies {
     implementation("androidx.wear:wear:1.3.0")
     implementation("androidx.wear.watchfacepush:watchfacepush:1.0.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
     implementation("androidx.wear.watchface:watchface-complications-data-source-ktx:1.2.1")
     implementation("androidx.wear.tiles:tiles:1.5.0")
     implementation("androidx.wear.protolayout:protolayout:1.3.0")
@@ -57,6 +58,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging")
     implementation("androidx.work:work-runtime:2.11.2")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

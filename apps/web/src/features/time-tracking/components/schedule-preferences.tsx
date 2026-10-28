@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import { toast } from "sonner";
@@ -7,11 +7,12 @@ import { Notice } from "../../../components/ui/notice";
 import { Select } from "../../../components/ui/select";
 import { TimeField } from "../../schedule/components/time-field";
 import { trackingApi } from "../api";
-import type { Tracker } from "../types";
+import type { Tracker, TrackingPreferences } from "../types";
 
 export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
   const [preferences, setPreferences] = useState(tracker.preferences);
-  const [revision, setRevision] = useState(tracker.revision);
+  const revision = useRef(tracker.revision);
+  const pending = useRef<number | undefined>(undefined);
   const client = useQueryClient();
   const zones = [
     ...new Set([
@@ -22,25 +23,27 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
     ]),
   ];
   const save = useMutation({
-    mutationFn: () => trackingApi.preferences(preferences, revision),
+    scope: { id: "schedule-preferences" },
+    mutationFn: (values: TrackingPreferences) =>
+      trackingApi.preferences(values, revision.current),
     onSuccess: (data) => {
       client.setQueryData(["time-tracker"], data);
       void client.invalidateQueries({ queryKey: ["schedule"] });
-      setRevision(data.revision);
-      setPreferences(data.preferences);
-      toast.success("Schedule settings saved");
+      revision.current = data.revision;
     },
     onError: () => {
       void client.invalidateQueries({ queryKey: ["time-tracker"] });
     },
   });
+  useEffect(() => () => window.clearTimeout(pending.current), []);
+  /** Arrow keys step the hours quickly, so saves wait for a short pause. */
+  function change(values: TrackingPreferences) {
+    setPreferences(values);
+    window.clearTimeout(pending.current);
+    pending.current = window.setTimeout(() => save.mutate(values), 400);
+  }
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        save.mutate();
-      }}
-    >
+    <div>
       <h3>Visible hours</h3>
       <p className="schedule-help">
         Choose where your board starts and ends. Activities and reminders
@@ -50,17 +53,13 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
         <TimeField
           label="Schedule start"
           value={preferences.start_minute}
-          onChange={(start_minute) =>
-            setPreferences({ ...preferences, start_minute })
-          }
+          onChange={(start_minute) => change({ ...preferences, start_minute })}
         />
         <TimeField
           label="Schedule end"
           value={preferences.end_minute}
           end
-          onChange={(end_minute) =>
-            setPreferences({ ...preferences, end_minute })
-          }
+          onChange={(end_minute) => change({ ...preferences, end_minute })}
         />
       </div>
       <div className="schedule-field">
@@ -72,7 +71,7 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
             value: zone,
             label: zone.replaceAll("_", " "),
           }))}
-          onChange={(timezone) => setPreferences({ ...preferences, timezone })}
+          onChange={(timezone) => change({ ...preferences, timezone })}
         />
       </div>
       <p className="schedule-help">
@@ -96,7 +95,7 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
                 })
                 .then((data) => {
                   setPreferences(data.preferences);
-                  setRevision(data.revision);
+                  revision.current = data.revision;
                   save.reset();
                 })
                 .catch((error: Error) => toast.error(error.message));
@@ -106,9 +105,9 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
           </Button>
         </Notice>
       )}
-      <Button type="submit" disabled={save.isPending}>
-        {save.isPending ? "Saving…" : "Save schedule settings"}
-      </Button>
-    </form>
+      <p className="settings-hint" role="status">
+        {save.isPending ? "Saving…" : ""}
+      </p>
+    </div>
   );
 }

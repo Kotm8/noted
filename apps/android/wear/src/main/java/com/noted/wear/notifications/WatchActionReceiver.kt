@@ -3,6 +3,7 @@ package com.noted.wear.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -25,6 +26,7 @@ class WatchActionReceiver : BroadcastReceiver() {
                 it in listOf("start", "stop", "done", "snooze")
             } ?: return
         if ((path == "prompts") != (action in listOf("start", "stop"))) return
+        NotificationManagerCompat.from(context).cancel(id, 0)
         val data =
             Data.Builder()
                 .putString("device_id", saved.getString("device_id"))

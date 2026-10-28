@@ -1,0 +1,136 @@
+/* Slack-style composer: optional formatting row, the text, then an action row. */
+.composer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.composer textarea {
+  flex: none;
+  min-height: 40px;
+  padding: 10px 13px 4px;
+}
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.composer .format-toolbar {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.format-toolbar .format-style {
+  gap: 1px;
+  width: auto;
+  padding: 0 4px;
+}
+.format-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--border-default);
+}
+.dropdown-item.format-style-h1 {
+  font-size: calc(17px * var(--text-scale, 1));
+  font-weight: 700;
+}
+.dropdown-item.format-style-h2 {
+  font-size: calc(15px * var(--text-scale, 1));
+  font-weight: 700;
+}
+.dropdown-item.format-style-h3 {
+  font-weight: 600;
+}
+.dropdown-item svg:last-child {
+  margin-left: auto;
+}
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px 6px;
+}
+.composer-actions .attach-button {
+  margin: 0;
+}
+.composer-format-toggle[aria-pressed="true"] {
+  color: var(--text-primary);
+  background: var(--surface-selected);
+}
+.composer-actions-gap {
+  flex: 1;
+}
+.send-group {
+  display: flex;
+  align-items: center;
+}
+.composer .send-button {
+  width: 34px;
+  height: 30px;
+  margin: 0;
+}
+.send-group .send-button:has(+ .send-options) {
+  border-radius: 4px 0 0 4px;
+}
+.send-group .send-options {
+  width: 20px;
+  height: 30px;
+  border-left: 1px solid var(--border-default);
+  border-radius: 0 4px 4px 0;
+}
+.send-button:not(:disabled) + .send-options:not(:disabled) {
+  border-left-color: rgb(0 0 0 / 0.25);
+  color: var(--accent-text);
+  background: var(--accent);
+}
+.send-options:disabled,
+.composer-actions .icon-button:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.command-menu-item {
+  display: grid;
+  gap: 2px;
+}
+.command-menu-item small {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+.format-link-form {
+  display: grid;
+  gap: 14px;
+}
+.format-link-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+.format-link-form input {
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+.thread-composer {
+  flex-wrap: wrap;
+}
+.thread-composer .format-toolbar {
+  flex-basis: 100%;
+  padding: 0 0 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.edit-form .format-toolbar {
+  padding: 0 0 6px;
+}
+.format-toolbar + .writing-input {
+  margin-top: 10px;
+}
+.format-toolbar:not(.composer *, .thread-composer *, .edit-form *) {
+  padding: 0;
+}

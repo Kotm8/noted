@@ -3,7 +3,17 @@ import type { ReactNode } from "react";
 import type { InstallationDraft } from "../types";
 import { normalizeDomain } from "../validation";
 
-export function ReviewStep({ draft, preview = true, details = [], children }: { draft: InstallationDraft; preview?: boolean; details?: string[][]; children?: ReactNode }) {
+export function ReviewStep({
+  draft,
+  preview = true,
+  details = [],
+  children,
+}: {
+  draft: InstallationDraft;
+  preview?: boolean;
+  details?: string[][];
+  children?: ReactNode;
+}) {
   const rows = [
     ["Server name", draft.serverName.trim()],
     ["SSH connection", `${draft.sshUser}@${draft.host}:${draft.port}`],
@@ -20,7 +30,9 @@ export function ReviewStep({ draft, preview = true, details = [], children }: { 
         {rows.map(([label, value]) => (
           <div key={label}>
             <dt>{label}</dt>
-            <dd>{label === "SSH fingerprint" ? <code>{value}</code> : value}</dd>
+            <dd>
+              {label === "SSH fingerprint" ? <code>{value}</code> : value}
+            </dd>
           </div>
         ))}
       </dl>
@@ -31,7 +43,9 @@ export function ReviewStep({ draft, preview = true, details = [], children }: { 
       <Notice>
         <strong>{preview ? "Preview ends here" : "Ready to install"}</strong>
         <p>
-          {preview ? "This browser preview has not contacted your VPS, changed DNS, or created an account. Install the desktop app to set up a server." : "Setup installs Docker if needed, downloads Noted, and creates your owner account. DNS stays under your control. Existing services are kept; occupied web ports stop installation."}
+          {preview
+            ? "This browser preview has not contacted your VPS, changed DNS, or created an account. Install the desktop app to set up a server."
+            : "Setup installs Docker if needed, downloads Noted, and creates your owner account. DNS stays under your control. Existing services are kept; occupied web ports stop installation."}
         </p>
       </Notice>
     </section>

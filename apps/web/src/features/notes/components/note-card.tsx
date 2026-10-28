@@ -1,4 +1,13 @@
-import { MessageSquare, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  Download,
+  FileText,
+  Files,
+  MessageSquare,
+  MoreHorizontal,
+  Pencil,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { NoteAttachments } from "./note-attachments";
 import type { Note } from "../types";
@@ -6,6 +15,7 @@ import { MessageMarkdown } from "./message-markdown";
 import { NoteEditor } from "./note-editor";
 import { ReminderMessage } from "../../reminders/components/reminder-message";
 import { CopyNoteButton } from "./copy-note-button";
+import { canShare, downloadAttachments, shareNote } from "../share";
 
 interface NoteCardProps {
   channelName: string;
@@ -27,6 +37,9 @@ export function NoteCard({
   onOpenThread,
 }: NoteCardProps) {
   const createdAt = new Date(note.created_at);
+  const hasText = Boolean(note.content.trim());
+  const hasFiles = note.attachments.length > 0;
+  const sharing = canShare();
   const wasEdited = note.updated_at !== note.created_at;
   const content = (
     <>
@@ -109,6 +122,32 @@ export function NoteCard({
               <Pencil size={14} />
               Edit note
             </MenuItem>
+            {sharing && (
+              <MenuItem onSelect={() => void shareNote(note, "all")}>
+                <Share2 size={14} />
+                Share
+              </MenuItem>
+            )}
+            {sharing && hasText && hasFiles && (
+              <MenuItem onSelect={() => void shareNote(note, "text")}>
+                <FileText size={14} />
+                Share text only
+              </MenuItem>
+            )}
+            {sharing && hasText && hasFiles && (
+              <MenuItem onSelect={() => void shareNote(note, "files")}>
+                <Files size={14} />
+                Share files only
+              </MenuItem>
+            )}
+            {hasFiles && (
+              <MenuItem onSelect={() => downloadAttachments(note.attachments)}>
+                <Download size={14} />
+                {note.attachments.length === 1
+                  ? "Download file"
+                  : `Download ${note.attachments.length} files`}
+              </MenuItem>
+            )}
             <MenuItem danger onSelect={onDelete}>
               <Trash2 size={14} />
               Delete note

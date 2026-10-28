@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.security import utc_now
 from app.db.base import Base
 
 
@@ -35,18 +37,28 @@ class DevicePresence(Base):
     seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class NotificationDelivery(Base):
-    __tablename__ = "notification_deliveries"
-    message_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("reminders.message_id", ondelete="CASCADE"), primary_key=True
-    )
+class DeliveryProgress:
+    """Delivery state of one notification revision on one device.
+
+    Subclasses add the primary key column named by ``item_key``.
+    """
+
+    item_key: ClassVar[str]
     subscription_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("push_subscriptions.id", ondelete="CASCADE"), primary_key=True
     )
     revision: Mapped[int] = mapped_column(primary_key=True)
     attempts: Mapped[int] = mapped_column(default=0)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    retry_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    retry_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class NotificationDelivery(DeliveryProgress, Base):
+    __tablename__ = "notification_deliveries"
+    item_key = "message_id"
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reminders.message_id", ondelete="CASCADE"), primary_key=True
+    )
 
 
 class AndroidPairing(Base):

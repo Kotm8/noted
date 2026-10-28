@@ -36,9 +36,24 @@ export function StartupLogo() {
             fill="white"
           />
         </mask>
+        <clipPath id={`${id}-body`}>
+          <path clipRule="evenodd" d="M0 0H98V96H0ZM52 49H67V72H52Z" />
+        </clipPath>
+        <clipPath id={`${id}-leg`}>
+          <path d="M52.8 72V49A6.4 6.4 0 0 1 65.6 49V72Z" />
+        </clipPath>
       </defs>
       <path
         mask={`url(#${id})`}
+        clipPath={`url(#${id}-body)`}
+        d="M26.7 32H39.5V37.7C42.4 33.2 46.4 30.8 51.9 30.8C61.2 30.8 65.6 37 65.6 47V71H52.8V48.6C52.8 42.7 51.2 40 47.1 40C42.1 40 39.5 43.7 39.5 50.4V71H26.7V32Z"
+        fill="#CCCCCC"
+      />
+      <circle mask={`url(#${id})`} cx="59.2" cy="49" r="6.4" fill="#CCCCCC" />
+      <path
+        className="startup-leg"
+        mask={`url(#${id})`}
+        clipPath={`url(#${id}-leg)`}
         d="M26.7 32H39.5V37.7C42.4 33.2 46.4 30.8 51.9 30.8C61.2 30.8 65.6 37 65.6 47V71H52.8V48.6C52.8 42.7 51.2 40 47.1 40C42.1 40 39.5 43.7 39.5 50.4V71H26.7V32Z"
         fill="#CCCCCC"
       />

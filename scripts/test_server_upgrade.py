@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 import secrets
 import subprocess
 import sys
@@ -23,6 +24,8 @@ from noted_updater.install import OWNER_SCRIPT
 from noted_updater.release import Manifest, Release
 
 ROOT = Path(__file__).resolve().parents[1]
+# Tag of the images the test upgrades from; set it to a previous release's build.
+SOURCE = os.environ.get("NOTED_UPGRADE_SOURCE", "0.1.0-local")
 
 
 def command(arguments: list[str], content: bytes | None = None) -> bytes:
@@ -86,12 +89,12 @@ def run() -> None:
             .strip()
         )
         old_backend = (
-            command(["image", "inspect", "--format", "{{.Id}}", "noted/backend:0.1.0-local"])
+            command(["image", "inspect", "--format", "{{.Id}}", f"noted/backend:{SOURCE}"])
             .decode()
             .strip()
         )
         old_web = (
-            command(["image", "inspect", "--format", "{{.Id}}", "noted/web:0.1.0-local"])
+            command(["image", "inspect", "--format", "{{.Id}}", f"noted/web:{SOURCE}"])
             .decode()
             .strip()
         )

@@ -30,7 +30,7 @@ export function DocumentPage({ channel }: { channel: Channel }) {
           </Button>
         </Notice>
       ) : (
-        <LoaderCircle size={20} className="animate-spin" />
+        <LoaderCircle size={20} className="spin" />
       )}
     </div>
   );

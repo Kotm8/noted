@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useAndroidBackLayer } from "../../lib/android-navigation";
 
 export function Modal({
@@ -10,6 +10,7 @@ export function Modal({
   description,
   children,
   className,
+  style,
   onOpenAutoFocus,
 }: {
   open: boolean;
@@ -18,6 +19,7 @@ export function Modal({
   description: string;
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
   onOpenAutoFocus?: (event: Event) => void;
 }) {
   useAndroidBackLayer(open, () => onOpenChange(false));
@@ -27,6 +29,7 @@ export function Modal({
         <Dialog.Overlay className="modal-overlay" />
         <Dialog.Content
           className={`modal-content ${className ?? ""}`}
+          style={style}
           onOpenAutoFocus={onOpenAutoFocus}
         >
           <Dialog.Title className="modal-title">{title}</Dialog.Title>

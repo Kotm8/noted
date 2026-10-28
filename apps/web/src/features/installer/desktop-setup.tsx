@@ -9,6 +9,11 @@ import { AndroidNotificationsStep } from "./components/android-notifications-ste
 import { CleanupDialog } from "./components/cleanup-dialog";
 import { DomainStep } from "./components/domain-step";
 import { InstallationProgress } from "./components/installation-progress";
+import {
+  PhoneWatchStep,
+  type DeviceChoice,
+} from "./components/phone-watch-step";
+import { devicesApi } from "../desktop/devices/api";
 import { ReviewStep } from "./components/review-step";
 import { ServerStep } from "./components/server-step";
 import type {
@@ -23,6 +28,7 @@ import {
   type UpdateInstallation,
 } from "./types";
 import { normalizeDomain, validateStep } from "./validation";
+import { isGeneratedDomain } from "../../lib/generated-domain";
 import { firebaseProject } from "./firebase";
 import "../../styles/installer.css";
 
@@ -31,11 +37,13 @@ const steps = [
   "Domain",
   "Owner account",
   "Android notifications",
+  "Phone and watch",
   "Review",
   "Install",
 ];
-const reviewStep = 4;
-const installStep = 5;
+const devicesStep = 4;
+const reviewStep = 5;
+const installStep = 6;
 
 function restoreDraft(job: InstallationJob | null): InstallationDraft {
   const plan = job?.plan;
@@ -46,6 +54,8 @@ function restoreDraft(job: InstallationJob | null): InstallationDraft {
         host: plan.host.ip,
         port: String(plan.host.port),
         domain: plan.domain,
+        ownDomain: !isGeneratedDomain(plan.domain),
+        cloudflare: !isGeneratedDomain(plan.domain),
         username: plan.username,
       }
     : initialInstallation;
@@ -75,6 +85,7 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
     initialJob?.phase === "cleanup_retained" ? initialJob.detail : null,
   );
   const [busy, setBusy] = useState(false);
+  const [deviceChoice, setDeviceChoice] = useState<DeviceChoice>("install");
   const [cleanupOpen, setCleanupOpen] = useState(false);
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -163,6 +174,10 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
         setTrusted(false);
       }
       if (step === 3) await checkRelease();
+      if (step === devicesStep && deviceChoice === "install") {
+        const { tool } = await devicesApi.overview();
+        if (!tool.ready) await devicesApi.downloadTool();
+      }
       setStep((current) => current + 1);
     } catch (failure) {
       setError(
@@ -310,6 +325,13 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
             {step === 3 && (
               <AndroidNotificationsStep draft={draft} update={update} />
             )}
+            {step === devicesStep && release && (
+              <PhoneWatchStep
+                choice={deviceChoice}
+                setChoice={setDeviceChoice}
+                release={{ commit: release.commit, version: release.version }}
+              />
+            )}
             {step === reviewStep && (
               <>
                 <ReviewStep
@@ -321,6 +343,12 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
                       draft.androidNotifications
                         ? `Firebase: ${firebaseProject(draft)}`
                         : "Firebase skipped",
+                    ],
+                    [
+                      "Phone and watch",
+                      deviceChoice === "install"
+                        ? "Install tool ready"
+                        : "Set up later in Settings",
                     ],
                     [
                       "Release",
@@ -378,13 +406,13 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
                 {step < reviewStep ? (
                   <Button type="submit" disabled={busy}>
                     {busy ? (
-                      <LoaderCircle size={15} className="animate-spin" />
+                      <LoaderCircle size={15} className="spin" />
                     ) : (
                       <ArrowRight size={15} />
                     )}
                     {busy
                       ? "Checking..."
-                      : step === 3
+                      : step === devicesStep
                         ? "Review setup"
                         : "Continue"}
                   </Button>
@@ -397,9 +425,7 @@ export function DesktopSetup({ initialJob, close, connected }: Props) {
                     }}
                   >
                     Install on server
-                    {busy && (
-                      <LoaderCircle size={15} className="animate-spin" />
-                    )}
+                    {busy && <LoaderCircle size={15} className="spin" />}
                   </Button>
                 )}
               </footer>

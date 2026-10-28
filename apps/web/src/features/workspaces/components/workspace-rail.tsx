@@ -1,4 +1,4 @@
-import { House, Plus } from "lucide-react";
+import { CalendarDays, House, Plus } from "lucide-react";
 import { DebugTrigger } from "../../debug/debug-trigger";
 import type { Workspace } from "../types";
 
@@ -10,6 +10,8 @@ interface WorkspaceRailProps {
   onCreate: () => void;
   onHome: () => void;
   homeActive: boolean;
+  onCalendar: () => void;
+  calendarActive: boolean;
 }
 
 export function WorkspaceRail({
@@ -20,6 +22,8 @@ export function WorkspaceRail({
   onCreate,
   onHome,
   homeActive,
+  onCalendar,
+  calendarActive,
 }: WorkspaceRailProps) {
   return (
     <nav className="workspace-rail" aria-label="Workspaces">
@@ -34,6 +38,15 @@ export function WorkspaceRail({
           onClick={onHome}
         >
           <House size={20} />
+        </button>
+        <button
+          className={`workspace-button ${calendarActive ? "workspace-selected" : ""}`}
+          aria-label="Calendar"
+          title="Calendar"
+          aria-current={calendarActive ? "page" : undefined}
+          onClick={onCalendar}
+        >
+          <CalendarDays size={20} />
         </button>
         {workspaces.map((workspace) => (
           <button

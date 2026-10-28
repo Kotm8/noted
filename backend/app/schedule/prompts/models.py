@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.security import utc_now
 from app.db.base import Base
+from app.notifications.models import DeliveryProgress
 
 
 class PlanPrompt(Base):
@@ -53,15 +54,9 @@ class PlanPromptEvent(Base):
     )
 
 
-class PlanPromptDelivery(Base):
+class PlanPromptDelivery(DeliveryProgress, Base):
     __tablename__ = "plan_prompt_deliveries"
+    item_key = "prompt_id"
     prompt_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("plan_prompts.id", ondelete="CASCADE"), primary_key=True
     )
-    subscription_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("push_subscriptions.id", ondelete="CASCADE"), primary_key=True
-    )
-    revision: Mapped[int] = mapped_column(primary_key=True)
-    attempts: Mapped[int] = mapped_column(default=0)
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    retry_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

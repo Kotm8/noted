@@ -101,6 +101,7 @@ export function ManagementDialog({
                   options={[
                     { value: "note", label: "Chat" },
                     { value: "document", label: "Notes" },
+                    { value: "tasks", label: "Tasks" },
                     { value: "reminder", label: "Reminders" },
                     { value: "journal", label: "Journal" },
                   ]}
@@ -152,7 +153,7 @@ export function ManagementDialog({
             disabled={mutation.isPending || (!action.deleting && !name.trim())}
           >
             {mutation.isPending ? (
-              <LoaderCircle size={16} className="animate-spin" />
+              <LoaderCircle size={16} className="spin" />
             ) : (
               `${verb} ${action.kind}`
             )}

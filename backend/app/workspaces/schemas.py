@@ -37,11 +37,14 @@ class CategoryResponse(CategoryCreate):
     workspace_id: uuid.UUID
 
 
+ChannelKind = Literal["note", "reminder", "journal", "document", "tasks"]
+
+
 class ChannelCreate(BaseModel):
     name: Name
     position: int = Field(default=0, ge=0)
     category_id: uuid.UUID | None = None
-    kind: Literal["note", "reminder", "journal", "document"] = "note"
+    kind: ChannelKind = "note"
 
 
 class ChannelResponse(ChannelCreate):
@@ -49,6 +52,7 @@ class ChannelResponse(ChannelCreate):
     id: uuid.UUID
     workspace_id: uuid.UUID
     created_at: datetime
+    pinned_at: datetime | None = None
     banner_storage_key: str | None = Field(default=None, exclude=True)
 
     @computed_field
@@ -57,6 +61,10 @@ class ChannelResponse(ChannelCreate):
             version = self.banner_storage_key.split("/")[-1]
             return f"/api/v1/channels/{self.id}/banner?v={version}"
         return None
+
+
+class ChannelPin(BaseModel):
+    pinned: bool
 
 
 class SidebarMove(BaseModel):

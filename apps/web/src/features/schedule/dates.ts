@@ -77,3 +77,27 @@ export function dateRangeLabel(first: string, last: string): string {
     timeZone: "UTC",
   }).formatRange(new Date(`${first}T12:00:00Z`), new Date(`${last}T12:00:00Z`));
 }
+
+/** Accepts 9, 09, 930, 0930, 9:30, 9.30 and 24:00. */
+export function parseTime(text: string): number | null {
+  const value = text.trim().replace(/[.\s]/, ":");
+  const separated = /^(\d{1,2}):(\d{1,2})$/.exec(value);
+  let hour: number;
+  let minute: number;
+  if (separated) {
+    hour = Number(separated[1]);
+    minute = Number(separated[2]) * (separated[2].length === 1 ? 10 : 1);
+  } else if (/^\d{1,4}$/.test(value)) {
+    hour = Number(value.length <= 2 ? value : value.slice(0, -2));
+    minute = value.length <= 2 ? 0 : Number(value.slice(-2));
+  } else return null;
+  if (hour === 24 && minute === 0) return 1440;
+  return hour > 23 || minute > 59 ? null : hour * 60 + minute;
+}
+
+/** Moves to the next or previous whole step, so 09:07 one step later is 09:15. */
+export function stepTime(minute: number, direction: 1 | -1, size: number) {
+  return direction > 0
+    ? Math.floor(minute / size) * size + size
+    : Math.ceil(minute / size) * size - size;
+}

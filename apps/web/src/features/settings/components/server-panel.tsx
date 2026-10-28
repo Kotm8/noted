@@ -3,11 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "../../../components/ui/button";
 import { settingsApi } from "../api";
 import { PasswordForm } from "./password-form";
+import { SessionsPanel } from "./sessions-panel";
 import { UpdatesPanel } from "../../updates/components/updates-panel";
 import { HostPanel } from "../../host/components/host-panel";
+import { ServerAddressPanel } from "../../desktop/server-address-panel";
 
 export function ServerPanel() {
-  const query = useQuery({ queryKey: ["server-settings"], queryFn: settingsApi.getServer });
+  const query = useQuery({
+    queryKey: ["server-settings"],
+    queryFn: settingsApi.getServer,
+  });
 
   if (query.isPending)
     return (
@@ -59,7 +64,12 @@ export function ServerPanel() {
       </p>
       <UpdatesPanel />
       <PasswordForm />
-      <HostPanel ownerUsername={query.data.owner_username} instance={query.data.instance_url} />
+      <SessionsPanel />
+      <HostPanel
+        ownerUsername={query.data.owner_username}
+        instance={query.data.instance_url}
+      />
+      <ServerAddressPanel />
     </section>
   );
 }

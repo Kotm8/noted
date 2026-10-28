@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConnectionScreen } from "./components/connection-screen";
 import { authApi } from "./features/auth/api";
 import { AuthScreen } from "./features/auth/components/auth-screen";
-import { WorkspacePage } from "./features/workspaces/workspace-page";
+import { WorkspaceRoutes } from "./features/workspaces/workspace-routes";
 import { lazy, Suspense, useEffect } from "react";
 import { finishStartup } from "./lib/startup";
 import { prepareStartup } from "./features/workspaces/navigation-data";
@@ -74,5 +74,5 @@ function ConnectedApp() {
     return <AuthScreen setup={setupStatus.data?.setup_required ?? false} />;
   }
 
-  return <WorkspacePage />;
+  return <WorkspaceRoutes />;
 }

@@ -7,7 +7,7 @@ from app.auth.services.sessions import AuthenticatedSession
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.workspaces.models import Channel
-from app.workspaces.schemas import ChannelCreate, ChannelResponse
+from app.workspaces.schemas import ChannelCreate, ChannelPin, ChannelResponse
 from app.workspaces.services.channels import ChannelService
 
 router = APIRouter(tags=["channels"])
@@ -22,6 +22,24 @@ def list_channels(
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> list[Channel]:
     return ChannelService(db).list_channels(workspace_id, current.user.id, limit, offset)
+
+
+@router.get("/channels", response_model=list[ChannelResponse])
+def list_all_channels(
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> list[Channel]:
+    return ChannelService(db).list_all(current.user.id)
+
+
+@router.put("/channels/{channel_id}/pin", response_model=ChannelResponse)
+def pin_channel(
+    channel_id: UUID,
+    data: ChannelPin,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> Channel:
+    return ChannelService(db).set_pinned(channel_id, data.pinned, current.user.id)
 
 
 @router.post("/workspaces/{workspace_id}/channels", response_model=ChannelResponse, status_code=201)

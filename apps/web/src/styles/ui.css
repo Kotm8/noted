@@ -4,7 +4,7 @@ label {
   gap: 8px;
   margin-bottom: 18px;
   color: var(--text-primary);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   font-weight: 500;
 }
 
@@ -17,7 +17,7 @@ select {
   border-radius: 4px;
   color: var(--text-primary);
   background: var(--surface-main);
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
 }
 
 input::placeholder,
@@ -32,7 +32,7 @@ select:focus {
 
 label > small {
   color: var(--text-muted);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   font-weight: 400;
   line-height: 1.5;
 }
@@ -70,7 +70,7 @@ label > small {
 .modal-description {
   margin: 0 0 22px;
   color: var(--text-secondary);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   line-height: 1.6;
 }
 
@@ -112,7 +112,7 @@ label > small {
   border-radius: 3px;
   outline: none;
   color: var(--text-secondary);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   cursor: pointer;
 }
 
@@ -123,4 +123,21 @@ label > small {
 
 .text-danger {
   color: var(--danger);
+}
+.copy-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-main);
+}
+.copy-box code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-md);
 }

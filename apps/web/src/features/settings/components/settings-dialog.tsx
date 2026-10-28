@@ -1,53 +1,69 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
+  AppWindow,
   Archive,
   Bell,
-  Cable,
   LogOut,
-  Monitor,
   Palette,
   Server,
+  Smartphone,
   Timer,
   Watch,
 } from "lucide-react";
-import { ConnectionPanel } from "../../desktop/connection-panel";
-import { isDesktop, useDesktopConnection } from "../../desktop/connection-context";
+import { isDesktop } from "../../desktop/connection-context";
 import { Modal } from "../../../components/ui/dialog";
 import { useLogout } from "../../auth/hooks/use-logout";
 import { AppearancePanel } from "./appearance-panel";
 import { ServerPanel } from "./server-panel";
 import { BackupsPanel } from "../../backups/components/backups-panel";
-import { SessionsPanel } from "./sessions-panel";
 import { NotificationsPanel } from "../../notifications/notifications-panel";
 import { isAndroidApp } from "../../notifications/android";
 import { SwitchServerButton } from "../../desktop/switch-server-button";
 import { TrackingSettings } from "../../time-tracking/components/tracking-settings";
-import type { TrackingTab } from "../../time-tracking/components/tracking-settings";
-import { WatchPanel } from "../../wear/watch-panel";
-import { DesktopUpdatesPanel } from "../../desktop/updates/desktop-updates-panel";
+import type { TrackingSection } from "../../time-tracking/components/tracking-settings";
+import { WatchAppearancePanel } from "../../wear/watch-panel";
+import { DesktopAppPanel } from "../../desktop/desktop-app-panel";
+import { DevicesPanel } from "./devices-panel";
+
+type Section =
+  | "appearance"
+  | "notifications"
+  | "tracking"
+  | "server"
+  | "backups"
+  | "devices"
+  | "watch"
+  | "desktop";
 
 export function SettingsDialog({
   onClose,
   initialTab = "appearance",
-  trackingTab,
+  trackingSection,
 }: {
   onClose: () => void;
   initialTab?: "appearance" | "tracking";
-  trackingTab?: TrackingTab;
+  trackingSection?: TrackingSection;
 }) {
-  const [tab, setTab] = useState<
-    | "appearance"
-    | "server"
-    | "backups"
-    | "sessions"
-    | "connection"
-    | "notifications"
-    | "tracking"
-    | "watch"
-    | "desktop"
-  >(initialTab);
-  const connection = useDesktopConnection();
+  const [section, setSection] = useState<Section>(initialTab);
   const logout = useLogout();
+
+  function item(
+    value: Section,
+    icon: ReactNode,
+    label: string,
+    nested = false,
+  ) {
+    return (
+      <button
+        className={nested ? "settings-nested" : undefined}
+        aria-current={section === value ? "page" : undefined}
+        onClick={() => setSection(value)}
+      >
+        {icon}
+        {label}
+      </button>
+    );
+  }
 
   return (
     <Modal
@@ -61,98 +77,45 @@ export function SettingsDialog({
     >
       <div className="settings-layout">
         <nav className="settings-navigation" aria-label="Settings sections">
-          <button
-            aria-current={tab === "watch" ? "page" : undefined}
-            onClick={() => setTab("watch")}
-          >
-            <Watch size={16} />
-            Watch
-          </button>
-          <button
-            aria-current={tab === "tracking" ? "page" : undefined}
-            onClick={() => setTab("tracking")}
-          >
-            <Timer size={16} />
-            Time tracking
-          </button>
-          <button
-            aria-current={tab === "notifications" ? "page" : undefined}
-            onClick={() => setTab("notifications")}
-          >
-            <Bell size={16} />
-            Notifications
-          </button>
-          <button
-            aria-current={tab === "appearance" ? "page" : undefined}
-            onClick={() => setTab("appearance")}
-          >
-            <Palette size={16} />
-            Appearance
-          </button>
-          <button
-            aria-current={tab === "server" ? "page" : undefined}
-            onClick={() => setTab("server")}
-          >
-            <Server size={16} />
-            Server
-          </button>
-          <button
-            aria-current={tab === "backups" ? "page" : undefined}
-            onClick={() => setTab("backups")}
-          >
-            <Archive size={16} />
-            Backups
-          </button>
-          <button
-            aria-current={tab === "sessions" ? "page" : undefined}
-            onClick={() => setTab("sessions")}
-          >
-            <Monitor size={16} />
-            Sessions
-          </button>
-          {isDesktop && (
-            <button aria-current={tab === "desktop" ? "page" : undefined} onClick={() => setTab("desktop")}>
-              <Monitor size={16} />Desktop app
-            </button>
-          )}
-          <button
-            className="settings-signout"
-            disabled={logout.isPending}
-            onClick={() => logout.mutate()}
-          >
-            <LogOut size={16} />
-            Sign out
-          </button>
-          {connection && (
+          {item("appearance", <Palette size={16} />, "Appearance")}
+          {item("notifications", <Bell size={16} />, "Notifications")}
+          {item("tracking", <Timer size={16} />, "Time tracking")}
+          {item("server", <Server size={16} />, "Server")}
+          {item("backups", <Archive size={16} />, "Backups")}
+          {item("devices", <Smartphone size={16} />, "Devices")}
+          {item("watch", <Watch size={16} />, "Watch appearance", true)}
+          {isDesktop && item("desktop", <AppWindow size={16} />, "Desktop app")}
+          <div className="settings-navigation-end">
+            {isAndroidApp() && <SwitchServerButton />}
             <button
-              aria-current={tab === "connection" ? "page" : undefined}
-              onClick={() => setTab("connection")}
+              className="settings-signout"
+              disabled={logout.isPending}
+              onClick={() => logout.mutate()}
             >
-              <Cable size={16} />
-              Connection
+              <LogOut size={16} />
+              Sign out
             </button>
-          )}
-          {isAndroidApp() && <SwitchServerButton />}
+          </div>
         </nav>
-        {tab === "desktop" ? (
-          <DesktopUpdatesPanel />
-        ) : tab === "watch" ? (
-          <WatchPanel />
-        ) : tab === "tracking" ? (
-          <TrackingSettings initialTab={trackingTab} />
-        ) : tab === "notifications" ? (
-          <NotificationsPanel />
-        ) : tab === "connection" ? (
-          <ConnectionPanel />
-        ) : tab === "appearance" ? (
-          <AppearancePanel />
-        ) : tab === "server" ? (
-          <ServerPanel />
-        ) : tab === "sessions" ? (
-          <SessionsPanel />
-        ) : (
-          <BackupsPanel />
-        )}
+        <div className="settings-content" key={section}>
+          {section === "appearance" ? (
+            <AppearancePanel />
+          ) : section === "notifications" ? (
+            <NotificationsPanel />
+          ) : section === "tracking" ? (
+            <TrackingSettings initialSection={trackingSection} />
+          ) : section === "server" ? (
+            <ServerPanel />
+          ) : section === "backups" ? (
+            <BackupsPanel />
+          ) : section === "devices" ? (
+            <DevicesPanel />
+          ) : section === "watch" ? (
+            <WatchAppearancePanel />
+          ) : (
+            <DesktopAppPanel />
+          )}
+        </div>
       </div>
     </Modal>
   );

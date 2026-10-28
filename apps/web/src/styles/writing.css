@@ -26,7 +26,7 @@
 }
 .writing-sidebar-header h2 {
   margin: 0;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -66,11 +66,11 @@
 .thread-source > time {
   display: block;
   color: var(--text-faint);
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   margin-bottom: 8px;
 }
 .thread-source .markdown {
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 .thread-replies {
   flex: 1;
@@ -81,7 +81,7 @@
 }
 .thread-reply-count {
   display: block;
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   color: var(--text-faint);
   margin: 0 20px 14px;
 }
@@ -96,7 +96,7 @@
   margin-left: 20px;
 }
 .thread-replies .markdown {
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
 }
 .thread-replies .settings-hint {
   padding: 0 20px;
@@ -124,7 +124,7 @@
   border: 0;
   resize: none;
   background: transparent;
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   line-height: 20px;
 }
 .thread-composer textarea:focus-visible {
@@ -155,7 +155,7 @@
   border: 0;
   color: var(--accent);
   background: transparent;
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .journal-list-heading {
   display: flex;
@@ -197,11 +197,11 @@
   align-items: center;
   gap: 9px;
   overflow-wrap: anywhere;
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
 }
 .journal-entry-row time {
   color: var(--text-faint);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
 }
 .journal-tools {
   display: flex;
@@ -212,7 +212,7 @@
 }
 .journal-tools > span {
   margin-left: auto;
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   color: var(--text-faint);
 }
 .journal-tools .icon-button {
@@ -253,18 +253,19 @@
   margin: 0 0 24px;
   overflow-wrap: anywhere;
 }
-.document-page .journal-entry-body {
-  flex: 1 0 320px;
-}
-.markdown-format-tools {
+.writing-input {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 12px;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+.document-page .writing-input {
+  flex: 1 0 320px;
 }
 .journal-date {
   color: var(--text-faint);
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: var(--font-xs);
   margin-bottom: 12px;
 }
 .journal-entry-title {
@@ -290,7 +291,7 @@
   resize: none;
   background: transparent;
   color: var(--text-primary);
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   line-height: 1.9;
 }
 .journal-entry-body:focus-visible {
@@ -302,7 +303,7 @@
   overflow: auto;
 }
 .journal-reading .markdown {
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   line-height: 1.9;
 }
 .journal-start-writing {

@@ -37,8 +37,9 @@ export function RemoveServerDialog({
       {removal.isSuccess ? (
         <Notice tone="warning">
           <p>
-            Removal has been requested. This app will disconnect as its containers and data are
-            deleted. Closing this page does not cancel removal.
+            Removal has been requested. This app will disconnect as its
+            containers and data are deleted. Closing this page does not cancel
+            removal.
           </p>
           <p>The VPS itself and unrelated apps are kept.</p>
         </Notice>
@@ -48,15 +49,22 @@ export function RemoveServerDialog({
           onSubmit={(event) => {
             event.preventDefault();
             if (confirmation === "I LOVE VERITY" && saved)
-              removal.mutate({ confirmation, current_password: password, instance_id: instanceId });
+              removal.mutate({
+                confirmation,
+                current_password: password,
+                instance_id: instanceId,
+              });
           }}
         >
           <Notice tone="warning" role="note">
-            <strong>All Noted data on this VPS will be permanently deleted.</strong>
+            <strong>
+              All Noted data on this VPS will be permanently deleted.
+            </strong>
             <p>
-              This includes the owner account, projects, channels, messages, uploads, TLS data,
-              server-side backups, and the update worker. Downloaded backup ZIPs remain yours. The
-              operating system, Docker, and other apps stay intact.
+              This includes the owner account, projects, channels, messages,
+              uploads, TLS data, server-side backups, and the update worker.
+              Downloaded backup ZIPs remain yours. The operating system, Docker,
+              and other apps stay intact.
             </p>
           </Notice>
           <label className="check-label">
@@ -66,7 +74,8 @@ export function RemoveServerDialog({
               onChange={(event) => setSaved(event.target.checked)}
               required
             />
-            I have saved any backup I need and understand that this deletion is permanent.
+            I have saved any backup I need and understand that this deletion is
+            permanent.
           </label>
           <label>
             Current owner password
@@ -89,7 +98,9 @@ export function RemoveServerDialog({
               spellCheck={false}
             />
           </label>
-          {removal.error && <Notice tone="error">{removal.error.message}</Notice>}
+          {removal.error && (
+            <Notice tone="error">{removal.error.message}</Notice>
+          )}
           <div className="host-actions">
             <Button
               variant="secondary"
@@ -102,7 +113,10 @@ export function RemoveServerDialog({
             <Button
               variant="danger"
               disabled={
-                removal.isPending || !saved || !password || confirmation !== "I LOVE VERITY"
+                removal.isPending ||
+                !saved ||
+                !password ||
+                confirmation !== "I LOVE VERITY"
               }
             >
               {removal.isPending

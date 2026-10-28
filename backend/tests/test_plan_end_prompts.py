@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.notifications import routing
 from app.schedule.prompts import delivery, service
 from app.time_tracking import service as tracking_service
 from tests.conftest import API
@@ -141,7 +142,7 @@ def test_end_delivery_is_once_per_revision_and_uses_existing_focus_rules(
         },
     )
     send = Mock(return_value="accepted")
-    monkeypatch.setattr(delivery, "send_push", send)
+    monkeypatch.setattr(routing, "send_push", send)
     delivery.dispatch_plan_prompts(db.get_bind(), "https://notes.example.com", None)
     delivery.dispatch_plan_prompts(db.get_bind(), "https://notes.example.com", None)
     assert send.call_count == 1

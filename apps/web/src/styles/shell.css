@@ -125,7 +125,7 @@
   display: block;
   overflow: hidden;
   color: var(--text-primary);
-  font-size: calc(15px * var(--text-scale, 1));
+  font-size: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -187,7 +187,7 @@
 .sidebar-drop-placeholder {
   display: block;
   padding: 10px;
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
 }
 
@@ -208,7 +208,7 @@
   border: none;
   color: var(--text-muted);
   background: transparent;
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
   font-weight: 500;
   text-align: left;
 }
@@ -257,7 +257,7 @@
   border: none;
   color: var(--text-secondary);
   background: transparent;
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   text-align: left;
 }
 
@@ -303,7 +303,7 @@
 .sidebar-empty {
   margin: 16px 9px;
   color: var(--text-muted);
-  font-size: calc(13px * var(--text-scale, 1));
+  font-size: var(--font-md);
   line-height: 1.6;
 }
 
@@ -314,7 +314,7 @@
   gap: 5px;
   margin: 10px;
   color: var(--danger);
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: var(--font-sm);
 }
 
 .sidebar-loading {
@@ -376,7 +376,7 @@
 .channel-heading h1 {
   overflow: hidden;
   margin: 0;
-  font-size: calc(15px * var(--text-scale, 1));
+  font-size: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -408,7 +408,7 @@
   max-width: 350px;
   margin: 0 0 22px;
   color: var(--text-secondary);
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: var(--font-base);
   line-height: 1.6;
 }
 

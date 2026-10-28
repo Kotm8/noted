@@ -10,7 +10,7 @@
   display: grid;
   gap: 7px;
   margin-bottom: 0;
-  font-size: 13px;
+  font-size: var(--font-md);
   color: var(--text-secondary);
 }
 .publishing-dialog textarea {
@@ -37,7 +37,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
   cursor: pointer;
 }
 .publishing-quick-times button:hover,
@@ -73,7 +73,7 @@
   margin-bottom: 0;
   align-items: center;
   gap: 9px;
-  font-size: 13px;
+  font-size: var(--font-md);
 }
 .publishing-enabled input {
   width: 16px;
@@ -100,17 +100,17 @@
   flex-wrap: wrap;
   gap: 7px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .scheduled-message-item p {
   margin: 9px 0 3px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 14px;
+  font-size: var(--font-base);
 }
 .scheduled-message-item small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 .scheduled-message-actions {
   display: flex;
@@ -135,11 +135,11 @@
 }
 .writing-prompt-banner strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-md);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 .writing-prompt-banner small {
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--text-muted);
 }

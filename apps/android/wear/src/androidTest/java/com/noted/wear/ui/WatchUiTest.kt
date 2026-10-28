@@ -1,8 +1,10 @@
 package com.noted.wear.ui
 
+import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
@@ -17,13 +19,7 @@ import com.noted.wear.data.WatchStore
 import com.noted.wear.surfaces.FaceRenderer
 import com.noted.wear.surfaces.SurfaceUpdates
 import com.noted.wear.watchface.WatchFaceInstaller
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLStreamHandler
-import java.net.URLStreamHandlerFactory
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertTrue
@@ -53,33 +49,8 @@ class WatchUiTest {
                 "text_scale",
                 InstrumentationRegistry.getArguments().getString("text_scale", "1.0").toDouble(),
             )
-        URL.setURLStreamHandlerFactory(
-            URLStreamHandlerFactory { protocol ->
-                if (protocol != "https") null
-                else
-                    object : URLStreamHandler() {
-                        override fun openConnection(url: URL): HttpURLConnection {
-                            check(url.host == "noted-watch.test")
-                            return object : HttpURLConnection(url) {
-                                private val request = ByteArrayOutputStream()
-
-                                override fun connect() = Unit
-
-                                override fun disconnect() = Unit
-
-                                override fun usingProxy() = false
-
-                                override fun getOutputStream() = request
-
-                                override fun getResponseCode() = 200
-
-                                override fun getInputStream() =
-                                    ByteArrayInputStream(snapshot.toString().toByteArray())
-                            }
-                        }
-                    }
-            },
-        )
+        FakeServer.install()
+        FakeServer.respond = { _, _ -> 200 to snapshot.toString() }
         store.saveCredentials(
             JSONObject()
                 .put("origin", "https://noted-watch.test")
@@ -94,7 +65,7 @@ class WatchUiTest {
             ) as WatchActivity
         settle()
         capture("home")
-        click("Switch activity")
+        click("Switch")
         capture("activities")
         back()
         click("Walk outside, ${WatchUiFixtures.planTime()}")
@@ -108,11 +79,7 @@ class WatchUiTest {
         back()
         snapshot.getJSONArray("prompts").put(WatchUiFixtures.prompt())
         store.saveSnapshot(snapshot)
-        instrumentation.runOnMainSync {
-            activity.intent.putExtra("prompt_id", "plan-prompt")
-            context.sendBroadcast(Intent("com.noted.wear.REFRESH").setPackage(context.packageName))
-        }
-        settle()
+        open(Intent().putExtra("prompt_id", WatchUiFixtures.PROMPT_ID))
         capture("prompt")
         click("Delay prompt")
         capture("delay")
@@ -152,6 +119,135 @@ class WatchUiTest {
         }
     }
 
+    /** Notification taps on a real activity: confirm, fail and retry, outdated, diagnostics. */
+    @Test
+    fun notificationTapsOpenTheRightScreen() {
+        check(Build.HARDWARE in listOf("ranchu", "goldfish")) {
+            "The visual fixture must only run on a disposable emulator."
+        }
+        snapshot = WatchUiFixtures.snapshot()
+        snapshot.getJSONArray("prompts").put(WatchUiFixtures.prompt())
+        var actions = 0
+        var actionStatus = -1
+        var promptStatus = "started"
+        val testId = "5d9e6f7a-8b9c-4d0e-9f1a-2b3c4d5e6f70"
+        FakeServer.install()
+        FakeServer.respond = { path, method ->
+            when {
+                path.endsWith("/actions") -> {
+                    actions++
+                    actionStatus to snapshot.toString()
+                }
+                path.endsWith("/prompts/${WatchUiFixtures.OLD_PROMPT_ID}") ->
+                    200 to
+                        WatchUiFixtures.prompt()
+                            .put("id", WatchUiFixtures.OLD_PROMPT_ID)
+                            .put("status", promptStatus)
+                            .toString()
+                path.endsWith("/push/test") && method == "POST" ->
+                    200 to JSONObject().put("test_id", testId).put("outcome", "accepted").toString()
+                else -> 200 to snapshot.toString()
+            }
+        }
+        store.saveCredentials(
+            JSONObject()
+                .put("origin", "https://noted-watch.test")
+                .put("device_id", "emulator-fixture")
+                .put("secret", "emulator-fixture-only"),
+        )
+        store.saveSnapshot(snapshot)
+        shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+        activity =
+            instrumentation.startActivitySync(
+                Intent(context, WatchActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            ) as WatchActivity
+        settle()
+
+        // Start tapped while the server can't be reached: nothing claims success.
+        tap(command(revision = 1))
+        waitFor("Try again")
+        assertTrue(shows("Couldn't reach your server."))
+        capture("command-failed")
+        actionStatus = 200
+        click("Try again")
+        waitFor("Started ")
+        capture("command-started")
+        assertTrue("Retry must reuse the request", actions == 2)
+        waitFor("TRACKING", timeout = 6000)
+
+        // The same notification delivered again must not send a second command.
+        tap(command(revision = 1))
+        SystemClock.sleep(1500)
+        assertTrue("A replayed tap must not run again", actions == 2)
+
+        // An older notification for a prompt that was answered elsewhere.
+        promptStatus = "started"
+        tap(Intent().putExtra("prompt_id", WatchUiFixtures.OLD_PROMPT_ID))
+        waitFor("ALREADY STARTED")
+        capture("outdated-started")
+        promptStatus = "superseded"
+        tap(Intent().putExtra("prompt_id", WatchUiFixtures.OLD_PROMPT_ID).putExtra("delay", true))
+        waitFor("PLAN ENDED")
+        capture("outdated-ended")
+        click("Home")
+
+        // Diagnostics: the watch only reports success once the test arrives.
+        click("Watch settings")
+        click("Diagnostics")
+        waitFor("Send test notification")
+        capture("diagnostics")
+        click("Send test notification")
+        waitFor("Sent. Waiting…")
+        store.saveTestArrival(testId)
+        waitFor("✓ Arrived")
+        capture("diagnostics-arrived")
+    }
+
+    private fun command(revision: Int) =
+        Intent()
+            .setData(Uri.parse("noted-watch://command/${WatchUiFixtures.PROMPT_ID}/$revision"))
+            .putExtra("prompt_id", WatchUiFixtures.PROMPT_ID)
+            .putExtra("action", "start")
+            .putExtra("revision", revision)
+
+    /** Sends the intent the way the system does when a notification is tapped. */
+    private fun tap(intent: Intent) {
+        PendingIntent.getActivity(
+                context,
+                0,
+                intent
+                    .setClass(context, WatchActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            .send()
+        settle()
+    }
+
+    private fun open(intent: Intent) {
+        tap(intent)
+    }
+
+    private fun shows(text: String): Boolean {
+        var found = false
+        instrumentation.runOnMainSync {
+            found =
+                views(activity.window.decorView).any {
+                    it is TextView && it.isShown && it.text.toString().contains(text)
+                }
+        }
+        return found
+    }
+
+    private fun waitFor(text: String, timeout: Long = 8000) {
+        val until = SystemClock.uptimeMillis() + timeout
+        while (!shows(text)) {
+            check(SystemClock.uptimeMillis() < until) { "Never showed: $text" }
+            SystemClock.sleep(150)
+        }
+        settle()
+    }
+
     private fun capture(name: String) {
         var screenshot = instrumentation.uiAutomation.takeScreenshot()
         if (name.startsWith("face-")) {
@@ -177,7 +273,8 @@ class WatchUiTest {
 
     private fun hasAgenda(bitmap: Bitmap): Boolean {
         var foreground = 0
-        for (y in bitmap.height * 5 / 10 until bitmap.height * 7 / 10 step 2) {
+        // Layouts place their content differently, so look across the whole dial.
+        for (y in bitmap.height / 5 until bitmap.height * 4 / 5 step 2) {
             for (x in bitmap.width / 5 until bitmap.width * 4 / 5 step 2) {
                 if (android.graphics.Color.red(bitmap.getPixel(x, y)) > 80) foreground++
             }
@@ -187,8 +284,8 @@ class WatchUiTest {
 
     private fun hasClock(bitmap: Bitmap): Boolean {
         var foreground = 0
-        for (y in bitmap.height * 14 / 100 until bitmap.height * 27 / 100 step 2) {
-            for (x in bitmap.width / 4 until bitmap.width * 3 / 4 step 2) {
+        for (y in bitmap.height / 10 until bitmap.height * 9 / 10 step 2) {
+            for (x in bitmap.width / 10 until bitmap.width * 9 / 10 step 2) {
                 val pixel = bitmap.getPixel(x, y)
                 if (
                     android.graphics.Color.red(pixel) > 150 &&

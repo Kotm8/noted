@@ -12,7 +12,7 @@ export function WorkspaceEmpty({ workspace, isLoading, onManage }: WorkspaceEmpt
   if (isLoading) {
     return (
       <div className="empty-main">
-        <LoaderCircle className="animate-spin" size={24} aria-label="Loading workspace" />
+        <LoaderCircle className="spin" size={24} aria-label="Loading workspace" />
       </div>
     );
   }

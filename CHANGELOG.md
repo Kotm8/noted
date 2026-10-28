@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0
+
+- Format messages with a Slack-style toolbar in messages, replies, edits, journals, and documents: bold, italic, strikethrough, headings, links (Ctrl+K), lists, checklists, quotes, code, and dividers. Aa shows or hides it; Send's menu holds Schedule message.
+- Mention channels with # in messages, replies, journals, and documents. Mentions keep working after a channel is renamed.
+- Enter continues bulleted, numbered, and checklist items and ends the list on an empty one; Ctrl+Enter sends from inside a list. Every Shift+Enter now shows as a new line.
+- Messages written while another is still sending are sent next, in order, instead of being dropped.
+- Share a message's text and files to other apps from the phone's share menu, or download its files.
+- Add Tasks channels, where every message becomes a checklist item, and pin channels to Home.
+- The calendar scrolls continuously, copies a plan with Ctrl-drag, plans with a right-click, and has a new timeline time picker. Calendar is always in the rail.
+- Reorganised Settings into one fixed-size window: Appearance, Notifications, Time tracking (no tabs), Server with Sessions, Backups, Devices with Watch appearance, and Desktop app. Settings save as you change them.
+- Each notification alerts once on the phone and is mirrored to the watch; the watch shows its own only when the phone can't be reached.
+- Set up a server without a domain, using a free address made from its IP. Moving it to another VPS, or a changed IP, updates the address from the desktop app.
+- Install and update the phone and watch apps from the desktop app, over USB or Wi-Fi.
+- The desktop app can start with Windows, optionally minimized, and updates in two clicks from its notice, with release notes and Skip this version.
+- The watch app has a new Home with your activity in the middle. Starting a plan from a notification opens the watch and confirms once the server has done it, and outdated notifications say why they no longer apply. Watch settings has Diagnostics with a test notification.
+- The watch face has ten layouts to choose from in Customize, including faces with steps, sleep, and battery.
+- A new startup animation on web, desktop, and Android, and the Android app no longer shows the browser while it loads.
+
 ## 0.2.6
 
 - Fix server upgrades from 0.2.3 by declaring the Wear OS and plan-ending database schemas as supported upgrade sources.

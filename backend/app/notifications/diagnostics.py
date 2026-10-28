@@ -8,7 +8,6 @@ from app.auth.models import LoginSession
 from app.auth.services.sessions import AuthenticatedSession
 from app.core.config import Settings
 from app.core.errors import ConflictError
-from app.core.security import utc_now
 from app.notifications.delivery import send_push
 from app.notifications.models import PushSubscription
 from app.notifications.schemas import PushTestResult
@@ -23,8 +22,7 @@ def send_phone_test(
         .join(LoginSession)
         .where(
             LoginSession.user_id == current.user.id,
-            LoginSession.revoked_at.is_(None),
-            LoginSession.expires_at > utc_now(),
+            LoginSession.live(),
             PushSubscription.kind == "mobile",
         )
     ).all()

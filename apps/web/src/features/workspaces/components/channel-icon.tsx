@@ -1,4 +1,4 @@
-import { Bell, BookOpen, FileText, Hash } from "lucide-react";
+import { Bell, BookOpen, FileText, Hash, ListChecks } from "lucide-react";
 import type { Channel } from "../types";
 
 const icons = {
@@ -6,6 +6,7 @@ const icons = {
   reminder: Bell,
   journal: BookOpen,
   document: FileText,
+  tasks: ListChecks,
 };
 
 export function ChannelIcon({

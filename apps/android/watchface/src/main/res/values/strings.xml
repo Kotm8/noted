@@ -4,5 +4,19 @@
     <string name="elapsed">Elapsed time</string>
     <string name="left">Left edge</string>
     <string name="right">Right edge</string>
-    <string name="bottom">Bottom edge</string>
+    <string name="bottom">Sleep / bottom edge</string>
+    <string name="activity">Current activity</string>
+    <string name="colour">Activity colour</string>
+    <string name="plan">Plan progress</string>
+    <string name="layout">Layout</string>
+    <string name="layout_hero">Hero</string>
+    <string name="layout_ring">Planned ring</string>
+    <string name="layout_timer">Big timer</string>
+    <string name="layout_colour">Colour field</string>
+    <string name="layout_nownext">Now / next</string>
+    <string name="layout_round">Written round</string>
+    <string name="layout_rings">Day rings</string>
+    <string name="layout_health">Hero + health</string>
+    <string name="layout_morning">Morning</string>
+    <string name="layout_agenda">Agenda</string>
 </resources>

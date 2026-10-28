@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import ConflictError, NotFoundError
 from app.core.security import utc_now
 from app.home.schemas import HomeActivity, HomeActivityPage, ReadActivities
+from app.notes.mentions import readable
 from app.notes.models import Message
 from app.publishing.models import WritingPrompt
 from app.reminders.models import Reminder
@@ -47,7 +48,7 @@ class HomeService:
                 kind="reminder",
                 id=reminder.message_id,
                 revision=reminder.revision,
-                title=content or "Attachment reminder",
+                title=readable(content) or "Attachment reminder",
                 due_at=reminder.due_at,
                 read=reminder.read_revision == reminder.revision,
                 channel_id=channel_id,

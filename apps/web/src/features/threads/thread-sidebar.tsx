@@ -4,7 +4,8 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowUp, LoaderCircle } from "lucide-react";
+import { ArrowUp, CaseSensitive, LoaderCircle } from "lucide-react";
+import { useFormatting, useFormattingVisible } from "../writing/use-formatting";
 import { toast } from "sonner";
 import { WritingSidebar } from "../../components/ui/writing-sidebar";
 import { Button } from "../../components/ui/button";
@@ -19,6 +20,9 @@ import { useDraft } from "../notes/hooks/use-draft";
 import { notesApi } from "../notes/api";
 import type { Channel } from "../workspaces/types";
 import type { Note } from "../notes/types";
+import { chatEnter } from "../notes/chat-enter";
+import { useMentionPicker } from "../notes/components/mention-picker";
+import { toStored } from "../notes/mentions";
 import { threadQuery } from "./queries";
 
 export function ThreadSidebar({
@@ -58,8 +62,13 @@ export function ThreadSidebar({
       client.invalidateQueries({ queryKey: ["notes", channel.id] }),
       client.invalidateQueries({ queryKey: ["search"] }),
     ]);
+  const replyRef = useRef<HTMLTextAreaElement>(null);
+  const mentions = useMentionPicker(replyRef, draft);
+  const formatting = useFormatting(replyRef);
+  const [formattingVisible, toggleFormatting] = useFormattingVisible();
   const send = useMutation({
-    mutationFn: (content: string) => threadsApi.reply(rootId, content),
+    mutationFn: (content: string) =>
+      threadsApi.reply(rootId, toStored(content, mentions.refs.current)),
     onSuccess: async (_note, content) => {
       clearSentDraft(content);
       await refresh();
@@ -91,7 +100,7 @@ export function ThreadSidebar({
     <WritingSidebar title={`Thread · #${channel.name}`} onClose={onClose}>
       {query.isPending ? (
         <div className="feed-loading">
-          <LoaderCircle size={19} className="animate-spin" />
+          <LoaderCircle size={19} className="spin" />
         </div>
       ) : query.isError ? (
         <Notice tone="error">
@@ -171,7 +180,10 @@ export function ThreadSidebar({
                 submit();
               }}
             >
+              {mentions.menu}
+              {formattingVisible && formatting.toolbar}
               <textarea
+                ref={replyRef}
                 autoFocus
                 aria-label="Thread reply"
                 placeholder="Continue this thought…"
@@ -183,17 +195,27 @@ export function ThreadSidebar({
                   event.target.style.height = "auto";
                   event.target.style.height = `${Math.min(180, event.target.scrollHeight)}px`;
                 }}
+                onSelect={mentions.onSelect}
                 onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    submit();
-                  }
+                  if (mentions.onKeyDown(event) || formatting.onKeyDown(event))
+                    return;
+                  chatEnter(event, submit);
                 }}
               />
+              <button
+                className="icon-button composer-format-toggle"
+                type="button"
+                aria-label={
+                  formattingVisible ? "Hide formatting" : "Show formatting"
+                }
+                title={
+                  formattingVisible ? "Hide formatting" : "Show formatting"
+                }
+                aria-pressed={formattingVisible}
+                onClick={toggleFormatting}
+              >
+                <CaseSensitive size={18} />
+              </button>
               <button
                 className="thread-send"
                 type="submit"
@@ -201,12 +223,13 @@ export function ThreadSidebar({
                 disabled={!draft.trim() || send.isPending}
               >
                 {send.isPending ? (
-                  <LoaderCircle size={17} className="animate-spin" />
+                  <LoaderCircle size={17} className="spin" />
                 ) : (
                   <ArrowUp size={18} />
                 )}
               </button>
             </form>
+            {formatting.dialog}
           </>
         )
       )}

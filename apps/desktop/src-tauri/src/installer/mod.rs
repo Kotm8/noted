@@ -2,8 +2,8 @@ mod cleanup;
 mod firebase;
 pub mod models;
 mod progress;
-mod release;
-mod ssh;
+pub(crate) mod release;
+pub(crate) mod ssh;
 #[cfg(test)]
 mod tests;
 mod worker;

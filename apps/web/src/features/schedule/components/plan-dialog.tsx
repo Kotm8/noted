@@ -9,17 +9,37 @@ import { Button } from "../../../components/ui/button";
 import { Notice } from "../../../components/ui/notice";
 import type { Activity } from "../../time-tracking/types";
 import { scheduleApi } from "../api";
+import { isMobileLayout } from "../../../lib/layout";
 import type { Frequency, PlanFields, PlanOccurrence } from "../types";
-import { TimeField } from "./time-field";
+import { TimeRange } from "./time-range";
 import { PromptHistory } from "./prompt-history";
+
+const DIALOG_WIDTH = 440;
+const GAP = 24;
+
+/** Opens beside a right-click instead of covering it; phones keep the centred sheet. */
+function besideClick(x: number | undefined) {
+  if (x === undefined || isMobileLayout()) return undefined;
+  const right = x + GAP;
+  const left =
+    right + DIALOG_WIDTH <= innerWidth - 16 ? right : x - GAP - DIALOG_WIDTH;
+  return {
+    left: Math.max(16, left),
+    transform: "translateY(-50%)",
+  };
+}
 
 export function PlanDialog({
   initial,
   activities,
+  hours,
+  anchorX,
   onClose,
 }: {
   initial: PlanFields | PlanOccurrence;
+  anchorX?: number;
   activities: Activity[];
+  hours: { start_minute: number; end_minute: number };
   onClose: () => void;
 }) {
   const existing = "id" in initial ? initial : null;
@@ -85,6 +105,7 @@ export function PlanDialog({
       title={existing ? "Edit plan" : "New plan"}
       description="Plans appear above tracked time. Planning never starts your timer."
       className="schedule-plan-dialog"
+      style={besideClick(anchorX)}
     >
       <form
         onSubmit={(event) => {
@@ -150,19 +171,14 @@ export function PlanDialog({
             onChange={(value) => change("date", value)}
           />
         </div>
-        <div className="schedule-time-fields">
-          <TimeField
-            label="From"
-            value={fields.start_minute}
-            onChange={(value) => change("start_minute", value)}
-          />
-          <TimeField
-            label="Until"
-            value={fields.end_minute}
-            onChange={(value) => change("end_minute", value)}
-            end
-          />
-        </div>
+        <TimeRange
+          start={fields.start_minute}
+          end={fields.end_minute}
+          hours={hours}
+          onChange={(start_minute, end_minute) =>
+            setFields((current) => ({ ...current, start_minute, end_minute }))
+          }
+        />
         <div className="schedule-field">
           <span className="field-caption">Activity notification</span>
           <Select

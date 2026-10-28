@@ -17,11 +17,14 @@ def send_push(
     *,
     ttl: int = 86400,
     settings: Settings | None = None,
+    urgent: bool = True,
 ) -> Literal["accepted", "expired", "failed"]:
     if subscription.endpoint.startswith("fcm:"):
         if settings is None:
             return "failed"
-        return send_firebase(subscription.endpoint, settings.storage_path, origin, payload, ttl)
+        return send_firebase(
+            subscription.endpoint, settings.storage_path, origin, payload, ttl, urgent=urgent
+        )
     vapid = import_module("py_vapid")
     push = import_module("pywebpush")
     try:
@@ -31,6 +34,7 @@ def send_push(
             vapid_private_key=vapid.Vapid.from_pem(private_key.encode()),
             vapid_claims={"sub": origin},
             ttl=ttl,
+            headers={"Urgency": "high" if urgent else "low"},
             timeout=10,
         )
         return "accepted"

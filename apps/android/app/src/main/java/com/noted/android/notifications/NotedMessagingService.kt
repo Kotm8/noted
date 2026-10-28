@@ -33,7 +33,12 @@ class NotedMessagingService : FirebaseMessagingService() {
             return
         val raw = message.data["payload"] ?: return
         if (raw.length > 4096) return
-        runCatching { PushNotifications.show(this, origin, JSONObject(raw)) }
+        runCatching {
+            val payload = JSONObject(raw)
+            if (payload.optString("kind") == "dismiss")
+                PushNotifications.dismiss(this, origin, payload)
+            else PushNotifications.show(this, origin, payload)
+        }
     }
 
     override fun onNewToken(token: String) {

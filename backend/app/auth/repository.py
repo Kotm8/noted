@@ -45,8 +45,7 @@ class SessionRepository:
     def find_active(self, token_hash: str, current_time: datetime) -> LoginSession | None:
         statement = select(LoginSession).where(
             LoginSession.token_hash == token_hash,
-            LoginSession.revoked_at.is_(None),
-            LoginSession.expires_at > current_time,
+            LoginSession.live(current_time),
         )
         return self.db.scalar(statement)
 
@@ -74,8 +73,7 @@ class SessionRepository:
             select(LoginSession)
             .where(
                 LoginSession.user_id == user_id,
-                LoginSession.revoked_at.is_(None),
-                LoginSession.expires_at > current_time,
+                LoginSession.live(current_time),
             )
             .order_by(LoginSession.last_seen_at.desc().nulls_last(), LoginSession.id)
         )
@@ -87,8 +85,7 @@ class SessionRepository:
             .where(
                 LoginSession.id == session_id,
                 LoginSession.user_id == user_id,
-                LoginSession.revoked_at.is_(None),
-                LoginSession.expires_at > current_time,
+                LoginSession.live(current_time),
             )
             .values(revoked_at=current_time)
             .returning(LoginSession.id)

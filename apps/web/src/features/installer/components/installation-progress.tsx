@@ -39,8 +39,8 @@ export function InstallationProgress({
         <h1>Removing Noted from the VPS.</h1>
         <p role="status">{job.detail}</p>
         <p className="setup-help">
-          <LoaderCircle size={16} className="animate-spin" /> Keep Noted open
-          until cleanup finishes.
+          <LoaderCircle size={16} className="spin" /> Keep Noted open until
+          cleanup finishes.
         </p>
         {error && <Notice tone="error">{error}</Notice>}
       </section>
@@ -65,7 +65,7 @@ export function InstallationProgress({
             {index < current ? (
               <Check size={16} />
             ) : index === current && job.status === "running" ? (
-              <LoaderCircle size={16} className="animate-spin" />
+              <LoaderCircle size={16} className="spin" />
             ) : (
               <Circle size={14} />
             )}
@@ -87,7 +87,7 @@ export function InstallationProgress({
             onClick={verify}
             disabled={busy}
           >
-            {busy && <LoaderCircle size={15} className="animate-spin" />}
+            {busy && <LoaderCircle size={15} className="spin" />}
             {busy ? "Checking HTTPS..." : "Check connection and open Noted"}
           </Button>
         </>

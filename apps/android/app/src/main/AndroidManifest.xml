@@ -68,6 +68,13 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.Noted.Permission" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.splash"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/splash_paths" />
+        </provider>
         <service android:name=".notifications.NotedDelegationService" android:exported="true" android:enabled="true">
             <intent-filter>
                 <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />

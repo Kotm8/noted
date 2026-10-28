@@ -9,7 +9,9 @@ export function useHost() {
     queryFn: hostApi.status,
     retry: false,
     refetchInterval: (query) =>
-      ["queued", "running", "waiting_dns"].includes(query.state.data?.job?.status ?? "")
+      ["queued", "running", "waiting_dns"].includes(
+        query.state.data?.job?.status ?? "",
+      )
         ? 2000
         : 30_000,
   });

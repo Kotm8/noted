@@ -5,11 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from app.auth.models import LoginSession, User
+from app.auth.models import User
 from app.core.config import Settings
 from app.core.security import utc_now
-from app.notifications.delivery import send_push
-from app.notifications.models import DevicePresence, NotificationKey, PushSubscription
+from app.notifications.routing import deliver
 from app.notifications.schemas import NotificationSettings
 from app.publishing.models import WritingDelivery, WritingPrompt
 from app.workspaces.models import Channel, Workspace
@@ -18,7 +17,6 @@ from app.workspaces.models import Channel, Workspace
 def dispatch_writing(engine: Engine, settings: Settings, started: datetime) -> None:
     now = utc_now()
     with Session(engine) as db:
-        key = db.get(NotificationKey, 1)
         prompts = db.scalars(
             select(WritingPrompt)
             .where(
@@ -38,27 +36,6 @@ def dispatch_writing(engine: Engine, settings: Settings, started: datetime) -> N
             preferences = NotificationSettings.model_validate(user.notification_preferences or {})
             if not preferences.enabled:
                 continue
-            sessions = select(LoginSession.id).where(
-                LoginSession.user_id == user.id,
-                LoginSession.revoked_at.is_(None),
-                LoginSession.expires_at > now,
-            )
-            focused = (
-                db.scalar(
-                    select(DevicePresence.session_id)
-                    .where(
-                        DevicePresence.session_id.in_(sessions),
-                        DevicePresence.kind == "desktop",
-                        DevicePresence.focused.is_(True),
-                        DevicePresence.seen_at > now - timedelta(seconds=45),
-                    )
-                    .limit(1)
-                )
-                is not None
-            )
-            subscriptions = db.scalars(
-                select(PushSubscription).where(PushSubscription.session_id.in_(sessions))
-            ).all()
             payload = json.dumps(
                 {
                     "kind": "writing",
@@ -70,39 +47,18 @@ def dispatch_writing(engine: Engine, settings: Settings, started: datetime) -> N
                 },
                 ensure_ascii=False,
             )
-            for subscription in subscriptions:
-                if subscription.endpoint.startswith("fcm:") and not preferences.android_enabled:
-                    continue
-                delivery = db.get(WritingDelivery, (prompt.id, subscription.id, prompt.revision))
-                if delivery and (
-                    delivery.delivered_at or delivery.retry_at > now or delivery.attempts >= 4
-                ):
-                    continue
-                if delivery is None:
-                    delivery = WritingDelivery(
-                        prompt_id=prompt.id,
-                        subscription_id=subscription.id,
-                        revision=prompt.revision,
-                        attempts=0,
-                        retry_at=now,
-                    )
-                    db.add(delivery)
-                delivery.attempts += 1
-                delivery.retry_at = now + timedelta(seconds=15 * 2**delivery.attempts)
-                if focused and subscription.kind == "mobile":
-                    delivery.delivered_at = now
-                    continue
-                result = send_push(
-                    subscription,
-                    key.private_key if key else "",
-                    settings.app_origin,
-                    payload,
-                    ttl=300,
-                    settings=settings,
-                )
-                if result == "accepted":
-                    delivery.delivered_at = now
-                elif result == "expired":
-                    db.delete(subscription)
-            db.flush()
+
+            deliver(
+                db,
+                WritingDelivery,
+                prompt.id,
+                prompt.revision,
+                user.id,
+                preferences,
+                payload,
+                origin=settings.app_origin,
+                settings=settings,
+                max_attempts=4,
+                ttl=300,
+            )
         db.commit()

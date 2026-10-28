@@ -25,9 +25,9 @@ export function SessionsPanel() {
   });
 
   return (
-    <section className="settings-panel sessions-panel">
+    <section className="settings-section sessions-panel">
       <div className="sessions-heading">
-        <h2>Active sessions</h2>
+        <h3>Sessions</h3>
         <Button
           variant="ghost"
           size="small"
@@ -69,7 +69,7 @@ export function SessionsPanel() {
                 onClick={() => session.is_current ? logout.mutate() : revoke.mutate(session.id)}
               >
                 {signingOut
-                  ? <LoaderCircle size={14} className="animate-spin" /> : "Sign out"}
+                  ? <LoaderCircle size={14} className="spin" /> : "Sign out"}
               </Button>
             </article>
           );

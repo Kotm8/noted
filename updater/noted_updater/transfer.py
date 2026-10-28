@@ -13,6 +13,18 @@ from .ssh import SSH
 REMOTE = "/opt/noted"
 
 
+def destination_domain(origin: str, ip: str) -> str:
+    """A server without its own domain uses an sslip.io name made from its IP.
+
+    That name can only ever point to the old server, so a moved server gets the
+    name made from its new IP. Real domains stay the same; their DNS is changed instead.
+    """
+    domain = origin.removeprefix("https://")
+    if not domain.endswith(".sslip.io"):
+        return domain
+    return f"{ip.lower().replace('.', '-').replace(':', '-')}.sslip.io"
+
+
 class Transfer:
     def __init__(self, config, docker: Docker, phase, ssh_factory=SSH):
         self.config, self.docker, self.phase = config, docker, phase
@@ -85,9 +97,10 @@ class Transfer:
             image_archive.unlink()
             environment = self.docker.resolved(installed)["services"]["backend"]["environment"]
             instance_id = uuid4().hex
+            domain = destination_domain(installed["origin"], request["ip"])
             data = {
                 "repository": self.config.repository,
-                "domain": installed["origin"].removeprefix("https://"),
+                "domain": domain,
                 "server_name": environment["NOTED_SERVER_NAME"],
                 "backend_image": images["backend"],
                 "web_image": images["web"],
@@ -217,7 +230,7 @@ class Transfer:
                 input_file=io.BytesIO(json.dumps({"repository": self.config.repository}).encode()),
             )
             receipt = {
-                "destination": installed["origin"],
+                "destination": f"https://{domain}",
                 "ip": request["ip"],
                 "instance_id": instance_id,
                 "backup": str(archive),
