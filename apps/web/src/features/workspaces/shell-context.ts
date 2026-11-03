@@ -28,7 +28,11 @@ export interface WorkspaceShell {
   clearTargetNote: () => void;
   searchOpen: boolean;
   openPage: (path: string) => void;
-  openChannel: (workspaceId: string, channelId: string) => void;
+  openChannel: (
+    workspaceId: string,
+    channelId: string,
+    write?: boolean,
+  ) => void;
   openNote: (target: NoteTarget) => void;
   openNavigation: () => void;
   openSearch: () => void;

@@ -12,7 +12,7 @@ export function parseNoteCommand(
   if (!/^\/remind(?:\s|$)/i.test(content)) return null;
   const body = content.replace(/^\/remind\s*/i, "");
   const match = body.match(/^(\d+)(m|h|d)\s+([\s\S]+)$/i);
-  if (!match) return { content: body, delay: 10 };
+  if (!match) return { content: body, delay: 60 };
   const unit = { m: 1, h: 60, d: 1440 }[match[2].toLowerCase()] ?? 1;
   return {
     content: match[3],

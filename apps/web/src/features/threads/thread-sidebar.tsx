@@ -15,6 +15,8 @@ import { NoteList } from "../notes/components/note-list";
 import { MessageMarkdown } from "../notes/components/message-markdown";
 import { NoteAttachments } from "../notes/components/note-attachments";
 import { DeleteNoteDialog } from "../notes/components/delete-note-dialog";
+import { OutgoingNotes } from "../notes/components/outgoing-notes";
+import { enqueue, flushOutbox, hasWaiting, unreachable } from "../notes/outbox";
 import { useTimelineScroll } from "../notes/hooks/use-timeline-scroll";
 import { useDraft } from "../notes/hooks/use-draft";
 import { notesApi } from "../notes/api";
@@ -67,10 +69,37 @@ export function ThreadSidebar({
   const formatting = useFormatting(replyRef);
   const [formattingVisible, toggleFormatting] = useFormattingVisible();
   const send = useMutation({
-    mutationFn: (content: string) =>
-      threadsApi.reply(rootId, toStored(content, mentions.refs.current)),
-    onSuccess: async (_note, content) => {
+    networkMode: "always",
+    mutationFn: async (content: string) => {
+      const stored = toStored(content, mentions.refs.current);
+      const clientId = crypto.randomUUID();
+      // Replies wait on this device when the server can't be reached, like messages.
+      const queue = async () => {
+        await enqueue({
+          clientId,
+          channelId: channel.id,
+          content: stored,
+          threadRootId: rootId,
+        });
+        return null;
+      };
+      if (hasWaiting() || !navigator.onLine) return queue();
+      return threadsApi
+        .reply(rootId, stored, clientId)
+        .catch((error: unknown) => {
+          if (unreachable(error)) return queue();
+          throw error;
+        });
+    },
+    onSuccess: async (note, content) => {
       clearSentDraft(content);
+      if (note === null) {
+        toast("No connection. The reply will send when you're back online.", {
+          id: "outbox",
+        });
+        void flushOutbox(client);
+        return;
+      }
       await refresh();
       if (targetId) onReturnToLatest?.();
       else scroll.jumpToLatest();
@@ -156,6 +185,9 @@ export function ThreadSidebar({
                   onCancelEdit={() => setEditing(null)}
                   onDelete={setDeleting}
                 />
+                {!query.hasPreviousPage && (
+                  <OutgoingNotes channelId={channel.id} threadRootId={rootId} />
+                )}
                 {query.hasPreviousPage && (
                   <Button
                     variant="ghost"

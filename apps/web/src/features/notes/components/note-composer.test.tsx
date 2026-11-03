@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderInPage, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NoteComposer } from "./note-composer";
 
@@ -11,6 +13,9 @@ const channel = {
   position: 0,
   created_at: "2026-10-15T12:00:00Z",
 };
+
+/** The composer reads the URL to focus itself when a writing nudge opens the channel. */
+const render = (ui: ReactElement) => renderInPage(<MemoryRouter>{ui}</MemoryRouter>);
 
 beforeEach(() => window.localStorage.clear());
 

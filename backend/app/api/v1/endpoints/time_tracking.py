@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.auth.services.sessions import AuthenticatedSession
+from app.core.security import utc_now
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.time_tracking.models import Activity, TimeSession
@@ -19,8 +20,30 @@ from app.time_tracking.schemas import (
     TrackingPreferencesUpdate,
 )
 from app.time_tracking.service import TrackingService
+from app.writing_nudges.models import WritingNudge
+from app.writing_nudges.schemas import DismissNudge, NudgeResponse
+from app.writing_nudges.service import NudgeService
 
 router = APIRouter(prefix="/time-tracking", tags=["time tracking"])
+
+
+@router.get("/writing-nudges", response_model=list[NudgeResponse])
+def writing_nudges(
+    channel_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> list[WritingNudge]:
+    return NudgeService(db).pending(current.user.id, channel_id)
+
+
+@router.post("/writing-nudges/{nudge_id}/dismiss", status_code=204)
+def dismiss_nudge(
+    nudge_id: UUID,
+    data: DismissNudge,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> None:
+    NudgeService(db).dismiss(current.user.id, nudge_id, data.revision, utc_now())
 
 
 @router.get("/tracker", response_model=TrackerResponse)

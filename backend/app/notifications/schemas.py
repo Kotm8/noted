@@ -3,7 +3,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 
 class NotificationSettings(BaseModel):
@@ -11,6 +11,15 @@ class NotificationSettings(BaseModel):
     enabled: bool = True
     android_enabled: bool = True
     plan_notice_minutes: Literal[0, 1, 5, 10] = 0
+    quiet_hours: bool = False
+    quiet_start_minute: int = Field(default=1320, ge=0, le=1439)
+    quiet_end_minute: int = Field(default=480, ge=0, le=1439)
+
+    @model_validator(mode="after")
+    def quiet_window(self) -> "NotificationSettings":
+        if self.quiet_start_minute == self.quiet_end_minute:
+            raise ValueError("Quiet hours need different start and end times")
+        return self
 
 
 class PushTestResult(BaseModel):

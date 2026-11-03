@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("server updates require an explicit install and reconnect to the existing job", async ({
   page,

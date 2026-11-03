@@ -15,6 +15,8 @@ class AttachmentResponse(BaseModel):
     original_filename: str
     content_type: str
     size: int
+    width: int | None = None
+    height: int | None = None
 
     @computed_field
     def download_url(self) -> str:
@@ -23,7 +25,13 @@ class AttachmentResponse(BaseModel):
     @computed_field
     def preview_url(self) -> str | None:
         if self.content_type in {"image/png", "image/jpeg", "image/gif", "image/webp"}:
-            return f"/api/v1/attachments/{self.id}/preview"
+            return f"/api/v1/attachments/{self.id}/preview?v=2"
+        return None
+
+    @computed_field
+    def original_url(self) -> str | None:
+        if self.content_type in {"image/png", "image/jpeg", "image/gif", "image/webp"}:
+            return f"/api/v1/attachments/{self.id}/original"
         return None
 
     @computed_field
@@ -36,6 +44,7 @@ class AttachmentResponse(BaseModel):
 class MessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=40000)
     reminder: ReminderSchedule | None = None
+    client_id: uuid.UUID | None = None
 
     @field_validator("content")
     @classmethod
@@ -61,6 +70,18 @@ class MessageResponse(BaseModel):
     updated_at: datetime
     attachments: list[AttachmentResponse] = Field(default_factory=list)
     reminder: ReminderResponse | None = None
+
+
+class MessageVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    content: str
+    written_at: datetime
+    replaced_at: datetime
+
+
+class MessageRestore(BaseModel):
+    expected_content: str | None = Field(default=None, max_length=40000)
 
 
 class MessagePage(BaseModel):

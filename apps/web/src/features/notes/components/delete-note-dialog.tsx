@@ -1,5 +1,4 @@
-import { Button } from "../../../components/ui/button";
-import { Modal } from "../../../components/ui/dialog";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 
 interface DeleteNoteDialogProps {
   open: boolean;
@@ -8,24 +7,14 @@ interface DeleteNoteDialogProps {
   onConfirm: () => void;
 }
 
-export function DeleteNoteDialog({ open, pending, onClose, onConfirm }: DeleteNoteDialogProps) {
+export function DeleteNoteDialog(props: DeleteNoteDialogProps) {
   return (
-    <Modal
-      open={open}
-      onOpenChange={(isOpen) => {
-        if (!isOpen && !pending) onClose();
-      }}
+    <ConfirmDialog
+      {...props}
       title="Delete this note?"
       description="This note will be permanently removed from this channel."
-    >
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onClose} disabled={pending}>
-          Keep note
-        </Button>
-        <Button variant="danger" onClick={onConfirm} disabled={pending}>
-          Delete note
-        </Button>
-      </div>
-    </Modal>
+      keepLabel="Keep note"
+      confirmLabel="Delete note"
+    />
   );
 }

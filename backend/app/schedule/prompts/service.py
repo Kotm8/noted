@@ -10,7 +10,7 @@ from app.core.errors import ConflictError, NotFoundError
 from app.core.security import utc_now
 from app.notifications.schemas import NotificationSettings
 from app.schedule.models import ScheduleException, SchedulePlan
-from app.schedule.prompts.endings import refresh_end_prompt
+from app.schedule.prompts.endings import Span, refresh_end_prompt
 from app.schedule.prompts.models import PlanPrompt, PlanPromptEvent
 from app.schedule.prompts.schemas import PromptAction
 from app.schedule.recurrence import instants, occurs_on
@@ -84,10 +84,10 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
             occurrence = resolve(plan, day, overrides.get((plan.id, day)))
             if occurrence:
                 occurrences.setdefault(plan.id, {})[day] = occurrence
-    starts = [
-        start
-        for group in occurrences.values()
-        for fields, start, _end in group.values()
+    spans: list[Span] = [
+        (plan_id, fields, start, end)
+        for plan_id, group in occurrences.items()
+        for fields, start, end in group.values()
         if fields.activity_id in activities and not activities[fields.activity_id].archived
     ]
     active = tracking.active(owner_id)
@@ -109,7 +109,7 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
             notice = start - timedelta(minutes=lead)
             if item and item.phase == "end":
                 if end <= now:
-                    refresh_end_prompt(item, fields, start, end, active, starts, now)
+                    refresh_end_prompt(item, fields, start, end, active, spans, now)
                     valid.add(item.id)
                     continue
                 item.phase = "start"
@@ -164,7 +164,7 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
                 item.revision += 1
             item.planned_end = end
             if end <= now:
-                refresh_end_prompt(item, fields, start, end, active, starts, now)
+                refresh_end_prompt(item, fields, start, end, active, spans, now)
             valid.add(item.id)
             if (
                 item.status == "pending"
@@ -188,6 +188,25 @@ def refresh_prompts(db: Session, owner_id: UUID, now: datetime | None = None) ->
             item.status = "cancelled"
             item.revision += 1
     db.flush()
+
+
+def start_group(db: Session, item: PlanPrompt) -> list[PlanPrompt]:
+    """Other start prompts shown together with this one: plans that begin at the same moment
+    and are due at the same time, which is how they are sent as one notification."""
+    if item.phase != "start":
+        return []
+    return list(
+        db.scalars(
+            select(PlanPrompt).where(
+                PlanPrompt.owner_id == item.owner_id,
+                PlanPrompt.id != item.id,
+                PlanPrompt.phase == "start",
+                PlanPrompt.status == "pending",
+                PlanPrompt.planned_start == item.planned_start,
+                PlanPrompt.notify_at == item.notify_at,
+            )
+        )
+    )
 
 
 def due_prompts(db: Session, owner_id: UUID) -> list[PlanPrompt]:
@@ -226,15 +245,24 @@ def act_on_prompt(db: Session, owner_id: UUID, prompt_id: UUID, data: PromptActi
         raise ConflictError(
             "This task prompt changed on another device. Refresh it before trying again."
         )
-    if (item.phase == "end" and data.action in {"start", "other"}) or (
-        item.phase == "start" and data.action == "stop"
+    if (
+        (item.phase == "end" and data.action in {"start", "other"})
+        or (item.phase == "start" and data.action in {"stop", "switch"})
+        or (data.action == "switch" and item.switch_activity_id is None)
     ):
         raise ConflictError("This task prompt changed. Open it again before choosing an action.")
-    activity_id = item.activity_id if data.action in {"start", "stop"} else data.activity_id
+    activity_id = (
+        item.activity_id
+        if data.action in {"start", "stop"}
+        else item.switch_activity_id
+        if data.action == "switch"
+        else data.activity_id
+    )
     if activity_id is not None and tracking.activity(owner_id, activity_id).archived:
         raise ConflictError("This activity was archived. Choose another activity.")
-    if data.action in {"start", "stop"}:
-        item.status = "started" if data.action == "start" else "stopped"
+    group = start_group(db, item)
+    if data.action in {"start", "stop", "switch"}:
+        item.status = {"start": "started", "stop": "stopped", "switch": "switched"}[data.action]
     else:
         now = utc_now()
         requested = min(data.requested_at, now) if data.requested_at else now
@@ -242,6 +270,29 @@ def act_on_prompt(db: Session, owner_id: UUID, prompt_id: UUID, data: PromptActi
             raise ConflictError("This delayed action is too old. Open the task prompt again.")
         item.notify_at = requested + timedelta(minutes=data.minutes or 5)
         item.delayed = True
+    # Starting one of several plans that begin together answers all of them; delaying
+    # delays them together, so they still arrive as one notification.
+    for other in group:
+        if data.action == "start":
+            other.status = "superseded"
+        else:
+            other.notify_at, other.delayed = item.notify_at, True
+        other.revision += 1
+    source_prompt = item if data.action == "start" else None
+    if data.action == "switch":
+        for other in db.scalars(
+            select(PlanPrompt).where(
+                PlanPrompt.owner_id == owner_id,
+                PlanPrompt.phase == "start",
+                PlanPrompt.status == "pending",
+                PlanPrompt.activity_id == activity_id,
+                PlanPrompt.planned_start <= utc_now(),
+            )
+        ):
+            if source_prompt is None:
+                source_prompt = other
+            other.status = "started"
+            other.revision += 1
     item.last_request_id = data.request_id
     item.revision += 1
     db.add(
@@ -254,7 +305,7 @@ def act_on_prompt(db: Session, owner_id: UUID, prompt_id: UUID, data: PromptActi
             activity_id=activity_id,
         )
     )
-    if data.action in {"start", "stop", "other"}:
+    if data.action in {"start", "stop", "other", "switch"}:
         TrackingService(db).act(
             owner_id,
             TrackerAction(
@@ -262,6 +313,8 @@ def act_on_prompt(db: Session, owner_id: UUID, prompt_id: UUID, data: PromptActi
                 activity_id=activity_id,
                 revision=state.revision,
                 request_id=data.request_id,
+                plan_id=source_prompt.plan_id if source_prompt else None,
+                occurrence_date=source_prompt.occurrence_date if source_prompt else None,
             ),
         )
     else:

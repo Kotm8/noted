@@ -24,6 +24,15 @@ class Attachment(Base):
     __table_args__ = (
         CheckConstraint("size >= 0", name="ck_attachments_size"),
         CheckConstraint("position >= 0", name="ck_attachments_position"),
+        Index(
+            "ix_attachments_pending_preview",
+            "created_at",
+            "id",
+            postgresql_where=text(
+                "preview_storage_key IS NULL AND preview_failed = false "
+                "AND content_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp')"
+            ),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -35,6 +44,11 @@ class Attachment(Base):
     content_type: Mapped[str] = mapped_column(String(100))
     size: Mapped[int]
     position: Mapped[int] = mapped_column(default=0)
+    width: Mapped[int | None]
+    height: Mapped[int | None]
+    preview_storage_key: Mapped[str | None] = mapped_column(String(96))
+    preview_size: Mapped[int | None]
+    preview_failed: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -55,6 +69,13 @@ class Message(Base):
         CheckConstraint("length(content) BETWEEN 0 AND 40000", name="ck_messages_content_length"),
         Index("ix_messages_channel_cursor", "channel_id", "created_at", "id"),
         Index(
+            "uq_messages_author_client",
+            "author_id",
+            "client_id",
+            unique=True,
+            postgresql_where=text("client_id IS NOT NULL"),
+        ),
+        Index(
             "ix_messages_content_trgm",
             "content",
             postgresql_using="gin",
@@ -71,6 +92,8 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Chosen by the sending device, so a retry after a lost connection can't post twice.
+    client_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
     reminder: Mapped[Reminder | None] = relationship(
         lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )

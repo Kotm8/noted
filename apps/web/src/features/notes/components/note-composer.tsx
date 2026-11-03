@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocation } from "react-router-dom";
 import { formatFileSize } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
 import type { Channel } from "../../workspaces/types";
@@ -60,6 +61,11 @@ export function NoteComposer({
 }: NoteComposerProps) {
   const { draft, setDraft, clearSentDraft } = useDraft(channel.id);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const location = useLocation();
+  useLayoutEffect(() => {
+    if (new URLSearchParams(location.search).get("write") === "1")
+      inputRef.current?.focus();
+  }, [location.key, location.search]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [scheduledDraft, setScheduledDraft] = useState<string | null>(null);
@@ -117,7 +123,7 @@ export function NoteComposer({
         content: stored(content),
         draft,
         files: [...files],
-        delay: command?.delay ?? 10,
+        delay: command?.delay ?? 60,
       });
       return;
     }

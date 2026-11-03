@@ -19,6 +19,8 @@ from app.publishing.worker import advance_due
 from app.reminders.models import Reminder
 from app.schedule.prompts.delivery import dispatch_plan_prompts
 from app.schedule.prompts.models import PlanPrompt, PlanPromptDelivery
+from app.writing_nudges.models import NudgeDelivery, WritingNudgeRun
+from app.writing_nudges.worker import advance_nudges, dispatch_nudges
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,8 @@ WATCHED_TABLES = {
     "schedule_exceptions",
     "scheduled_messages",
     "writing_prompts",
+    "writing_nudge_runs",
+    "writing_nudges",
 }
 
 _running: set[tuple[asyncio.AbstractEventLoop, asyncio.Event]] = set()
@@ -70,10 +74,11 @@ def next_due(engine: Engine, now: datetime) -> datetime | None:
         select(Reminder.due_at.label("at")).where(Reminder.status == "active"),
         select(PlanPrompt.notify_at).where(PlanPrompt.status == "pending"),
         select(WritingPrompt.next_at).where(WritingPrompt.enabled.is_(True)),
+        select(WritingNudgeRun.next_at),
         select(ScheduledMessage.send_at).where(ScheduledMessage.status == "pending"),
         *(
             select(model.retry_at).where(model.delivered_at.is_(None))
-            for model in (NotificationDelivery, PlanPromptDelivery, WritingDelivery)
+            for model in (NotificationDelivery, PlanPromptDelivery, WritingDelivery, NudgeDelivery)
         ),
     ]
     times = union_all(*candidates).subquery()
@@ -94,6 +99,8 @@ def run_cycle(
         return False
     advance_due(engine, now, previous, max_gap=MAX_SLEEP + timedelta(seconds=30))
     dispatch_writing(engine, settings, started)
+    advance_nudges(engine, now)
+    dispatch_nudges(engine, settings)
     return True
 
 

@@ -1,5 +1,5 @@
 import { request } from "../../lib/http";
-import type { Note, NoteCursor, NotePage } from "./types";
+import type { Note, NoteCursor, NotePage, NoteVersion } from "./types";
 import type { ReminderSchedule } from "../reminders/types";
 
 export const notesApi = {
@@ -15,10 +15,12 @@ export const notesApi = {
     channelId: string,
     content: string,
     reminder?: ReminderSchedule,
+    clientId?: string,
   ): Promise<Note> {
     return request<Note>(`/channels/${channelId}/messages`, "POST", {
       content,
       reminder,
+      client_id: clientId,
     });
   },
 
@@ -27,9 +29,11 @@ export const notesApi = {
     content: string,
     files: File[],
     reminder?: ReminderSchedule,
+    clientId?: string,
   ): Promise<Note> {
     const body = new FormData();
     body.append("content", content);
+    if (clientId) body.append("client_id", clientId);
     if (reminder) body.append("reminder", JSON.stringify(reminder));
     files.forEach((file) => body.append("files", file));
     return request<Note>(
@@ -39,8 +43,33 @@ export const notesApi = {
     );
   },
 
-  update(id: string, content: string, expected_content?: string): Promise<Note> {
-    return request<Note>(`/messages/${id}`, "PUT", { content, expected_content });
+  update(
+    id: string,
+    content: string,
+    expected_content?: string,
+  ): Promise<Note> {
+    return request<Note>(`/messages/${id}`, "PUT", {
+      content,
+      expected_content,
+    });
+  },
+
+  versions(id: string): Promise<NoteVersion[]> {
+    return request<NoteVersion[]>(`/messages/${id}/versions`);
+  },
+
+  restore(
+    id: string,
+    versionId: string,
+    expected_content: string,
+  ): Promise<Note> {
+    return request<Note>(
+      `/messages/${id}/versions/${versionId}/restore`,
+      "POST",
+      {
+        expected_content,
+      },
+    );
   },
 
   remove(id: string): Promise<void> {

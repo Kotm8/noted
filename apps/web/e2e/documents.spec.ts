@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function api(page: Page, path: string, method = "GET", body?: unknown) {
   return page.evaluate(
@@ -80,14 +80,14 @@ test("Notes channels autosave Markdown, preserve drafts, and open directly from 
   });
   const channelId = page.url().split("/").at(-1)!;
   const saved = await api(page, `/channels/${channelId}/document`);
-  await api(page, `/channels/${channelId}/document`, "PUT", {
-    content: "# Orchard handbook\n\nSaved on another device.",
-    revision: saved.revision,
-  });
   await note.getByRole("button", { name: "Edit note", exact: true }).click();
   await note
     .getByRole("textbox", { name: "Note contents" })
     .fill("My unsaved draft");
+  await api(page, `/channels/${channelId}/document`, "PUT", {
+    content: "# Orchard handbook\n\nSaved on another device.",
+    revision: saved.revision,
+  });
   await expect(
     note.getByText("Your draft has been kept.", { exact: false }),
   ).toBeVisible();

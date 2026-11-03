@@ -34,6 +34,7 @@ class PushWorker(context: Context, parameters: WorkerParameters) : Worker(contex
                             when (action) {
                                 "plan_start" -> "start"
                                 "plan_stop" -> "stop"
+                                "plan_switch" -> "switch"
                                 else -> "delay"
                             },
                         )
@@ -50,7 +51,7 @@ class PushWorker(context: Context, parameters: WorkerParameters) : Worker(contex
                     PushNotifications.cancelRevision(
                         applicationContext,
                         it,
-                        inputData.getInt("revision", 0),
+                        inputData.getInt("shown_revision", inputData.getInt("revision", 0)),
                     )
                 }
             }
@@ -67,7 +68,7 @@ class PushWorker(context: Context, parameters: WorkerParameters) : Worker(contex
                     PushNotifications.cancelRevision(
                         applicationContext,
                         it,
-                        inputData.getInt("revision", 0),
+                        inputData.getInt("shown_revision", inputData.getInt("revision", 0)),
                     )
                 }
             if ((error.status >= 500 || error.status == 429) && runAttemptCount < 8) Result.retry()

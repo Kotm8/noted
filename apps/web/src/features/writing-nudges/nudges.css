@@ -1,0 +1,51 @@
+.nudge-fields {
+  min-width: 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.nudge-fields legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.nudge-options {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.nudge-options > label {
+  margin: 0;
+}
+.nudge-options .nudge-interval {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+.nudge-interval input {
+  width: 76px;
+}
+.nudge-options .nudge-stop {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: normal;
+  margin: 0;
+}
+.nudge-stop input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  flex: 0 0 16px;
+  padding: 0;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}

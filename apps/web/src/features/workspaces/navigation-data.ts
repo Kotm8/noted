@@ -9,7 +9,8 @@ import { threadQuery } from "../threads/queries";
 import { publishingApi } from "../publishing/api";
 import { trackingApi } from "../time-tracking/api";
 import { scheduleApi } from "../schedule/api";
-import { addDays, wallTime, weekDays, zonedParts } from "../schedule/dates";
+import { addDays, wallTime, zonedParts } from "../schedule/dates";
+import { blockQuery, blockStart } from "../schedule/blocks";
 import type { HomeActivityPage } from "../home/types";
 import type { PlanPrompt } from "../schedule/prompts";
 import { categoryApi, channelApi, workspaceApi } from "./api";
@@ -122,14 +123,17 @@ export async function prepareStartup(client: QueryClient, url: URL) {
   if (["/", "/home", "/schedule"].includes(url.pathname)) {
     const timezone = tracker.preferences.timezone;
     const date = zonedParts(Date.now(), timezone).date;
-    const days = url.pathname === "/schedule" ? weekDays(date) : [date];
-    const start = wallTime(days[0], 0, timezone);
-    const end = wallTime(addDays(days.at(-1)!, 1), 0, timezone);
+    const start = wallTime(date, 0, timezone);
+    const end = wallTime(addDays(date, 1), 0, timezone);
     await Promise.all([
-      client.ensureQueryData({
-        queryKey: ["schedule", start, end],
-        queryFn: () => scheduleApi.board(start, end),
-      }),
+      client.ensureQueryData(
+        url.pathname === "/schedule"
+          ? blockQuery(blockStart(date), timezone)
+          : {
+              queryKey: ["schedule", start, end],
+              queryFn: () => scheduleApi.board(start, end),
+            },
+      ),
       url.pathname !== "/schedule"
         ? client.ensureQueryData({
             queryKey: ["home-activity", 50],

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "../../../components/ui/dialog";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { Button } from "../../../components/ui/button";
 import { Notice } from "../../../components/ui/notice";
 import { Select } from "../../../components/ui/select";
@@ -28,6 +29,7 @@ export function SessionEditor({
   );
   const [end, setEnd] = useState(() => zonedParts(session.ended_at!, timezone));
   const [activity, setActivity] = useState(session.activity_id);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (remove: boolean) => {
@@ -40,9 +42,9 @@ export function SessionEditor({
           ended_at: wallTime(end.date, end.minute, timezone),
         });
     },
-    onSuccess: () => {
+    onSuccess: (_, remove) => {
       void client.invalidateQueries({ queryKey: ["schedule"] });
-      toast.success("Session saved");
+      toast.success(remove ? "Session deleted" : "Session saved");
       onClose();
     },
   });
@@ -108,10 +110,7 @@ export function SessionEditor({
             variant="ghost"
             type="button"
             disabled={mutation.isPending}
-            onClick={() => {
-              if (confirm("Delete this recorded session?"))
-                mutation.mutate(true);
-            }}
+            onClick={() => setConfirmDelete(true)}
           >
             <Trash2 size={14} />
             Delete
@@ -124,6 +123,16 @@ export function SessionEditor({
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        open={confirmDelete}
+        pending={mutation.isPending}
+        title="Delete this session?"
+        description="This recorded time will be removed from your history."
+        keepLabel="Keep session"
+        confirmLabel="Delete session"
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => mutation.mutate(true)}
+      />
     </Modal>
   );
 }

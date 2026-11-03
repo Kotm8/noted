@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.time_tracking.schemas import SessionResponse, check_timezone
+from app.writing_nudges.schemas import WritingNudgeSettings
 
 
 class PlanFields(BaseModel):
@@ -16,6 +17,7 @@ class PlanFields(BaseModel):
     timezone: str = Field(max_length=64)
     notifications_enabled: bool = True
     notification_minutes: Literal[0, 1, 5, 10] | None = None
+    writing_nudge: WritingNudgeSettings | None = None
     _timezone = field_validator("timezone")(check_timezone)
 
     @field_validator("title")

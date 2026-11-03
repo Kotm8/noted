@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -22,6 +22,8 @@ class Reminder(Base):
     scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     repeat: Mapped[str] = mapped_column(String(16), default="none")
+    # Urgent reminders ring even during quiet hours.
+    urgent: Mapped[bool] = mapped_column(default=False, server_default=false())
     status: Mapped[str] = mapped_column(String(16), default="active")
     revision: Mapped[int] = mapped_column(default=1)
     read_revision: Mapped[int] = mapped_column(default=0, server_default="0")

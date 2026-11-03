@@ -18,6 +18,7 @@ import { trackingApi } from "../api";
 import { activityIcons } from "../types";
 import type { Activity, ActivityIconName } from "../types";
 import { ActivityGlyphIcon, ActivityIcon } from "./activity-icon";
+import { NudgeFields } from "../../writing-nudges/nudge-fields";
 
 const colors = [
   "#e2c15a",
@@ -171,11 +172,23 @@ function ActivityForm({
   const [name, setName] = useState(item?.name ?? "");
   const [icon, setIcon] = useState<ActivityIconName>(item?.icon ?? "Activity");
   const [color, setColor] = useState(item?.color ?? colors[0]);
+  const [writingNudge, setWritingNudge] = useState(item?.writing_nudge ?? null);
   const save = useMutation({
     mutationFn: () =>
       item
-        ? trackingApi.updateActivity({ ...item, name, icon, color })
-        : trackingApi.createActivity({ name, icon, color }),
+        ? trackingApi.updateActivity({
+            ...item,
+            name,
+            icon,
+            color,
+            writing_nudge: writingNudge,
+          })
+        : trackingApi.createActivity({
+            name,
+            icon,
+            color,
+            writing_nudge: writingNudge,
+          }),
     onSuccess: onSaved,
   });
   return (
@@ -237,6 +250,12 @@ function ActivityForm({
           </label>
         </div>
       </fieldset>
+      <NudgeFields value={writingNudge} onChange={setWritingNudge} />
+      {item && (
+        <p className="schedule-help">
+          Changes to nudges apply the next time you start this activity.
+        </p>
+      )}
       {save.error && <Notice tone="error">{save.error.message}</Notice>}
       <div className="dialog-actions">
         <Button variant="ghost" type="button" onClick={onClose}>

@@ -1,3 +1,4 @@
+import { liveInterval } from "../../../lib/live";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
@@ -25,7 +26,7 @@ export function HistorySettings({
   const query = useQuery({
     queryKey: ["schedule", start, end],
     queryFn: () => scheduleApi.board(start, end),
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
   });
   const sessions = query.data?.sessions.filter((item) => item.ended_at) ?? [];
   const seconds = (session: TimeSession) =>

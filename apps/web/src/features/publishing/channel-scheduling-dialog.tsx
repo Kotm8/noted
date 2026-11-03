@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock3, Pencil, X } from "lucide-react";
@@ -26,7 +27,7 @@ export function ChannelSchedulingDialog({
     queryKey: ["publishing", "messages", channel.id],
     queryFn: () => publishingApi.list(channel.id),
     enabled: tab === "messages",
-    refetchInterval: 10000,
+    refetchInterval: () => liveInterval(10000),
   });
   const writing = useQuery({
     queryKey: ["publishing", "writing", channel.id],

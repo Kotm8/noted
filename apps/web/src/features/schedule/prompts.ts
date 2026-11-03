@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { request } from "../../lib/http";
@@ -11,23 +12,38 @@ export interface PlanPrompt {
   planned_start: string;
   planned_end?: string | null;
   phase?: "start" | "end";
+  switch_activity_id?: string | null;
+  switch_title?: string | null;
   notify_at: string;
   revision: number;
   status: string;
 }
 
 export interface PlanPromptAction {
-  action: "start" | "stop" | "delay" | "other";
+  action: "start" | "stop" | "delay" | "other" | "switch";
   minutes?: number;
   reason?: string;
   activity_id?: string;
+}
+
+/** Plans starting at the same moment, which arrive and are answered as one prompt. */
+export function startsTogether(prompt: PlanPrompt, prompts: PlanPrompt[]) {
+  return prompt.phase === "end"
+    ? []
+    : prompts.filter(
+        (item) =>
+          item.id !== prompt.id &&
+          item.phase !== "end" &&
+          item.planned_start === prompt.planned_start &&
+          item.notify_at === prompt.notify_at,
+      );
 }
 
 export function usePlanPrompts() {
   return useQuery({
     queryKey: ["plan-prompts"],
     queryFn: () => request<PlanPrompt[]>("/schedule/prompts"),
-    refetchInterval: 5000,
+    refetchInterval: () => liveInterval(5000),
     refetchOnWindowFocus: "always",
   });
 }
@@ -48,9 +64,11 @@ export function usePromptAction(prompt: PlanPrompt) {
           ? "Tracking stopped"
           : values.action === "start"
             ? "Activity started"
-            : values.action === "other"
-              ? "Activity switched; planned task delayed"
-              : "Task prompt delayed",
+            : values.action === "switch"
+              ? "Switched to the plan still running"
+              : values.action === "other"
+                ? "Activity switched; planned task delayed"
+                : "Task prompt delayed",
       );
       void client.invalidateQueries({
         queryKey: ["plan-prompt-history", prompt.plan_id],

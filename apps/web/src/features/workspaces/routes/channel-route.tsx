@@ -3,6 +3,7 @@ import { JournalList } from "../../journals/journal-list";
 import { NotesTimeline } from "../../notes/components/notes-timeline";
 import { DocumentPage } from "../../notes/documents/document-page";
 import { WritingPromptBanner } from "../../publishing/writing-prompt-banner";
+import { NudgeBanner } from "../../writing-nudges/nudge-banner";
 import { ChannelHeader } from "../components/channel-header";
 import { WorkspaceEmpty } from "../components/workspace-empty";
 import { useWorkspaceShell } from "../shell-context";
@@ -23,6 +24,7 @@ export function ChannelRoute() {
         onOpenSearch={shell.openSearch}
       />
       {channel && <WritingPromptBanner channelId={channel.id} />}
+      {channel && <NudgeBanner channelId={channel.id} />}
       {channel ? (
         <ChannelContent channel={channel} />
       ) : (

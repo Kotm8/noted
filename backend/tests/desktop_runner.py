@@ -21,7 +21,8 @@ from alembic import command
 from app.auth.schemas import LoginRequest
 from app.auth.services.auth import AuthService
 from app.db.database import create_database_engine
-from tests.browser_runner import BROWSER_PASSWORD, ROOT, clean_temporary_storage
+from tests.browser_runner import ROOT, clean_temporary_storage
+from tests.browser_state import BROWSER_PASSWORD
 
 
 def wait_for(url: str, process: subprocess.Popen[bytes]) -> None:

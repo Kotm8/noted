@@ -18,7 +18,12 @@ import {
   wallTime,
   zonedParts,
 } from "../dates";
-import type { PlanOccurrence, ReminderFlag, ScheduleBoard } from "../types";
+import type {
+  PlanFields,
+  PlanOccurrence,
+  ReminderFlag,
+  ScheduleBoard,
+} from "../types";
 
 import { ReminderFlags } from "./reminder-flags";
 
@@ -61,11 +66,13 @@ export interface GridProps {
   data: ScheduleBoard;
   preferences: TrackingPreferences;
   now: number;
-  onPlan: (plan: PlanOccurrence) => void;
+  onPlan: (plan: PlanOccurrence, block: DOMRect) => void;
   onSession: (session: TimeSession) => void;
   onReminder: (flag: ReminderFlag) => void;
   onDay: (day: string) => void;
   onStart: (id: string) => void;
+  /** A new plan being edited in the quick card, shown before it's saved. */
+  draft?: PlanFields | null;
 }
 
 export function CalendarGrid(props: GridProps) {
@@ -136,8 +143,6 @@ export function CalendarGrid(props: GridProps) {
               >
                 <span>{dayLabel(date, { weekday: "short" })}</span>
                 <strong>{Number(date.slice(8))}</strong>
-                <small>Plan</small>
-                <small>Actual</small>
               </button>
               <CalendarTracks {...props} date={date} />
             </div>,
@@ -236,6 +241,18 @@ function CalendarTracks(
       endings[row] = item.end;
       return { ...item, row };
     });
+  const draft =
+    props.draft &&
+    props.draft.date === date &&
+    (!activityId || activityId === props.draft.activity_id)
+      ? props.draft
+      : null;
+  let draftRow = 0;
+  if (draft) {
+    draftRow = endings.findIndex((end) => end <= draft.start_minute);
+    if (draftRow < 0) draftRow = endings.length;
+    endings[draftRow] = Math.max(endings[draftRow] ?? 0, draft.end_minute);
+  }
   const visible = (start: number, end: number) =>
     end > preferences.start_minute && start < preferences.end_minute;
   const sessionSegments = data.sessions.flatMap((session) => {
@@ -291,7 +308,12 @@ function CalendarTracks(
                 data-activity={plan.activity_id}
                 aria-label={`Edit plan: ${plan.title}, ${minuteLabel(start)} to ${minuteLabel(end)}`}
                 title={`${plan.title} · ${minuteLabel(start)}–${minuteLabel(end)}${plan.frequency !== "none" ? " · Repeats" : ""}${plan.is_override ? " · Edited occurrence" : ""}`}
-                onClick={() => props.onPlan(plan)}
+                onClick={(event) =>
+                  props.onPlan(
+                    plan,
+                    event.currentTarget.getBoundingClientRect(),
+                  )
+                }
               >
                 {!dragDisabled && (
                   <span
@@ -323,6 +345,35 @@ function CalendarTracks(
               </button>
             );
           })}
+        {draft && (
+          <div
+            className="schedule-block planned-block plan-draft"
+            data-draft
+            aria-hidden="true"
+            style={
+              {
+                ...position(draft.start_minute, draft.end_minute, preferences),
+                "--activity":
+                  getActivity(draft.activity_id)?.color ?? "var(--accent)",
+                top: draftRow * 54,
+              } as CSSProperties
+            }
+          >
+            <span className="schedule-block-title">
+              <ActivityGlyphIcon
+                name={getActivity(draft.activity_id)?.icon ?? "Activity"}
+              />
+              <strong>
+                {draft.title.trim() ||
+                  getActivity(draft.activity_id)?.name ||
+                  "New plan"}
+              </strong>
+            </span>
+            <span className="schedule-block-time">
+              {minuteLabel(draft.start_minute)}–{minuteLabel(draft.end_minute)}
+            </span>
+          </div>
+        )}
       </div>
       <div className="schedule-actual-line">
         {sessionSegments

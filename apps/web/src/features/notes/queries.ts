@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import { notesApi } from "./api";
 import type { NoteCursor } from "./types";
@@ -7,7 +8,7 @@ export function notesQuery(channelId: string, targetId?: string) {
     queryKey: ["notes", channelId, targetId ?? "latest"],
     queryFn: ({ pageParam }) => notesApi.list(channelId, pageParam),
     initialPageParam: (targetId ? { around: targetId } : {}) as NoteCursor,
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
     getNextPageParam: (lastPage): NoteCursor | undefined =>
       lastPage.next_cursor ? { before: lastPage.next_cursor } : undefined,
     getPreviousPageParam: (firstPage): NoteCursor | undefined =>

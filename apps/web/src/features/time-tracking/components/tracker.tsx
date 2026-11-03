@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { ActivityIcon } from "./activity-icon";
 import { useTracking } from "../use-tracking";
-import { usePlanPrompts } from "../../schedule/prompts";
+import { startsTogether, usePlanPrompts } from "../../schedule/prompts";
 import { useAndroidBackLayer } from "../../../lib/android-navigation";
 import { PlannedTaskPrompt } from "./planned-task-prompt";
 
@@ -125,6 +125,7 @@ export function TimeTracker({ onSettings }: { onSettings: () => void }) {
               <PlannedTaskPrompt
                 key={promptKey}
                 prompt={prompt}
+                together={startsTogether(prompt, prompts.data ?? [])}
                 activities={activities.data ?? []}
                 timezone={data?.preferences.timezone ?? "UTC"}
                 close={collapse}

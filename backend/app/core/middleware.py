@@ -74,6 +74,11 @@ class OriginProtectionMiddleware:
         await self.app(scope, receive, send)
 
 
+# For files whose address changes whenever their content does. Private keeps shared proxies
+# from storing owner-only files.
+IMMUTABLE_CACHE = "private, max-age=31536000, immutable"
+
+
 class SecurityHeadersMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -82,9 +87,10 @@ class SecurityHeadersMiddleware:
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
+                if not any(name.lower() == b"cache-control" for name, _ in headers):
+                    headers.append((b"cache-control", b"no-store"))
                 headers.extend(
                     [
-                        (b"cache-control", b"no-store"),
                         (b"x-content-type-options", b"nosniff"),
                         (b"referrer-policy", b"same-origin"),
                     ]

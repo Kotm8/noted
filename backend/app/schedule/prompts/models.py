@@ -29,6 +29,11 @@ class PlanPrompt(Base):
     tracked_session_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("time_sessions.id", ondelete="SET NULL", name="fk_plan_prompt_tracked_session")
     )
+    # The overlapping plan still running when this one ends, offered as "Switch to".
+    switch_activity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("activities.id", ondelete="SET NULL", name="fk_plan_prompt_switch_activity")
+    )
+    switch_title: Mapped[str | None] = mapped_column(String(120))
     scheduled_notice_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     notify_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(16), default="pending")

@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import case, select, update
 from sqlalchemy.orm import Session
 
+from app.live import mark
 from app.publishing.models import ScheduledMessage, WritingPrompt
 
 
@@ -31,8 +32,14 @@ class PublishingRepository:
 
 
 def complete_writing(db: Session, channel_id: UUID, now: datetime) -> None:
-    db.execute(
+    from app.writing_nudges.service import NudgeService
+
+    NudgeService(db).wrote(channel_id, now)
+    owners = db.scalars(
         update(WritingPrompt)
         .where(WritingPrompt.channel_id == channel_id, WritingPrompt.due_at <= now)
         .values(due_at=None)
+        .returning(WritingPrompt.owner_id)
     )
+    for owner in owners:
+        mark(db, "publishing", user=owner, channel=channel_id)

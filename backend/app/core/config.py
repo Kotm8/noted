@@ -4,10 +4,13 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.3.0")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.4.0")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
-SCHEMA_REVISION = "0017_channel_tasks_pins"
+SCHEMA_REVISION = "0023_message_history"
 API_VERSION = 1
+# Sign-in attempts allowed per address each minute. Only the browser test server raises it,
+# because its whole suite signs in from one address.
+LOGIN_ATTEMPTS_PER_MINUTE = int(os.environ.get("NOTED_LOGIN_ATTEMPTS_PER_MINUTE", "10"))
 
 
 class Settings(BaseSettings):

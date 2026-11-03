@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function api(page: Page, path: string, method = "GET", body?: unknown) {
   return page.evaluate(
@@ -134,12 +134,14 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     .getByRole("dialog")
     .getByRole("button", { name: "Channel type", exact: true })
     .click();
-  await page.getByRole("menuitemradio", { name: "Journal", exact: true }).click();
+  await page
+    .getByRole("menuitemradio", { name: "Journal", exact: true })
+    .click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Create channel", exact: true })
     .click();
-  await page.getByRole("button", { name: "New entry", exact: true }).click();
+  await page.locator(".journal-entries").click({ position: { x: 300, y: 200 } });
   await page.getByRole("dialog").getByLabel("Entry name").fill("Sunday notes");
   await page
     .getByRole("dialog")
@@ -170,30 +172,26 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     await api(page, `/channels/${journalChannel.id}/journal`)
   )[0];
   const saved = await api(page, `/journal/${summary.id}`);
+  await journal
+    .getByRole("button", { name: "Edit entry", exact: true })
+    .click();
+  await journal
+    .getByRole("textbox", { name: "Entry contents" })
+    .fill("Keep my unsaved writing");
   await api(page, `/journal/${summary.id}`, "PUT", {
     title: saved.title,
     content: "Edited on another device",
     revision: saved.revision,
   });
-  await journal
-    .getByRole("button", { name: "Edit entry", exact: true })
-    .click();
-  const conflict = page.waitForResponse(
-    (response) =>
-      response.url().includes(`/journal/${summary.id}`) &&
-      response.request().method() === "PUT" &&
-      response.status() === 409,
-  );
-  await journal
-    .getByRole("textbox", { name: "Entry contents" })
-    .fill("Keep my unsaved writing");
-  await conflict;
   await expect(
     journal.getByRole("textbox", { name: "Entry contents" }),
   ).toHaveValue("Keep my unsaved writing");
   await expect(
     journal.getByText("Your draft has been kept.", { exact: false }),
   ).toBeVisible();
+  expect((await api(page, `/journal/${summary.id}`)).content).toBe(
+    "Edited on another device",
+  );
   await journal
     .getByRole("button", { name: "Load saved version", exact: true })
     .click();

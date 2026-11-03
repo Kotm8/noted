@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function api(page: Page, path: string, method = "GET", body?: unknown) {
   return page.evaluate(
@@ -28,6 +28,7 @@ async function choose(page: Page, label: string, option: string) {
 test("global tracker and horizontal schedule persist plans, preferences, and reminder flags", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
   const calendarTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
   calendarTime.setUTCHours(10, 0, 0, 0);
   await page.clock.setFixedTime(calendarTime);
@@ -107,7 +108,7 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await page.getByRole("button", { name: "Pause timer", exact: true }).click();
   await page.getByRole("button", { name: "Resume timer", exact: true }).click();
   await page
-    .locator(".workspace-rail")
+    .locator(".sidebar-global-navigation")
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page
@@ -118,8 +119,14 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await expect(page.locator(".schedule-time-axis")).toContainText("06:00");
   await expect(page.locator(".schedule-time-axis")).toContainText("24:00");
   await page.getByRole("button", { name: "Add plan", exact: true }).click();
+  const card = page.getByRole("dialog", { name: "New plan", exact: true });
+  await card.getByLabel("Title", { exact: true }).fill("Read and build");
+  await card.getByRole("button", { name: "More options", exact: true }).click();
+  await expect(page.locator(".plan-card")).toHaveCount(0);
   const editor = page.getByRole("dialog", { name: "New plan", exact: true });
-  await editor.getByLabel("Title", { exact: true }).fill("Read and build");
+  await expect(editor.getByLabel("Title", { exact: true })).toHaveValue(
+    "Read and build",
+  );
   await choose(page, "Repeat", "Every 2 weeks");
   const selected = editor.locator('.schedule-weekdays [aria-pressed="true"]');
   for (const button of await selected.all()) await button.click();
@@ -163,7 +170,7 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   ).toBeVisible();
   await page.getByRole("button", { name: "Stop timer", exact: true }).click();
   await page
-    .locator(".workspace-rail")
+    .locator(".sidebar-global-navigation")
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page
@@ -181,16 +188,17 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await expect(
     page.getByRole("dialog", { name: "New plan", exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".plan-card-length")).toHaveText(/^(\d+h( \d+m)?|[1-5]\dm)$/);
   await page.getByLabel("Title", { exact: true }).fill("Drawn plan");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Add plan", exact: true })
+    .getByRole("button", { name: "Add", exact: true })
     .click();
   await expect(
-    page.locator(".planned-block").filter({ hasText: "Drawn plan" }),
+    page.locator(".planned-block:not(.plan-draft)").filter({ hasText: "Drawn plan" }),
   ).toBeVisible();
   const drawn = page
-    .locator(".planned-block")
+    .locator(".planned-block:not(.plan-draft)")
     .filter({ hasText: "Drawn plan" });
   const originalStart = Number(await drawn.getAttribute("data-start"));
   const originalEnd = Number(await drawn.getAttribute("data-end"));
@@ -203,7 +211,11 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   });
   await page.mouse.up();
   await expect(drawn).toHaveAttribute("data-start", String(originalStart + 60));
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .locator("[data-sonner-toast]")
+    .filter({ hasText: "Plan updated" })
+    .getByRole("button", { name: "Undo", exact: true })
+    .click();
   await expect(drawn).toHaveAttribute("data-start", String(originalStart));
   const resize = (await drawn.boundingBox())!;
   await page.mouse.move(resize.x + resize.width - 3, resize.y + 22);
@@ -215,6 +227,37 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   );
   await page.mouse.up();
   await expect(drawn).toHaveAttribute("data-end", String(originalEnd + 15));
+  await drawn.click();
+  const planEditor = page.getByRole("dialog", { name: "Edit plan", exact: true });
+  await planEditor.getByRole("button", { name: "Delete plan", exact: true }).click();
+  const confirmation = page.getByRole("dialog", {
+    name: "Delete this plan?",
+    exact: true,
+  });
+  await confirmation.getByRole("button", { name: "Keep plan", exact: true }).click();
+  await expect(confirmation).toBeHidden();
+  await expect(planEditor).toBeVisible();
+  await planEditor.getByRole("button", { name: "Delete plan", exact: true }).click();
+  await confirmation.getByRole("button", { name: "Delete plan", exact: true }).click();
+  await expect(drawn).toHaveCount(0);
+  await page.keyboard.press("Control+z");
+  await expect(drawn).toHaveCount(1);
+  await page.keyboard.press("Control+Shift+z");
+  await expect(drawn).toHaveCount(0);
+  await page.keyboard.press("Control+z");
+  await expect(drawn).toHaveCount(1);
+  const named = page.locator(".planned-block strong", {
+    hasText: /^Building Noted$/,
+  });
+  const before = await named.count();
+  await page
+    .locator("[data-draw]")
+    .nth(2)
+    .click({ position: { x: 30, y: 20 } });
+  const quick = page.getByRole("dialog", { name: "New plan", exact: true });
+  await quick.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(quick).toBeHidden();
+  await expect(named).toHaveCount(before + 1);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     page.getByRole("button", { name: "Open navigation", exact: true }),

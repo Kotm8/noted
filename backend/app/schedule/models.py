@@ -1,6 +1,7 @@
 import uuid
 from datetime import date as calendar_date
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -26,6 +27,7 @@ class SchedulePlan(Base):
     timezone: Mapped[str] = mapped_column(String(64))
     notifications_enabled: Mapped[bool] = mapped_column(default=True)
     notification_minutes: Mapped[int | None]
+    writing_nudge: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     frequency: Mapped[str] = mapped_column(String(16), default="none")
     weekdays: Mapped[list[int]] = mapped_column(JSONB, default=list)
     repeat_until: Mapped[calendar_date | None] = mapped_column(Date)
@@ -50,4 +52,5 @@ class ScheduleException(Base):
     timezone: Mapped[str] = mapped_column(String(64))
     notifications_enabled: Mapped[bool] = mapped_column(default=True)
     notification_minutes: Mapped[int | None]
+    writing_nudge: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)

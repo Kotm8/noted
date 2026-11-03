@@ -79,14 +79,32 @@ class MessageRepository:
         )
         return {root: count for root, count in self.db.execute(statement) if root is not None}
 
+    def sent(self, author_id: UUID, client_id: UUID | None) -> Message | None:
+        """The message a device already sent under this id, so its retry isn't a duplicate."""
+        if client_id is None:
+            return None
+        return self.db.scalar(
+            select(Message).where(
+                Message.author_id == author_id,
+                Message.client_id == client_id,
+                Message.deleted_at.is_(None),
+            )
+        )
+
     def create(
-        self, channel_id: UUID, author_id: UUID, content: str, thread_root_id: UUID | None = None
+        self,
+        channel_id: UUID,
+        author_id: UUID,
+        content: str,
+        thread_root_id: UUID | None = None,
+        client_id: UUID | None = None,
     ) -> Message:
         message = Message(
             channel_id=channel_id,
             author_id=author_id,
             content=content,
             thread_root_id=thread_root_id,
+            client_id=client_id,
         )
         self.db.add(message)
         self.db.flush()

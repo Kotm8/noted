@@ -13,6 +13,7 @@ import { NoteAttachments } from "./note-attachments";
 import type { Note } from "../types";
 import { MessageMarkdown } from "./message-markdown";
 import { NoteEditor } from "./note-editor";
+import { EditHistory } from "./edit-history";
 import { ReminderMessage } from "../../reminders/components/reminder-message";
 import { CopyNoteButton } from "./copy-note-button";
 import { canShare, downloadAttachments, shareNote } from "../share";
@@ -49,7 +50,7 @@ export function NoteCard({
         <MessageMarkdown note={note} />
       )}
       <NoteAttachments attachments={note.attachments} />
-      {wasEdited && !editing && <span className="edited-label">edited</span>}
+      {wasEdited && !editing && <EditHistory note={note} />}
       {!!note.reply_count && onOpenThread && (
         <button
           className="note-thread-link"

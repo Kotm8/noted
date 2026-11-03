@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("portable ZIP export and previewed import preserve notes and files", async ({ page }) => {
   await page.goto("/");

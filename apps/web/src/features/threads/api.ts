@@ -13,7 +13,10 @@ export const threadsApi = {
       if (value) parameters.set(key, value);
     return request(`/messages/${id}/thread?${parameters}`);
   },
-  reply(id: string, content: string): Promise<Note> {
-    return request(`/messages/${id}/thread`, "POST", { content });
+  reply(id: string, content: string, clientId?: string): Promise<Note> {
+    return request(`/messages/${id}/thread`, "POST", {
+      content,
+      client_id: clientId,
+    });
   },
 };

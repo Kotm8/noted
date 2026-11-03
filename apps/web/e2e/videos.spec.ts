@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("videos play inline, seek, pause other clips, and recover from a failed request", async ({
   page,

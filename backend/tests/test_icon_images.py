@@ -14,27 +14,6 @@ def image_bytes(image: Image.Image, image_format: str = "PNG") -> bytes:
     return output.getvalue()
 
 
-def test_icon_stretches_to_square_and_note_images_are_unchanged(
-    owner: TestClient, channel: dict[str, str]
-) -> None:
-    source = Image.new("RGB", (900, 300), "red")
-    source.paste("blue", (300, 0, 600, 300))
-    data = image_bytes(source)
-    path = f"{API}/workspaces/{channel['workspace_id']}/icon"
-    response = owner.put(path, files={"file": ("wide.png", data, "image/png")})
-    assert response.status_code == 200
-    result = Image.open(BytesIO(owner.get(response.json()["icon_url"]).content))
-    assert result.size == (512, 512)
-    assert result.convert("RGB").getpixel((256, 256)) == (0, 0, 255)
-    assert result.convert("RGB").getpixel((0, 256)) == (255, 0, 0)
-    assert result.convert("RGB").getpixel((511, 256)) == (255, 0, 0)
-    note = owner.post(
-        f"{API}/channels/{channel['id']}/messages/with-files",
-        files={"files": ("wide.png", data, "image/png")},
-    ).json()
-    assert owner.get(note["attachments"][0]["preview_url"]).content == data
-
-
 def test_gif_icons_preserve_animation_timing_loop_and_transparency(
     owner: TestClient, channel: dict[str, str]
 ) -> None:

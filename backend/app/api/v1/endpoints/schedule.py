@@ -53,6 +53,16 @@ def update(
     return ScheduleService(db).update(current.user.id, plan_id, data)
 
 
+@router.post("/plans/{plan_id}/restore", response_model=PlanResponse)
+def restore(
+    plan_id: UUID,
+    revision: int = Query(ge=1),
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> SchedulePlan:
+    return ScheduleService(db).restore(current.user.id, plan_id, revision)
+
+
 @router.delete("/plans/{plan_id}", response_model=PlanResponse)
 def remove(
     plan_id: UUID,

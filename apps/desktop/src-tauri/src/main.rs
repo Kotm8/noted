@@ -6,6 +6,7 @@ mod connection;
 mod devices;
 mod gateway;
 mod installer;
+mod live;
 mod proxy;
 mod security;
 mod session_vault;

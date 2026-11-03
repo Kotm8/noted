@@ -18,6 +18,8 @@ from app.core.middleware import (
     SecurityHeadersMiddleware,
 )
 from app.db.database import create_database_engine
+from app.live.hub import LiveHub
+from app.notes.images.worker import image_preview_worker
 from app.storage.local import LocalFileStorage
 from app.worker import background_worker
 
@@ -27,23 +29,39 @@ def build_application(settings: Settings) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        loop = asyncio.get_running_loop()
+        live = LiveHub(settings, engine)
+        app.state.live_hubs[loop] = live
+        live.start()
         worker = (
             asyncio.create_task(background_worker(engine, settings))
+            if settings.background_worker
+            else None
+        )
+        previews = (
+            asyncio.create_task(image_preview_worker(engine, app.state.storage, settings))
             if settings.background_worker
             else None
         )
         try:
             yield
         finally:
+            await live.stop()
+            app.state.live_hubs.pop(loop, None)
             if worker:
                 worker.cancel()
                 with suppress(asyncio.CancelledError):
                     await worker
+            if previews:
+                previews.cancel()
+                with suppress(asyncio.CancelledError):
+                    await previews
             engine.dispose()
 
     app = FastAPI(title="Noted API", version=VERSION, lifespan=lifespan)
     app.state.settings = settings
     app.state.engine = engine
+    app.state.live_hubs = {}
     app.state.storage = LocalFileStorage(settings.storage_path)
     app.state.backups = BackupCache(
         settings.backup_path or Path(tempfile.gettempdir()) / "noted-backups"

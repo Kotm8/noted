@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Repeat2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "../../../components/ui/dialog";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { Select } from "../../../components/ui/select";
 import { DatePicker } from "../../../components/ui/date-picker";
 import { Button } from "../../../components/ui/button";
@@ -13,6 +14,9 @@ import { isMobileLayout } from "../../../lib/layout";
 import type { Frequency, PlanFields, PlanOccurrence } from "../types";
 import { TimeRange } from "./time-range";
 import { PromptHistory } from "./prompt-history";
+import { planTitle } from "../plan-title";
+import type { ScheduleHistory } from "../use-schedule-history";
+import { NudgeFields } from "../../writing-nudges/nudge-fields";
 
 const DIALOG_WIDTH = 440;
 const GAP = 24;
@@ -34,12 +38,17 @@ export function PlanDialog({
   activities,
   hours,
   anchorX,
+  deleting = false,
+  history,
   onClose,
 }: {
   initial: PlanFields | PlanOccurrence;
   anchorX?: number;
+  /** Opened from the quick card's Delete on a repeating plan, to choose what to delete. */
+  deleting?: boolean;
   activities: Activity[];
   hours: { start_minute: number; end_minute: number };
+  history: ScheduleHistory;
   onClose: () => void;
 }) {
   const existing = "id" in initial ? initial : null;
@@ -53,27 +62,32 @@ export function PlanDialog({
     queryFn: () => scheduleApi.get(existing!.id),
     enabled: Boolean(existing),
   });
-  const [deleteScope, setDeleteScope] = useState(false);
+  const [deleteScope, setDeleteScope] = useState(deleting);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   function change<K extends keyof PlanFields>(key: K, value: PlanFields[K]) {
     setFields((current) => ({ ...current, [key]: value }));
   }
   const save = useMutation({
     mutationFn: async () => {
-      if (!fields.title.trim()) throw new Error("Give the plan a title.");
       if (fields.end_minute <= fields.start_minute)
         throw new Error("End time must follow start time.");
+      const values = { ...fields, title: planTitle(fields, activities) };
       return existing
         ? scheduleApi.update(existing.id, {
-            ...fields,
+            ...values,
             revision: existing.revision,
             scope,
             occurrence_date: existing.occurrence_date,
           })
-        : scheduleApi.create(fields);
+        : scheduleApi.create(values);
     },
-    onSuccess: () => {
+    onSuccess: (plan) => {
       void client.invalidateQueries({ queryKey: ["schedule"] });
-      toast.success("Plan saved");
+      if (existing) toast.success("Plan saved");
+      else {
+        history.created(plan);
+        toast.success("Plan added", history.undoToast());
+      }
       onClose();
     },
     onError: () => {
@@ -87,10 +101,11 @@ export function PlanDialog({
         existing!.revision,
         occurrence ? existing!.occurrence_date : undefined,
       ),
-    onSuccess: () => {
+    onSuccess: (plan, occurrence) => {
       void client.invalidateQueries({ queryKey: ["schedule"] });
+      history.deleted(existing!, plan, occurrence);
       onClose();
-      toast.success("Plan deleted");
+      toast.success("Plan deleted", history.undoToast());
     },
   });
   const locked = Boolean(
@@ -144,10 +159,9 @@ export function PlanDialog({
           <input
             value={fields.title}
             onChange={(event) => change("title", event.target.value)}
-            required
             maxLength={120}
             autoFocus
-            placeholder="What’s the plan?"
+            placeholder={planTitle({ ...fields, title: "" }, activities)}
           />
         </label>
         <div className="schedule-field">
@@ -191,7 +205,7 @@ export function PlanDialog({
                   : String(fields.notification_minutes)
             }
             options={[
-              { value: "default", label: "Use notification setting" },
+              { value: "default", label: "Default" },
               { value: "10", label: "10 minutes before" },
               { value: "5", label: "5 minutes before" },
               { value: "1", label: "1 minute before" },
@@ -209,6 +223,11 @@ export function PlanDialog({
             }}
           />
         </div>
+        <NudgeFields
+          inherit
+          value={fields.writing_nudge}
+          onChange={(value) => change("writing_nudge", value)}
+        />
         <fieldset disabled={locked} className="schedule-repeat-fields">
           <div className="schedule-field">
             <span className="field-caption">Repeat</span>
@@ -313,8 +332,7 @@ export function PlanDialog({
               disabled={save.isPending || remove.isPending}
               onClick={() => {
                 if (existing.frequency !== "none") setDeleteScope(!deleteScope);
-                else if (confirm("Delete this one-off plan?"))
-                  remove.mutate(false);
+                else setConfirmDelete(true);
               }}
             >
               <Trash2 size={14} />
@@ -333,6 +351,16 @@ export function PlanDialog({
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        open={confirmDelete}
+        pending={remove.isPending}
+        title="Delete this plan?"
+        description="This one-off plan will be removed from your calendar."
+        keepLabel="Keep plan"
+        confirmLabel="Delete plan"
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => remove.mutate(false)}
+      />
     </Modal>
   );
 }

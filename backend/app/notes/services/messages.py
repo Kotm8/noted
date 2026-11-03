@@ -2,14 +2,24 @@ import re
 from uuid import UUID
 
 from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.pagination import decode_message_cursor, encode_message_cursor
 from app.core.security import utc_now
+from app.live import mark
 from app.notes.models import Message
 from app.notes.repository import MessageRepository
-from app.notes.schemas import MessageCreate, MessagePage, MessageResponse, MessageUpdate
+from app.notes.schemas import (
+    MessageCreate,
+    MessagePage,
+    MessageResponse,
+    MessageRestore,
+    MessageUpdate,
+)
+from app.notes.versions.models import MessageVersion
+from app.notes.versions.service import keep_version, version, versions
 from app.publishing.repository import complete_writing
 from app.reminders.service import attach_reminder
 from app.workspaces.models import Channel
@@ -100,11 +110,20 @@ class MessageService:
 
     def create_message(self, channel_id: UUID, data: MessageCreate, owner_id: UUID) -> Message:
         channel = self.channels.get_channel(channel_id, owner_id)
+        if (sent := self.repository.sent(owner_id, data.client_id)) is not None:
+            return sent
         content = channel_content(channel, data.content)
-        message = self.repository.create(channel_id, owner_id, content)
+        message = self.repository.create(channel_id, owner_id, content, client_id=data.client_id)
         attach_reminder(self.db, message, data.reminder)
         complete_writing(self.db, channel_id, utc_now())
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            # The same retry arrived twice at once; the other copy already saved it.
+            self.db.rollback()
+            if (sent := self.repository.sent(owner_id, data.client_id)) is None:
+                raise
+            return sent
         self.db.refresh(message)
         return message
 
@@ -114,11 +133,29 @@ class MessageService:
             raise ConflictError(
                 "This note changed on another device. Reload it before trying again."
             )
+        keep_version(self.db, message, data.content)
         message.content = data.content
         message.updated_at = utc_now()
         self.db.commit()
         self.db.refresh(message)
         return message
+
+    def message_versions(self, message_id: UUID, owner_id: UUID) -> list[MessageVersion]:
+        self.get_message(message_id, owner_id)
+        return versions(self.db, message_id)
+
+    def restore_version(
+        self, message_id: UUID, version_id: UUID, data: MessageRestore, owner_id: UUID
+    ) -> Message:
+        """Puts an earlier text back. The text it replaces becomes a version too, so a restore
+        can itself be undone from the history."""
+        self.get_message(message_id, owner_id)
+        earlier = version(self.db, message_id, version_id)
+        return self.update_message(
+            message_id,
+            MessageUpdate(content=earlier.content, expected_content=data.expected_content),
+            owner_id,
+        )
 
     def delete_message(self, message_id: UUID, owner_id: UUID) -> None:
         message = self.get_message(message_id, owner_id, lock=True)
@@ -127,6 +164,13 @@ class MessageService:
             update(Message)
             .where(Message.thread_root_id == message.id)
             .values(deleted_at=message.deleted_at)
+        )
+        mark(
+            self.db,
+            "notes",
+            user=owner_id,
+            channel=message.channel_id,
+            thread=message.thread_root_id or message.id,
         )
         self.db.commit()
 

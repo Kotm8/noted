@@ -1,11 +1,13 @@
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
 from app.core.errors import ContentTooLargeError, NotFoundError, ValidationError
 from app.core.security import utc_now
 from app.core.storage_limits import MAX_BATCH_SIZE, MAX_FILES
+from app.notes.images.service import ImagePreviewService
 from app.notes.models import Attachment, Message
 from app.notes.repository import AttachmentRepository, MessageRepository
 from app.notes.services.messages import MessageService, channel_content
@@ -13,6 +15,7 @@ from app.publishing.repository import complete_writing
 from app.reminders.schemas import ReminderSchedule
 from app.reminders.service import attach_reminder
 from app.storage.base import FileStorage
+from app.storage.media import IMAGE_TYPES
 from app.storage.uploads import UploadService
 from app.workspaces.services.channels import ChannelService
 
@@ -32,8 +35,11 @@ class AttachmentService:
         content: str,
         files: list[UploadFile],
         reminder: ReminderSchedule | None = None,
+        client_id: UUID | None = None,
     ) -> Message:
         channel = ChannelService(self.db).get_channel(channel_id, owner_id)
+        if (sent := self.messages.sent(owner_id, client_id)) is not None:
+            return sent
         content = channel_content(channel, content)
         if not files or len(files) > MAX_FILES:
             raise ValidationError(f"Choose between 1 and {MAX_FILES} files.")
@@ -43,7 +49,7 @@ class AttachmentService:
         saved_keys: list[str] = []
         total_size = 0
         try:
-            message = self.messages.create(channel_id, owner_id, content)
+            message = self.messages.create(channel_id, owner_id, content, client_id=client_id)
             attach_reminder(self.db, message, reminder)
             for position, file in enumerate(files):
                 saved = await self.uploads.save(file)
@@ -52,15 +58,27 @@ class AttachmentService:
                 if total_size > MAX_BATCH_SIZE:
                     limit = MAX_BATCH_SIZE // (1024 * 1024)
                     raise ContentTooLargeError(f"Attachments must total no more than {limit} MB.")
-                self.attachments.create(
+                attachment = self.attachments.create(
                     message.id, saved.filename, saved.key, saved.content_type, saved.size, position
                 )
+                if saved.content_type in IMAGE_TYPES.values():
+                    await file.seek(0)
+                    saved_keys.append(
+                        await ImagePreviewService(self.db, self.storage).create(
+                            attachment, file.file
+                        )
+                    )
             complete_writing(self.db, channel_id, utc_now())
             self.db.commit()
-        except BaseException:
+        except BaseException as error:
             self.db.rollback()
             for key in saved_keys:
                 await self.storage.delete(key)
+            # The same retry arrived twice at once; the other copy already saved it.
+            if isinstance(error, IntegrityError) and (
+                sent := self.messages.sent(owner_id, client_id)
+            ):
+                return sent
             raise
         self.db.refresh(message)
         return message

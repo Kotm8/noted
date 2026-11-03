@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("the owner can organize, write, edit, and delete persistent notes", async ({ page }) => {
   await page.goto("/");
@@ -89,6 +89,42 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
   await page.locator(".note").last().getByRole("button", { name: "Note options" }).click();
   await page.getByRole("menuitem", { name: "Delete note" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete note", exact: true }).click();
+  await expect(page.locator(".note")).toHaveCount(1);
+
+  const composerBox = page.getByRole("textbox", { name: "Message python" });
+  for (const text of ["Select me", "And me", "Keep me"]) {
+    await composerBox.fill(text);
+    await composerBox.press("Enter");
+  }
+  await expect(page.locator(".note")).toHaveCount(4);
+  const entries = page.locator(".note-entry");
+  await entries.nth(1).getByText("Select me").click();
+  await expect(page.locator(".note-selected")).toHaveCount(0);
+  await entries.nth(1).locator(".note-gutter").click();
+  await entries.nth(2).locator(".note-gutter").click({ modifiers: ["Shift"] });
+  const tools = page.getByRole("toolbar", { name: "Selected messages" });
+  await expect(tools).toContainText("2 messages");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".note-selected")).toHaveCount(0);
+  const top = (await entries.nth(1).locator(".note-gutter").boundingBox())!;
+  const bottom = (await entries.nth(2).boundingBox())!;
+  await page.mouse.move(top.x + 8, top.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(top.x + 8, bottom.y + bottom.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect(tools).toContainText("2 messages");
+  await tools.getByRole("button", { name: "Delete selected messages" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete 2 messages?" })
+    .getByRole("button", { name: "Delete 2 messages", exact: true })
+    .click();
+  await expect(page.locator(".note")).toHaveCount(2);
+  await page.getByText("Keep me", { exact: true }).locator("xpath=ancestor::*[contains(@class,'note-entry')]").locator(".note-gutter").click();
+  await page.keyboard.press("Delete");
+  await page
+    .getByRole("dialog", { name: "Delete 1 message?" })
+    .getByRole("button", { name: "Delete 1 message", exact: true })
+    .click();
   await expect(page.locator(".note")).toHaveCount(1);
 
   await page.setViewportSize({ width: 390, height: 844 });

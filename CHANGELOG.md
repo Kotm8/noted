@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.4.0
+
+- Images use compressed WebP previews and S01 loading placeholders that reserve their shape. Click to view the untouched original with zoom, pan, image navigation and download. GIF previews animate inline, and original GIFs animate in the viewer. Existing images get previews automatically in the background.
+- Writing nudges count tracked minutes, preserve the countdown while paused, and restart after writing in the selected channel. Configure an activity default, override it per plan, and optionally get a final nudge when stopping. Nudges open the channel and follow the existing notification and quiet-hours settings.
+- Changes appear on your other devices right away, with polling as a fallback, and the watch receives quiet sync pushes to stay up to date.
+- The rail holds only your projects; Home and Calendar are at the top of the sidebar.
+- Deleting a one-off plan or a recorded session asks in Noted's own dialog.
+- A plan's Activity notification menu starts with Default.
+- The calendar's day labels no longer show Plan and Actual.
+- GIF previews play inline; animated project icons play on hover.
+- Click empty space in a journal to start a new entry.
+- Image previews and project icons stay cached on every device instead of loading each time.
+- The calendar loads four weeks per request and fetches the next block before you scroll to it, and moved plans stay where you drop them while saving.
+- Undo and redo calendar changes with Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y): adding, moving, resizing, copying, and deleting plans. Undoing a delete brings back the same plan with its edited occurrences and prompt history.
+- Plans starting at the same moment share one notification with a Start button for each; delaying delays them together.
+- When the plan you're tracking ends while an overlapping plan is still running, its end notification offers to switch to it.
+- Quiet hours in Settings › Notifications hold notifications on every device, including the watch, and send them when quiet hours end. Test notifications still go through.
+- Mark a reminder urgent to let it ring during quiet hours.
+- Click a plan or empty time in the calendar to edit it in a small card beside it: title, activity, and times, with More options for the full form. A dashed placeholder shows a new plan before it's saved, a blank title takes the activity's name, and clicking elsewhere moves the card there.
+- The reminder picker shows the chosen time large, offers In 1 hour (now the default), In 3 hours, This evening, and Tomorrow morning, and has a slider across the next 24 hours. Other date opens the full date picker.
+- Select messages from the gutter beside their times: click one, drag down for a range, or Shift-click to extend, then copy or delete them together. Clicking the text still selects text.
+- Every edit keeps the earlier text. Click "edited" to see each version and restore any of them; ticking checklist items isn't counted as an edit. Backups include the history.
+- Messages, files, and thread replies written without a connection wait on the device as "Waiting to send" and go out in order when it returns, never twice.
+- Isolate browser test data between cases and wait for the actual watch face to finish rendering before taking emulator screenshots.
+
 ## 0.3.0
 
 - Format messages with a Slack-style toolbar in messages, replies, edits, journals, and documents: bold, italic, strikethrough, headings, links (Ctrl+K), lists, checklists, quotes, code, and dividers. Aa shows or hides it; Send's menu holds Schedule message.

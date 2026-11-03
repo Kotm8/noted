@@ -283,19 +283,6 @@
 .selected-day .schedule-day-label {
   color: var(--accent);
 }
-.schedule-day-label > small {
-  position: absolute;
-  left: 2px;
-  color: var(--text-faint);
-  font-size: var(--font-2xs);
-  line-height: 8px;
-}
-.schedule-day-label > small:first-of-type {
-  top: 56px;
-}
-.schedule-day-label > small:last-of-type {
-  bottom: 20px;
-}
 .schedule-dual-track {
   position: relative;
   min-width: 0;
@@ -948,4 +935,133 @@ input.time-input[aria-invalid="true"] {
 }
 .schedule-day-reminders .schedule-reminder-flag {
   top: 18px !important;
+}
+
+/* The quick plan card attached to a calendar block (and its phone sheet). */
+.plan-card {
+  z-index: 110;
+  width: min(340px, calc(100vw - 24px));
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-floating);
+  box-shadow: 0 16px 48px #0009;
+}
+.plan-card-arrow {
+  fill: var(--surface-floating);
+  stroke: var(--border-default);
+}
+.plan-card-form {
+  display: grid;
+  gap: 13px;
+}
+.plan-card-title {
+  width: 100%;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: calc(15px * var(--text-scale, 1));
+  font-weight: 600;
+}
+.plan-card-title:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.plan-card-title::placeholder {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+.plan-card-activities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.plan-card-activities button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.plan-card-activities button i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--activity);
+}
+.plan-card-activities button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--activity) 60%, transparent);
+  background: color-mix(in srgb, var(--activity) 14%, transparent);
+  color: var(--text-primary);
+}
+.plan-card-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-faint);
+}
+.plan-card-times .schedule-field {
+  width: 74px;
+  gap: 0;
+}
+.plan-card-times .field-caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.plan-card-times .time-input {
+  padding: 7px 8px;
+  text-align: center;
+}
+.plan-card-length {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+}
+.plan-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.plan-card-spacer {
+  flex: 1;
+}
+.plan-card-more {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font-size: var(--font-sm);
+}
+.plan-card-more:hover {
+  text-decoration: underline;
+}
+.modal-content.plan-sheet {
+  top: auto;
+  bottom: 0;
+  width: 100vw;
+  max-width: none;
+  border-radius: 16px 16px 0 0;
+  transform: translateX(-50%);
+}
+.plan-sheet .plan-card-activities button,
+.plan-sheet .plan-card-actions button {
+  min-height: 40px;
+}
+/* A new plan shown while its quick card is open, before it's saved. */
+.plan-draft {
+  z-index: 3;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--activity) 70%, transparent);
+  pointer-events: none;
 }

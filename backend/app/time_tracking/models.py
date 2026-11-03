@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -23,6 +25,7 @@ class Activity(Base):
     position: Mapped[int] = mapped_column(default=0)
     archived: Mapped[bool] = mapped_column(Boolean, default=False)
     revision: Mapped[int] = mapped_column(default=1)
+    writing_nudge: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 class TimeSession(Base):

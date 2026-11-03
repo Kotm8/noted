@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -56,7 +57,7 @@ export function HomePage({
   const board = useQuery({
     queryKey: ["schedule", start, end],
     queryFn: () => scheduleApi.board(start, end),
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
     enabled: Boolean(tracking.tracker.data),
   });
   const active = tracking.tracker.data?.active;

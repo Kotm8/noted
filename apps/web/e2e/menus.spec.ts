@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("channel menus stay beside their trigger at every supported zoom", async ({ page }) => {
   await page.goto("/");

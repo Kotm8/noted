@@ -116,7 +116,9 @@ export function useWritingDraft<T extends WritingRecord>(
           };
           setDraftState(latest.current);
           writeStoredValue(key, JSON.stringify(latest.current));
-          client.setQueryData(options.queryKey, updated);
+          client.setQueryData<T>(options.queryKey, (current) =>
+            current && current.revision > updated.revision ? current : updated,
+          );
         }
         removeStoredValue(key);
         if (options.listKey)
@@ -169,6 +171,7 @@ export function useWritingDraft<T extends WritingRecord>(
   }, [dirty, saving]);
 
   useEffect(() => {
+    if (running.current) return;
     if (entry.revision <= revision.current) return;
     if (
       latest.current.title !== saved.current.title ||
@@ -185,7 +188,7 @@ export function useWritingDraft<T extends WritingRecord>(
     revision.current = entry.revision;
     latest.current = { ...saved.current, revision: entry.revision };
     setDraftState(latest.current);
-  }, [entry]);
+  }, [entry, saving]);
 
   function retry() {
     blocked.current = null;

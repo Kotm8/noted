@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import { threadsApi } from "./api";
 import type { NoteCursor } from "../notes/types";
@@ -15,6 +16,6 @@ export function threadQuery(rootId: string, targetId?: string) {
       page.replies.newer_cursor
         ? { after: page.replies.newer_cursor }
         : undefined,
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
   });
 }

@@ -77,13 +77,20 @@ class BackupExporter:
             reminders = {
                 row["message_id"]: {
                     key: row[key]
-                    for key in ("due_at", "scheduled_at", "timezone", "repeat", "status")
+                    for key in ("due_at", "scheduled_at", "timezone", "repeat", "urgent", "status")
                 }
                 for row in rows["reminders"]
             }
+            history: dict[Any, list[dict[str, Any]]] = {}
+            for row in rows["message_versions"]:
+                history.setdefault(row["message_id"], []).append(
+                    {key: row[key] for key in ("content", "written_at", "replaced_at")}
+                )
             for message in document["messages"]:
                 if message["id"] in reminders:
                     message["reminder"] = reminders[message["id"]]
+                if message["id"] in history:
+                    message["versions"] = history[message["id"]]
             roots = {
                 row["id"]: row["thread_root_id"]
                 for row in rows["messages"]
@@ -174,6 +181,12 @@ class BackupExporter:
                     ]
             if any(row["kind"] == "tasks" for row in rows["channels"]):
                 document["version"] = 7
+            if any(
+                row.get("writing_nudge") is not None
+                for key in ("activities", "schedule_plans", "schedule_exceptions")
+                for row in rows[key]
+            ):
+                document["version"] = 8
             raw = json.dumps(document, default=str, ensure_ascii=False).encode()
             if len(raw) > MAX_METADATA:
                 raise ContentTooLargeError("The content metadata exceeds the 16 MB backup limit.")

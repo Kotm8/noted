@@ -19,6 +19,8 @@ from app.time_tracking.schemas import (
     TrackingPreferences,
     TrackingPreferencesUpdate,
 )
+from app.writing_nudges.configuration import plan_settings, validate_target
+from app.writing_nudges.service import NudgeService
 
 
 class TrackingService:
@@ -59,8 +61,27 @@ class TrackingService:
             ):
                 raise ValidationError("Choose an active activity")
             if active and active.activity_id == data.activity_id:
+                if data.plan_id is not None:
+                    activity = self.repository.activity(owner_id, data.activity_id)
+                    config = plan_settings(
+                        self.db,
+                        owner_id,
+                        activity.id,
+                        activity.writing_nudge,
+                        data.plan_id,
+                        data.occurrence_date,
+                    )
+                    nudges = NudgeService(self.db)
+                    nudges.finish(owner_id, now, notify=False)
+                    nudges.start(owner_id, activity.id, config, now)
+                    state.revision += 1
                 state.last_request_id = data.request_id
                 return self.read(owner_id)
+        nudges = NudgeService(self.db)
+        if data.action in {"start", "stop"}:
+            nudges.finish(owner_id, now)
+        elif data.action == "pause":
+            nudges.pause(owner_id, now)
         if data.action in {"start", "stop", "pause"} and active:
             active.ended_at = max(now, active.started_at + timedelta(microseconds=1))
             active.revision += 1
@@ -69,7 +90,17 @@ class TrackingService:
             )
             state.paused_activity_id = active.activity_id
             self.db.flush()
-        if data.action == "start":
+        if data.action == "start" and data.activity_id is not None:
+            activity = self.repository.activity(owner_id, data.activity_id)
+            config = plan_settings(
+                self.db,
+                owner_id,
+                activity.id,
+                activity.writing_nudge,
+                data.plan_id,
+                data.occurrence_date,
+            )
+            nudges.start(owner_id, activity.id, config, now)
             self.db.add(
                 TimeSession(owner_id=owner_id, activity_id=data.activity_id, started_at=now)
             )
@@ -84,6 +115,7 @@ class TrackingService:
             self.db.add(
                 TimeSession(owner_id=owner_id, activity_id=state.paused_activity_id, started_at=now)
             )
+            nudges.resume(owner_id, now)
             state.paused_activity_id = None
         elif data.action == "stop":
             state.elapsed_seconds = 0
@@ -106,6 +138,7 @@ class TrackingService:
         self, owner_id: UUID, data: ActivityCreate | ActivityUpdate, activity_id: UUID | None = None
     ) -> Activity:
         state = self.repository.lock(owner_id)
+        validate_target(self.db, owner_id, data.writing_nudge)
         existing = self.db.scalar(
             select(Activity.id).where(
                 Activity.owner_id == owner_id,
@@ -120,6 +153,9 @@ class TrackingService:
             if not isinstance(data, ActivityUpdate) or item.revision != data.revision:
                 raise ConflictError("This activity changed. Reload before editing.")
             if data.archived and not item.archived:
+                if run := NudgeService(self.db).run(owner_id):
+                    if run.activity_id == activity_id:
+                        NudgeService(self.db).finish(owner_id, utc_now())
                 active = self.repository.active(owner_id)
                 if (
                     active and active.activity_id == activity_id
@@ -142,7 +178,11 @@ class TrackingService:
                 owner_id=owner_id, position=max((entry.position for entry in items), default=-1) + 1
             )
             self.db.add(item)
-        for key, value in data.model_dump(exclude={"revision"}).items():
+        values = data.model_dump(exclude={"revision", "writing_nudge"})
+        values["writing_nudge"] = (
+            data.writing_nudge.model_dump(mode="json") if data.writing_nudge else None
+        )
+        for key, value in values.items():
             setattr(item, key, value)
         self.db.commit()
         self.db.refresh(item)

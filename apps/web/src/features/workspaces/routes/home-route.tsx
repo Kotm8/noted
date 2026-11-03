@@ -9,8 +9,8 @@ export function HomeRoute() {
   function openActivity(item: HomeActivity) {
     if (item.kind === "plan") {
       shell.openPage(`/?prompt=${item.id}`);
-    } else if (item.kind === "writing") {
-      shell.openChannel(item.workspace_id!, item.channel_id!);
+    } else if (item.kind === "writing" || item.kind === "nudge") {
+      shell.openChannel(item.workspace_id!, item.channel_id!, true);
     } else {
       shell.openNote({
         workspaceId: item.workspace_id!,

@@ -19,6 +19,12 @@
     "0014_channel_publishing",
     "0015_wear_os",
     "0016_plan_end_prompts",
-    "0017_channel_tasks_pins"
+    "0017_channel_tasks_pins",
+    "0018_watch_live_sync",
+    "0019_plan_prompt_switch",
+    "0020_reminder_urgent",
+    "0021_writing_nudges",
+    "0022_image_previews",
+    "0023_message_history"
   ]
 }

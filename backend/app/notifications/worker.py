@@ -98,6 +98,7 @@ def dispatch_due(engine: Engine, origin: str, settings: Settings | None = None) 
                 payload,
                 origin=origin,
                 settings=settings,
+                urgent=reminder.urgent,
             )
         db.commit()
 
@@ -105,11 +106,13 @@ def dispatch_due(engine: Engine, origin: str, settings: Settings | None = None) 
 def dispatch_dismissals(engine: Engine, origin: str, settings: Settings | None = None) -> None:
     from app.publishing.models import WritingDelivery, WritingPrompt
     from app.schedule.prompts.models import PlanPrompt, PlanPromptDelivery
+    from app.writing_nudges.models import NudgeDelivery, WritingNudge
 
     with Session(engine) as db:
         for model, item, kind in (
             (NotificationDelivery, Reminder, "reminder"),
             (PlanPromptDelivery, PlanPrompt, "plan"),
             (WritingDelivery, WritingPrompt, "writing"),
+            (NudgeDelivery, WritingNudge, "writing"),
         ):
             dismiss_handled(db, model, item, kind, origin=origin, settings=settings)

@@ -15,13 +15,15 @@ class PromptResponse(BaseModel):
     planned_start: datetime
     planned_end: datetime | None = None
     phase: Literal["start", "end"] = "start"
+    switch_activity_id: UUID | None = None
+    switch_title: str | None = None
     notify_at: datetime
     status: str
     revision: int
 
 
 class PromptAction(BaseModel):
-    action: Literal["start", "stop", "delay", "other"]
+    action: Literal["start", "stop", "delay", "other", "switch"]
     revision: int = Field(ge=1)
     request_id: UUID
     minutes: Literal[5, 10, 15, 30, 60] | None = None

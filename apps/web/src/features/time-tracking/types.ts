@@ -1,3 +1,5 @@
+import type { WritingNudgeSettings } from "../writing-nudges/types";
+
 export const activityIcons = [
   "Code2",
   "BookOpen",
@@ -19,6 +21,7 @@ export interface Activity {
   archived: boolean;
   position: number;
   revision: number;
+  writing_nudge?: WritingNudgeSettings | null;
 }
 export interface TimeSession {
   id: string;

@@ -3,6 +3,7 @@ export interface ReminderSchedule {
   due_at: string;
   timezone: string;
   repeat: RepeatRule;
+  urgent?: boolean;
 }
 export interface Reminder extends ReminderSchedule {
   status: "active" | "done";

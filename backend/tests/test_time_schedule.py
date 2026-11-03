@@ -132,6 +132,49 @@ def test_schedule_repeats_overrides_and_preferences(owner: TestClient) -> None:
     )
 
 
+def test_deleted_plan_restores_with_its_exceptions(owner: TestClient) -> None:
+    item = activity(owner)
+    plan = {
+        "activity_id": item["id"],
+        "title": "Weekly review",
+        "date": "2026-10-19",
+        "start_minute": 540,
+        "end_minute": 600,
+        "timezone": "UTC",
+        "frequency": "weekly",
+        "weekdays": [0],
+    }
+    created = owner.post(f"{API}/schedule/plans", json=plan).json()
+    path = f"{API}/schedule/plans/{created['id']}"
+    moved = owner.put(
+        path,
+        json={
+            **plan,
+            "date": "2026-10-26",
+            "start_minute": 600,
+            "end_minute": 660,
+            "scope": "occurrence",
+            "occurrence_date": "2026-10-26",
+            "revision": 1,
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    week = {"start": "2026-10-26T00:00:00Z", "end": "2026-11-02T00:00:00Z"}
+    assert len(owner.get(f"{API}/schedule", params=week).json()["plans"]) == 1
+    deleted = owner.delete(path, params={"revision": moved.json()["revision"]}).json()
+    assert owner.get(f"{API}/schedule", params=week).json()["plans"] == []
+    assert owner.post(f"{path}/restore", params={"revision": 1}).status_code == 409
+    restored = owner.post(f"{path}/restore", params={"revision": deleted["revision"]})
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["id"] == created["id"]
+    plans = owner.get(f"{API}/schedule", params=week).json()["plans"]
+    assert [(entry["start_minute"], entry["is_override"]) for entry in plans] == [(600, True)]
+    again = owner.post(f"{path}/restore", params={"revision": restored.json()["revision"]})
+    assert again.json()["revision"] == restored.json()["revision"]
+    missing = owner.post(f"{API}/schedule/plans/{uuid4()}/restore", params={"revision": 1})
+    assert missing.status_code == 404
+
+
 def test_upcoming_flags_exclude_completed_and_deleted(
     owner: TestClient, channel: dict[str, str]
 ) -> None:

@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import type { Note } from "../types";
+import type { NoteSelection } from "../hooks/use-note-selection";
 import { useAppearance } from "../../settings/appearance-context";
 import { noteGrouping } from "../grouping";
 import { NoteCard } from "./note-card";
@@ -11,6 +13,9 @@ interface NoteListProps {
   onCancelEdit: () => void;
   onDelete: (note: Note) => void;
   onOpenThread?: (id: string) => void;
+  /** Adds the selection gutter; `selectionTools` shows beside the first selected note. */
+  selection?: NoteSelection;
+  selectionTools?: ReactNode;
 }
 
 export function NoteList({
@@ -21,8 +26,13 @@ export function NoteList({
   onCancelEdit,
   onDelete,
   onOpenThread,
+  selection,
+  selectionTools,
 }: NoteListProps) {
   const { preferences } = useAppearance();
+  const firstSelected = selection
+    ? notes.find((note) => selection.selected.has(note.id))?.id
+    : undefined;
   return (
     <div className={`notes-list layout-${preferences.messageLayout}`}>
       {notes.map((note, index) => {
@@ -52,7 +62,8 @@ export function NoteList({
         return (
           <div
             key={note.id}
-            className={`note-entry ${startsGroup ? "note-group-start" : "note-group-follow"} ${startsNewDay ? "note-day-start" : ""}`}
+            className={`note-entry ${startsGroup ? "note-group-start" : "note-group-follow"} ${startsNewDay ? "note-day-start" : ""}${selection?.selected.has(note.id) ? " note-selected" : ""}`}
+            data-note-id={selection ? note.id : undefined}
           >
             {startsNewDay && (
               <div className="date-divider">
@@ -68,6 +79,17 @@ export function NoteList({
                 {timeLabel}
               </time>
             )}
+            {selection && (
+              <span
+                className="note-gutter"
+                role="checkbox"
+                aria-checked={selection.selected.has(note.id)}
+                aria-label={`Select note from ${timeLabel}`}
+                tabIndex={-1}
+                onPointerDown={(event) => selection.press(note.id, event)}
+              />
+            )}
+            {note.id === firstSelected && selectionTools}
             <NoteCard
               channelName={channelName}
               note={note}

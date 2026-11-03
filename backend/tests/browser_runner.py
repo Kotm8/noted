@@ -12,16 +12,13 @@ from uuid import uuid4
 from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import Session
 
 from alembic import command
-from app.auth.schemas import LoginRequest
-from app.auth.services.auth import AuthService
 from app.db.database import create_database_engine
+from tests.browser_state import reset_browser_state
 from tests.suites import browser_arguments
 
 ROOT = Path(__file__).resolve().parents[2]
-BROWSER_PASSWORD = "browser-test-password-only"
 
 
 def wait_until_ready(server: subprocess.Popen[bytes]) -> None:
@@ -77,15 +74,17 @@ def main() -> int:
             config.attributes["connection"] = connection
             command.upgrade(config, "head")
 
-        with Session(engine) as db:
-            AuthService(db).provision_owner(
-                LoginRequest.model_validate({"username": "ilya", "password": BROWSER_PASSWORD})
-            )
+        test_url = isolated_url.render_as_string(hide_password=False)
+        reset_browser_state(test_url, schema_name)
 
         environment = os.environ.copy()
-        environment["NOTED_DATABASE_URL"] = isolated_url.render_as_string(hide_password=False)
+        environment["NOTED_DATABASE_URL"] = test_url
+        environment["NOTED_BROWSER_TEST_SCHEMA"] = schema_name
+        environment["NOTED_BROWSER_TEST_PYTHON"] = sys.executable
         environment["PLAYWRIGHT_BROWSERS_PATH"] = str(ROOT / ".local/browsers")
         environment["NOTED_STORAGE_PATH"] = temporary_storage.name
+        environment["NOTED_BACKUP_PATH"] = str(Path(temporary_storage.name) / ".backups")
+        environment["NOTED_LOGIN_ATTEMPTS_PER_MINUTE"] = "1000"
         server = subprocess.Popen(
             [
                 sys.executable,

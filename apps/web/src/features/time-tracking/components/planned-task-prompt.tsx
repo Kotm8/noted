@@ -15,11 +15,13 @@ import type { Activity } from "../types";
 
 export function PlannedTaskPrompt({
   prompt,
+  together = [],
   activities,
   timezone,
   close,
 }: {
   prompt: PlanPrompt;
+  together?: PlanPrompt[];
   activities: Activity[];
   timezone: string;
   close: () => void;
@@ -34,6 +36,8 @@ export function PlannedTaskPrompt({
   );
   const [activityId, setActivityId] = useState(alternatives[0]?.id ?? "");
   const action = usePromptAction(prompt);
+  const activityName = (id: string | null | undefined) =>
+    activities.find((item) => item.id === id)?.name ?? "Planned activity";
   const ready =
     (reason === "custom" ? custom.trim() : reason).length > 0 &&
     (mode !== "other" || activityId !== "");
@@ -56,10 +60,13 @@ export function PlannedTaskPrompt({
           <X size={14} />
         </button>
       </header>
-      <strong>{prompt.title}</strong>
+      <strong>
+        {[prompt.title, ...together.map((item) => item.title)].join(" · ")}
+      </strong>
       <p>
-        {activities.find((item) => item.id === prompt.activity_id)?.name ??
-          "Planned activity"}{" "}
+        {[prompt, ...together]
+          .map((item) => activityName(item.activity_id))
+          .join(" or ")}{" "}
         <span>
           · {ended ? "Ended at " : ""}
           {new Date(
@@ -87,8 +94,35 @@ export function PlannedTaskPrompt({
             }
           >
             {ended ? <Square size={14} /> : <Play size={14} />}
-            {ended ? "No activity" : "Start activity"}
+            {ended
+              ? "No activity"
+              : together.length
+                ? `Start ${activityName(prompt.activity_id)}`
+                : "Start activity"}
           </Button>
+          {together.map((item) => (
+            <StartInstead
+              key={item.id}
+              prompt={item}
+              label={`Start ${activityName(item.activity_id)}`}
+              disabled={action.isPending}
+              close={close}
+            />
+          ))}
+          {ended && prompt.switch_activity_id && (
+            <Button
+              size="small"
+              variant="secondary"
+              disabled={action.isPending}
+              title={prompt.switch_title ?? undefined}
+              onClick={() =>
+                action.mutate({ action: "switch" }, { onSuccess: close })
+              }
+            >
+              <RefreshCw size={14} />
+              Switch to {activityName(prompt.switch_activity_id)}
+            </Button>
+          )}
           <Button
             size="small"
             variant="secondary"
@@ -214,5 +248,30 @@ export function PlannedTaskPrompt({
       )}
       {action.isError && <Notice tone="error">{action.error.message}</Notice>}
     </section>
+  );
+}
+
+/** Starts one of the other plans that begin at the same time, answering the whole prompt. */
+function StartInstead({
+  prompt,
+  label,
+  disabled,
+  close,
+}: {
+  prompt: PlanPrompt;
+  label: string;
+  disabled: boolean;
+  close: () => void;
+}) {
+  const action = usePromptAction(prompt);
+  return (
+    <Button
+      size="small"
+      disabled={disabled || action.isPending}
+      onClick={() => action.mutate({ action: "start" }, { onSuccess: close })}
+    >
+      <Play size={14} />
+      {label}
+    </Button>
   );
 }

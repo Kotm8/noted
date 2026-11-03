@@ -10,6 +10,7 @@ from app.core.errors import ConflictError
 from app.dependencies.auth import get_current_session
 from app.dependencies.config import get_settings
 from app.dependencies.database import get_db
+from app.live import mark
 from app.notifications.android_schemas import (
     AndroidStatus,
     NativeReminderAction,
@@ -80,10 +81,13 @@ def status(
 @router.put("/config", response_model=AndroidStatus)
 def configure(
     data: FirebaseInput,
+    db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
     settings: Settings = Depends(get_settings),
 ) -> AndroidStatus:
     client = save_configuration(settings.storage_path, data)
+    mark(db, "settings", user=current.user.id, settings="server")
+    db.commit()
     return AndroidStatus(configured=True, project_id=client.project_id)
 
 

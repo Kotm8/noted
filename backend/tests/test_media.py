@@ -45,16 +45,22 @@ def test_uploads_preserve_gifs_and_protect_downloads(
     assert second["preview_url"] is None
     assert "storage_key" not in first
     preview = owner.get(first["preview_url"])
-    assert preview.content == image
+    assert preview.headers["content-type"] == "image/webp"
     assert Image.open(BytesIO(preview.content)).n_frames == 2
+    original = owner.get(first["original_url"])
+    assert original.content == image
+    assert original.headers["content-type"] == "image/gif"
+    assert preview.headers["cache-control"] == "private, max-age=31536000, immutable"
     download = owner.get(second["download_url"])
     assert download.content == b"keep this"
     assert download.headers["content-type"] == "application/octet-stream"
+    assert download.headers["cache-control"] == "no-store"
     assert "attachment;" in download.headers["content-disposition"]
     assert owner.get(f"{API}/attachments/{second['id']}/preview").status_code == 404
     assert owner.get(f"{API}/channels/{channel['id']}/messages").json()["items"][0] == note
     with TestClient(app, base_url="http://localhost") as anonymous:
         assert anonymous.get(first["preview_url"]).status_code == 401
+        assert anonymous.get(first["original_url"]).status_code == 401
         assert anonymous.get(second["download_url"]).status_code == 401
     assert owner.delete(f"{API}/messages/{note['id']}").status_code == 204
     assert owner.get(first["preview_url"]).status_code == 404
@@ -86,10 +92,14 @@ def test_workspace_image_can_be_replaced_and_removed(
     response = owner.put(path, files={"file": ("icon.gif", animated_gif(), "image/gif")})
     assert response.status_code == 200
     first_url = response.json()["icon_url"]
-    assert Image.open(BytesIO(owner.get(first_url).content)).n_frames == 2
+    icon = owner.get(first_url)
+    assert Image.open(BytesIO(icon.content)).n_frames == 2
+    assert icon.headers["cache-control"] == "private, max-age=31536000, immutable"
+    assert owner.get(path).headers["cache-control"] == "no-store"
     response = owner.put(path, files={"file": ("new.gif", animated_gif(), "image/gif")})
     assert response.status_code == 200
     assert response.json()["icon_url"] != first_url
+    assert owner.get(first_url).headers["cache-control"] == "no-store"
     assert len([file for file in app.state.settings.storage_path.rglob("*") if file.is_file()]) == 1
     invalid = owner.put(path, files={"file": ("bad.svg", b"<svg></svg>", "image/svg+xml")})
     assert invalid.status_code == 422

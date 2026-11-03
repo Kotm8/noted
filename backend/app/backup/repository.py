@@ -8,6 +8,7 @@ from app.core.errors import ContentTooLargeError
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
 from app.notes.models import Attachment, Message
+from app.notes.versions.models import MessageVersion
 from app.publishing.models import ScheduledMessage, WritingPrompt
 from app.reminders.models import Reminder
 from app.schedule.models import ScheduleException, SchedulePlan
@@ -89,6 +90,9 @@ class BackupRepository:
             "messages": select(Message.__table__).where(Message.id.in_(messages)),
             "attachments": select(Attachment.__table__).where(Attachment.message_id.in_(messages)),
             "reminders": select(Reminder.__table__).where(Reminder.message_id.in_(messages)),
+            "message_versions": select(MessageVersion.__table__)
+            .where(MessageVersion.message_id.in_(messages))
+            .order_by(MessageVersion.replaced_at),
             "journals": select(JournalEntry.__table__).where(JournalEntry.channel_id.in_(channels)),
             "documents": select(ChannelDocument.__table__).where(
                 ChannelDocument.channel_id.in_(channels)
@@ -105,4 +109,9 @@ class BackupRepository:
         return result
 
     def clear(self, owner_id: UUID) -> None:
+        from app.live import mark
+
+        mark(self.db, "structure", user=owner_id)
+        mark(self.db, "reminders", user=owner_id)
+        mark(self.db, "publishing", user=owner_id)
         self.db.execute(delete(Workspace).where(Workspace.owner_id == owner_id))

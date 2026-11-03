@@ -16,6 +16,7 @@ from app.notifications.models import (
     NotificationKey,
     PushSubscription,
 )
+from app.notifications.quiet import in_quiet_hours
 from app.notifications.schemas import NotificationSettings
 from app.wear.models import WatchDevice
 
@@ -80,11 +81,22 @@ def deliver(
     settings: Settings | None,
     max_attempts: int = 8,
     ttl: int = 86400,
+    silent: bool = False,
+    urgent: bool = False,
 ) -> None:
-    """Send one revision of a notification to its target device, at most once each."""
+    """Send one revision of a notification to its target device, at most once each.
+
+    ``silent`` records it as delivered without sending, for an item another notification
+    already covers. During quiet hours nothing is sent or recorded, so the worker sends it
+    once they end, unless it is ``urgent``.
+    """
     now = utc_now()
+    if not silent and not urgent and in_quiet_hours(db, user_id, preferences, now):
+        return
     key = db.get(NotificationKey, 1)
     targets, quiet = delivery_targets(db, user_id, preferences)
+    if silent:
+        targets, quiet = [], targets + quiet
     item = getattr(model, model.item_key) == item_id
     existing = {
         row.subscription_id: row

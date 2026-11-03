@@ -7,6 +7,7 @@ from starlette.datastructures import UploadFile
 
 from app.auth.services.sessions import AuthenticatedSession
 from app.core.errors import ValidationError
+from app.core.middleware import IMMUTABLE_CACHE
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.dependencies.storage import get_storage
@@ -46,13 +47,21 @@ async def clear_workspace_icon(
 @router.get("/workspaces/{workspace_id}/icon")
 async def get_workspace_icon(
     workspace_id: UUID,
+    v: str | None = None,
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
     storage: FileStorage = Depends(get_storage),
 ) -> StreamingResponse:
     workspace = await WorkspaceIconService(db, storage).get_icon(workspace_id, current.user.id)
+    key = workspace.icon_storage_key or ""
+    # Only the versioned address apps use is kept; a bare or outdated one must keep
+    # showing whichever icon is current.
+    current_version = v is not None and v == key.split("/")[-1]
     return StreamingResponse(
-        storage.read(workspace.icon_storage_key or ""),
+        storage.read(key),
         media_type=workspace.icon_content_type,
-        headers={"Content-Length": str(workspace.icon_size or 0)},
+        headers={
+            "Content-Length": str(workspace.icon_size or 0),
+            "Cache-Control": IMMUTABLE_CACHE if current_version else "no-store",
+        },
     )

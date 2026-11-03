@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PenLine, X } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +9,7 @@ export function WritingPromptBanner({ channelId }: { channelId: string }) {
   const query = useQuery({
     queryKey: ["publishing", "writing", channelId],
     queryFn: () => publishingApi.writing(channelId),
-    refetchInterval: 10000,
+    refetchInterval: () => liveInterval(10000),
   });
   const dismiss = useMutation({
     mutationFn: () => publishingApi.dismiss(channelId, query.data!.revision),

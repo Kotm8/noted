@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("watch preferences persist and show a matching preview without requiring Firebase", async ({
   page,

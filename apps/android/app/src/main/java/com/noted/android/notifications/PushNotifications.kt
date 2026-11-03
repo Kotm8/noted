@@ -87,39 +87,42 @@ object PushNotifications {
             val binding = PushState(context).read()?.optString("binding")
             val minutes =
                 payload.optInt("snoozeMinutes", 5).takeIf { it in listOf(5, 10, 15, 30, 60) } ?: 5
-            for (action in listOf(if (ended) "plan_stop" else "plan_start", "plan_delay")) {
+            val mutable =
+                if (android.os.Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
+            fun planButton(
+                action: String,
+                promptId: String,
+                promptRevision: Int,
+                label: String,
+            ): NotificationCompat.Action {
+                val asksReason = action == "plan_delay" && !ended
                 val intent =
                     Intent(context, PushActionReceiver::class.java)
                         .setData(
                             Uri.parse(
-                                "noted-action://$action/$identity/$revision?origin=${Uri.encode(origin)}",
+                                "noted-action://$action/$promptId/$promptRevision?origin=${Uri.encode(origin)}",
                             ),
                         )
                         .putExtra("origin", origin)
-                        .putExtra("prompt_id", identity)
-                        .putExtra("revision", revision)
+                        .putExtra("prompt_id", promptId)
+                        .putExtra("revision", promptRevision)
+                        .putExtra("shown_revision", revision)
                         .putExtra("action", action)
                         .putExtra("minutes", minutes)
                         .putExtra("tag", tag)
                         .putExtra("binding", binding)
                 if (ended && action == "plan_delay")
                     intent.putExtra("reason", "Finishing up current task")
-                val mutable =
-                    if (android.os.Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
                 val flags =
                     PendingIntent.FLAG_UPDATE_CURRENT or
-                        (if (action == "plan_delay" && !ended) mutable
-                        else PendingIntent.FLAG_IMMUTABLE)
-                val pending = PendingIntent.getBroadcast(context, 0, intent, flags)
+                        (if (asksReason) mutable else PendingIntent.FLAG_IMMUTABLE)
                 val button =
                     NotificationCompat.Action.Builder(
                         0,
-                        if (action == "plan_stop") "No activity"
-                        else if (action == "plan_start") "Start"
-                        else if (ended) "Snooze ${minutes}m" else "Delay ${minutes}m",
-                        pending,
+                        label,
+                        PendingIntent.getBroadcast(context, 0, intent, flags),
                     )
-                if (action == "plan_delay" && !ended)
+                if (asksReason)
                     button.addRemoteInput(
                         RemoteInput.Builder("reason")
                             .setLabel("Reason for delaying")
@@ -133,8 +136,48 @@ object PushNotifications {
                             .setAllowFreeFormInput(true)
                             .build(),
                     )
-                builder.addAction(button.build())
+                return button.build()
             }
+            // Plans starting together get a Start button each; Delay moves into More options.
+            val alternatives =
+                payload.optJSONArray("alternatives")?.let { list ->
+                    (0 until list.length()).mapNotNull { list.optJSONObject(it) }.filter {
+                        runCatching { UUID.fromString(it.optString("promptId")) }.isSuccess &&
+                            it.optInt("revision") > 0
+                    }
+                } ?: emptyList()
+            val switchName =
+                payload
+                    .optString("switchActivityName")
+                    .takeIf { ended && !payload.isNull("switchActivityName") && it.isNotBlank() }
+            val buttons = mutableListOf<NotificationCompat.Action>()
+            if (ended) {
+                buttons += planButton("plan_stop", identity, revision, "No activity")
+                if (switchName != null)
+                    buttons +=
+                        planButton(
+                            "plan_switch",
+                            identity,
+                            revision,
+                            "Switch to ${switchName.take(40)}",
+                        )
+                buttons += planButton("plan_delay", identity, revision, "Snooze ${minutes}m")
+            } else if (alternatives.isEmpty()) {
+                buttons += planButton("plan_start", identity, revision, "Start")
+                buttons += planButton("plan_delay", identity, revision, "Delay ${minutes}m")
+            } else {
+                val name = payload.optString("activityName").take(40)
+                buttons += planButton("plan_start", identity, revision, "Start $name")
+                for (other in alternatives.take(1))
+                    buttons +=
+                        planButton(
+                            "plan_start",
+                            other.getString("promptId"),
+                            other.getInt("revision"),
+                            "Start ${other.optString("activityName").take(40)}",
+                        )
+            }
+            buttons.forEach(builder::addAction)
             val more =
                 Intent(context, PlanPromptActivity::class.java)
                     .setData(
@@ -143,16 +186,17 @@ object PushNotifications {
                     .putExtra("origin", origin)
                     .putExtra("prompt_id", identity)
                     .putExtra("binding", binding)
-            builder.addAction(
-                0,
-                "More options",
-                PendingIntent.getActivity(
-                    context,
+            if (buttons.size < 3)
+                builder.addAction(
                     0,
-                    more,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                ),
-            )
+                    "More options",
+                    PendingIntent.getActivity(
+                        context,
+                        0,
+                        more,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    ),
+                )
             runCatching {
                 val time =
                     java.time.OffsetDateTime.parse(

@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { trackingApi } from "./api";
@@ -8,13 +9,13 @@ export function useTracking() {
   const tracker = useQuery({
     queryKey: ["time-tracker"],
     queryFn: trackingApi.tracker,
-    refetchInterval: 5000,
+    refetchInterval: () => liveInterval(5000),
     refetchOnWindowFocus: "always",
   });
   const activities = useQuery({
     queryKey: ["activities"],
     queryFn: trackingApi.activities,
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
   });
   const action = useMutation({
     mutationFn: ({

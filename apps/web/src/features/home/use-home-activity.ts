@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { request } from "../../lib/http";
@@ -8,7 +9,7 @@ export function useHomeActivity(limit: number) {
   const query = useQuery({
     queryKey: ["home-activity", limit],
     queryFn: () => request<HomeActivityPage>(`/home/activity?limit=${limit}`),
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
     refetchOnWindowFocus: "always",
   });
   const read = useMutation({

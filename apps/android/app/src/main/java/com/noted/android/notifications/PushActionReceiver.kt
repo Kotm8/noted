@@ -18,7 +18,11 @@ class PushActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val origin = intent.getStringExtra("origin") ?: return
         val action = intent.getStringExtra("action") ?: return
-        if (action !in listOf("done", "snooze", "plan_start", "plan_stop", "plan_delay")) return
+        if (
+            action !in
+                listOf("done", "snooze", "plan_start", "plan_stop", "plan_delay", "plan_switch")
+        )
+            return
         val id =
             intent.getStringExtra(if (action.startsWith("plan_")) "prompt_id" else "message_id")
                 ?: return
@@ -32,9 +36,10 @@ class PushActionReceiver : BroadcastReceiver() {
         if (action == "plan_delay" && reason.isNullOrBlank()) return
         val revision = intent.getIntExtra("revision", 0)
         if (revision <= 0) return
-        intent.getStringExtra("tag")?.let {
-            PushNotifications.cancelRevision(context, it, revision)
-        }
+        // A Start button for another plan in a shared notification carries that plan's
+        // revision; the notification itself is cleared by the revision it was shown with.
+        val shown = intent.getIntExtra("shown_revision", revision)
+        intent.getStringExtra("tag")?.let { PushNotifications.cancelRevision(context, it, shown) }
         val data =
             Data.Builder()
                 .putString("origin", origin)
@@ -42,6 +47,7 @@ class PushActionReceiver : BroadcastReceiver() {
                 .putString("binding", intent.getStringExtra("binding"))
                 .putString("action", action)
                 .putInt("revision", revision)
+                .putInt("shown_revision", shown)
                 .putString("reason", reason)
                 .putString("request_id", UUID.randomUUID().toString())
                 .putString("requested_at", java.time.Instant.now().toString())

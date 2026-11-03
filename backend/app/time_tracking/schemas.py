@@ -1,9 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.writing_nudges.schemas import WritingNudgeSettings
 
 ActivityIcon = Literal[
     "Code2",
@@ -31,6 +33,7 @@ class ActivityCreate(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     icon: ActivityIcon = "Activity"
     color: str = Field(default="#e2c15a", pattern=r"^#[0-9a-fA-F]{6}$")
+    writing_nudge: WritingNudgeSettings | None = None
 
     @field_validator("name")
     @classmethod
@@ -104,3 +107,5 @@ class TrackerAction(BaseModel):
     activity_id: UUID | None = None
     revision: int = Field(ge=1)
     request_id: UUID
+    plan_id: UUID | None = None
+    occurrence_date: date | None = None

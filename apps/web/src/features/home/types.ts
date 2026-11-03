@@ -1,5 +1,5 @@
 export interface HomeActivity {
-  kind: "reminder" | "plan" | "writing";
+  kind: "reminder" | "plan" | "writing" | "nudge";
   id: string;
   revision: number;
   title: string;

@@ -7,6 +7,7 @@ import { isAndroidApp } from "./android";
 import { AndroidNotificationsPanel } from "./android-notifications-panel";
 import { DevicePushControls } from "./device-push-controls";
 import { Select } from "../../components/ui/select";
+import { TimeField } from "../schedule/components/time-field";
 
 export function NotificationsPanel() {
   const client = useQueryClient();
@@ -103,6 +104,51 @@ export function NotificationsPanel() {
               }
             />
           </label>
+          <fieldset className="quiet-hours">
+            <label className="notification-enabled">
+              <input
+                type="checkbox"
+                checked={settings.data.quiet_hours ?? false}
+                onChange={(event) =>
+                  save.mutate({
+                    ...settings.data!,
+                    quiet_hours: event.target.checked,
+                  })
+                }
+              />
+              Quiet hours
+            </label>
+            {settings.data.quiet_hours && (
+              <div className="quiet-hours-times">
+                <TimeField
+                  label="From"
+                  value={settings.data.quiet_start_minute ?? 1320}
+                  onChange={(minute) => {
+                    if (minute !== (settings.data!.quiet_end_minute ?? 480))
+                      save.mutate({
+                        ...settings.data!,
+                        quiet_start_minute: minute,
+                      });
+                  }}
+                />
+                <TimeField
+                  label="Until"
+                  value={settings.data.quiet_end_minute ?? 480}
+                  onChange={(minute) => {
+                    if (minute !== (settings.data!.quiet_start_minute ?? 1320))
+                      save.mutate({
+                        ...settings.data!,
+                        quiet_end_minute: minute,
+                      });
+                  }}
+                />
+              </div>
+            )}
+            <small className="settings-hint">
+              Notifications wait on every device, including the watch, and
+              arrive when quiet hours end. Times use your calendar timezone.
+            </small>
+          </fieldset>
           <p className="settings-hint" role="status">
             {save.isPending ? "Saving..." : ""}
           </p>

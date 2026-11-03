@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { CalendarDays, House, Inbox, Settings } from "lucide-react";
+import { StillImage } from "../../../components/ui/still-image";
 import { TimeTracker } from "../../time-tracking/components/tracker";
 import { Button } from "../../../components/ui/button";
 import { useCategoryCollapse } from "../hooks/use-category-collapse";
@@ -61,6 +63,7 @@ export function ChannelSidebar({
     (channel) => channel.category_id === null,
   );
   const isEmpty = !channels.length && !categories.length;
+  const [hoveredProject, setHoveredProject] = useState<string | null>(null);
 
   return (
     <aside className="channel-sidebar" aria-label="Channels">
@@ -77,20 +80,18 @@ export function ChannelSidebar({
           <House size={17} />
           Home
         </button>
+        <button
+          aria-current={scheduleActive ? "page" : undefined}
+          onClick={onSchedule}
+        >
+          <CalendarDays size={17} />
+          Calendar
+        </button>
         {(homeActive || scheduleActive) && (
-          <>
-            <button
-              aria-current={scheduleActive ? "page" : undefined}
-              onClick={onSchedule}
-            >
-              <CalendarDays size={17} />
-              Calendar
-            </button>
-            <button onClick={onMissed}>
-              <Inbox size={17} />
-              Missed activity
-            </button>
-          </>
+          <button onClick={onMissed}>
+            <Inbox size={17} />
+            Missed activity
+          </button>
         )}
       </div>
 
@@ -105,10 +106,21 @@ export function ChannelSidebar({
           <div className="home-project-navigation">
             <span className="home-project-label">Projects</span>
             {workspaces.map((item) => (
-              <button key={item.id} onClick={() => onWorkspace(item)}>
+              <button
+                key={item.id}
+                onClick={() => onWorkspace(item)}
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "mouse") setHoveredProject(item.id);
+                }}
+                onPointerLeave={() => setHoveredProject(null)}
+              >
                 <span className="home-project-icon" aria-hidden="true">
                   {item.icon_url ? (
-                    <img src={item.icon_url} alt="" />
+                    <StillImage
+                      src={item.icon_url}
+                      alt=""
+                      playing={hoveredProject === item.id}
+                    />
                   ) : (
                     item.icon
                   )}

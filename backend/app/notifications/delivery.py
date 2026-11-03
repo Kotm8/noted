@@ -18,12 +18,19 @@ def send_push(
     ttl: int = 86400,
     settings: Settings | None = None,
     urgent: bool = True,
+    collapse_key: str | None = None,
 ) -> Literal["accepted", "expired", "failed"]:
     if subscription.endpoint.startswith("fcm:"):
         if settings is None:
             return "failed"
         return send_firebase(
-            subscription.endpoint, settings.storage_path, origin, payload, ttl, urgent=urgent
+            subscription.endpoint,
+            settings.storage_path,
+            origin,
+            payload,
+            ttl,
+            urgent=urgent,
+            collapse_key=collapse_key,
         )
     vapid = import_module("py_vapid")
     push = import_module("pywebpush")

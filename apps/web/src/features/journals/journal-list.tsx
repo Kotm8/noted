@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import {
   useInfiniteQuery,
   useMutation,
@@ -36,16 +36,20 @@ export function JournalList({
     },
   });
   const entries = query.data?.pages.flat() ?? [];
+  const createFromEmptySpace = (event: MouseEvent) => {
+    if (event.target === event.currentTarget && !getSelection()?.toString())
+      setCreating(true);
+  };
   return (
     <>
-      <div className="journal-list-heading">
+      <div className="journal-list-heading" onClick={createFromEmptySpace}>
         <h2>Your entries</h2>
         <Button size="small" variant="ghost" onClick={() => setCreating(true)}>
           <Plus size={15} />
           New entry
         </Button>
       </div>
-      <div className="journal-entries">
+      <div className="journal-entries" onClick={createFromEmptySpace}>
         {query.isPending && <p className="settings-hint">Opening entries…</p>}
         {query.isError && (
           <Notice tone="error">
@@ -57,7 +61,7 @@ export function JournalList({
         )}
         {!query.isPending && !query.isError && !entries.length && (
           <p className="settings-hint">
-            Create a named entry, then open it to write.
+            Click anywhere to start a named entry, then write inside it.
           </p>
         )}
         {entries.map((entry) => (

@@ -468,3 +468,213 @@
   font-size: var(--font-sm);
   transform: translateX(-50%);
 }
+
+/* Selecting messages: only the gutter left of the times selects, and only the gutter of
+   the message under the pointer lights up. */
+.note-entry[data-note-id] {
+  position: relative;
+}
+.note-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  z-index: 1;
+  width: 18px;
+  cursor: pointer;
+  touch-action: none;
+}
+.note-gutter::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 7px;
+  width: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
+.note-gutter:hover::after {
+  background: var(--text-faint);
+}
+.note-entry:not(.note-selected):has(> .note-gutter:hover) > .note {
+  background: #ffffff08;
+}
+.note-selected > .note {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.note-selected > .note-gutter::after {
+  background: var(--accent);
+}
+.selection-tools {
+  position: absolute;
+  top: -14px;
+  right: 20px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-floating);
+  box-shadow: 0 8px 22px #0007;
+}
+.selection-tools strong {
+  padding: 0 8px;
+  color: var(--accent);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.note-selected > .note .note-actions {
+  display: none;
+}
+@media (max-width: 760px) {
+  .note-entry[data-note-id] > .note {
+    padding-left: 30px;
+  }
+  .note-gutter {
+    width: 26px;
+  }
+  .note-gutter::after {
+    left: 10px;
+  }
+  .selection-tools .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* The "edited" label and the edit history it opens. */
+.edit-history-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.edit-history-trigger:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.edit-history {
+  z-index: 110;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(480px, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-floating);
+  box-shadow: 0 16px 48px #0009;
+}
+.edit-history header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-floating);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+.edit-history ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.edit-history li {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.edit-history li:last-child {
+  border-bottom: 0;
+}
+.edit-history-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+}
+.edit-history-current .edit-history-time {
+  color: var(--accent);
+}
+.edit-history-time button {
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-xs);
+}
+.edit-history-time button:hover {
+  background: var(--surface-hover);
+}
+.edit-history-loading {
+  display: flex;
+  justify-content: center;
+}
+.edit-history-empty {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+}
+
+/* Messages written without a connection, waiting on this device. */
+.outgoing-note {
+  opacity: 0.65;
+}
+.outgoing-note .note-time {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+.outgoing-failed {
+  opacity: 1;
+}
+.outgoing-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+}
+.outgoing-failed .outgoing-status {
+  color: var(--danger);
+}
+.outgoing-status button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+.outgoing-status button:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.outgoing-files {
+  display: grid;
+  gap: 3px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.outgoing-files li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.outgoing-files small {
+  color: var(--text-faint);
+}

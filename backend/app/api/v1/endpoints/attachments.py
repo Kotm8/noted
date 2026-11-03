@@ -11,10 +11,12 @@ from starlette.datastructures import UploadFile
 
 from app.auth.services.sessions import AuthenticatedSession
 from app.core.errors import NotFoundError, ValidationError
+from app.core.middleware import IMMUTABLE_CACHE
 from app.core.storage_limits import MAX_FILES
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.dependencies.storage import get_storage
+from app.notes.images.service import ImagePreviewService
 from app.notes.models import Message
 from app.notes.ranges import UnsatisfiableRange, parse_byte_range
 from app.notes.schemas import MessageResponse
@@ -22,6 +24,7 @@ from app.notes.services.attachments import AttachmentService
 from app.notes.services.playback import PlaybackService
 from app.reminders.schemas import ReminderSchedule
 from app.storage.base import FileStorage
+from app.storage.media import IMAGE_TYPES
 
 router = APIRouter(tags=["attachments"])
 
@@ -36,8 +39,13 @@ async def upload_message(
     current: AuthenticatedSession = Depends(get_current_session),
     storage: FileStorage = Depends(get_storage),
 ) -> Message:
-    async with request.form(max_files=MAX_FILES, max_fields=2, max_part_size=160000) as form:
+    async with request.form(max_files=MAX_FILES, max_fields=3, max_part_size=160000) as form:
         content = form.get("content", "")
+        raw_client_id = form.get("client_id")
+        try:
+            client_id = UUID(raw_client_id) if isinstance(raw_client_id, str) else None
+        except ValueError:
+            raise ValidationError("Send a valid client id.") from None
         files = form.getlist("files")
         raw_reminder = form.get("reminder")
         try:
@@ -56,6 +64,7 @@ async def upload_message(
             content,
             [file for file in files if isinstance(file, UploadFile)],
             reminder,
+            client_id,
         )
 
 
@@ -86,12 +95,35 @@ async def preview_attachment(
     storage: FileStorage = Depends(get_storage),
 ) -> StreamingResponse:
     attachment = await AttachmentService(db, storage).get_attachment(attachment_id, current.user.id)
-    if attachment.content_type not in {"image/png", "image/jpeg", "image/gif", "image/webp"}:
-        raise NotFoundError("This file has no image preview")
+    attachment = await ImagePreviewService(db, storage).ensure(attachment)
+    if attachment.preview_storage_key is None or attachment.preview_size is None:
+        raise NotFoundError("The image preview is unavailable")
+    return StreamingResponse(
+        storage.read(attachment.preview_storage_key),
+        media_type="image/webp",
+        headers={"Content-Length": str(attachment.preview_size), "Cache-Control": IMMUTABLE_CACHE},
+    )
+
+
+@router.get("/attachments/{attachment_id}/original")
+async def original_image(
+    attachment_id: UUID,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+    storage: FileStorage = Depends(get_storage),
+) -> StreamingResponse:
+    attachment = await AttachmentService(db, storage).get_attachment(attachment_id, current.user.id)
+    if attachment.content_type not in IMAGE_TYPES.values():
+        raise NotFoundError("This file is not an image")
+    filename = quote(attachment.original_filename, safe="")
     return StreamingResponse(
         storage.read(attachment.storage_key),
         media_type=attachment.content_type,
-        headers={"Content-Length": str(attachment.size)},
+        headers={
+            "Content-Length": str(attachment.size),
+            "Cache-Control": IMMUTABLE_CACHE,
+            "Content-Disposition": f"inline; filename*=UTF-8''{filename}",
+        },
     )
 
 

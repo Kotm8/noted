@@ -9,6 +9,7 @@ class ReminderSchedule(BaseModel):
     due_at: AwareDatetime
     timezone: str = Field(default="UTC", max_length=64)
     repeat: Literal["none", "daily", "weekdays", "weekly"] = "none"
+    urgent: bool = False
 
     @field_validator("timezone")
     @classmethod

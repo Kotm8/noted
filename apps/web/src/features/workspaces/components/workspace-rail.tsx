@@ -1,4 +1,6 @@
-import { CalendarDays, House, Plus } from "lucide-react";
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { StillImage } from "../../../components/ui/still-image";
 import { DebugTrigger } from "../../debug/debug-trigger";
 import type { Workspace } from "../types";
 
@@ -8,10 +10,6 @@ interface WorkspaceRailProps {
   pendingId?: string;
   onSelect: (workspace: Workspace) => void;
   onCreate: () => void;
-  onHome: () => void;
-  homeActive: boolean;
-  onCalendar: () => void;
-  calendarActive: boolean;
 }
 
 export function WorkspaceRail({
@@ -20,34 +18,14 @@ export function WorkspaceRail({
   pendingId,
   onSelect,
   onCreate,
-  onHome,
-  homeActive,
-  onCalendar,
-  calendarActive,
 }: WorkspaceRailProps) {
+  const [hovered, setHovered] = useState<string | null>(null);
   return (
     <nav className="workspace-rail" aria-label="Workspaces">
       <DebugTrigger />
       <span className="rail-divider" />
 
       <div className="workspace-buttons">
-        <button
-          className={`workspace-button ${homeActive ? "workspace-selected" : ""}`}
-          aria-label="Home"
-          aria-current={homeActive ? "page" : undefined}
-          onClick={onHome}
-        >
-          <House size={20} />
-        </button>
-        <button
-          className={`workspace-button ${calendarActive ? "workspace-selected" : ""}`}
-          aria-label="Calendar"
-          title="Calendar"
-          aria-current={calendarActive ? "page" : undefined}
-          onClick={onCalendar}
-        >
-          <CalendarDays size={20} />
-        </button>
         {workspaces.map((workspace) => (
           <button
             key={workspace.id}
@@ -57,9 +35,17 @@ export function WorkspaceRail({
             aria-busy={workspace.id === pendingId || undefined}
             className={`workspace-button ${workspace.id === selectedId ? "workspace-selected" : ""}`}
             onClick={() => onSelect(workspace)}
+            onPointerEnter={(event) => {
+              if (event.pointerType === "mouse") setHovered(workspace.id);
+            }}
+            onPointerLeave={() => setHovered(null)}
           >
             {workspace.icon_url ? (
-              <img src={workspace.icon_url} alt="" />
+              <StillImage
+                src={workspace.icon_url}
+                alt=""
+                playing={hovered === workspace.id}
+              />
             ) : (
               workspace.icon
             )}

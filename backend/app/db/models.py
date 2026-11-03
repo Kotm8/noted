@@ -1,8 +1,10 @@
 from app.auth.models import AuthThrottle, Installation, LoginSession, User
 from app.db.base import Base
 from app.journals.models import JournalEntry
+from app.live.models import WatchSyncState
 from app.notes.documents.models import ChannelDocument
 from app.notes.models import Attachment, Message
+from app.notes.versions.models import MessageVersion
 from app.notifications.models import (
     AndroidPairing,
     DevicePresence,
@@ -17,9 +19,11 @@ from app.schedule.prompts.models import PlanPrompt, PlanPromptDelivery, PlanProm
 from app.time_tracking.models import Activity, TimeSession, TrackerState
 from app.wear.models import WatchDevice, WatchPairing
 from app.workspaces.models import Category, Channel, Workspace
+from app.writing_nudges.models import NudgeDelivery, WritingNudge, WritingNudgeRun
 
 __all__ = [
     "Base",
+    "MessageVersion",
     "Installation",
     "User",
     "LoginSession",
@@ -50,4 +54,8 @@ __all__ = [
     "WritingDelivery",
     "WatchDevice",
     "WatchPairing",
+    "WatchSyncState",
+    "NudgeDelivery",
+    "WritingNudge",
+    "WritingNudgeRun",
 ]

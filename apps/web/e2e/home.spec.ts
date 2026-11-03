@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function api(page: Page, path: string, method = "GET", body?: unknown) {
   return page.evaluate(
@@ -72,9 +72,12 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
     { name: "reading", kind: "reminder" },
   );
   const tracker = await api(page, "/time-tracking/tracker");
+  // The whole day, so the plan made at the current time is on screen at any hour.
   await api(page, "/time-tracking/preferences", "PUT", {
     ...tracker.preferences,
     timezone: "UTC",
+    start_minute: 0,
+    end_minute: 1440,
     revision: tracker.revision,
   });
   const now = new Date(tracker.server_time);
@@ -137,7 +140,7 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
       .first(),
   ).toBeVisible();
   await page
-    .locator(".workspace-rail")
+    .locator(".sidebar-global-navigation")
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page
@@ -148,7 +151,7 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
     page.getByRole("heading", { name: "reading", exact: true }),
   ).toBeVisible();
   await page
-    .locator(".workspace-rail")
+    .locator(".sidebar-global-navigation")
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page
@@ -157,7 +160,7 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
     .click();
   await expect(page.locator(`#note-${message.id}`)).toBeVisible();
   await page
-    .locator(".workspace-rail")
+    .locator(".sidebar-global-navigation")
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page.screenshot({

@@ -22,8 +22,9 @@ export const trackingApi = {
       ...data,
       revision,
     }),
-  createActivity: (data: Pick<Activity, "name" | "icon" | "color">) =>
-    request<Activity>("/time-tracking/activities", "POST", data),
+  createActivity: (
+    data: Pick<Activity, "name" | "icon" | "color" | "writing_nudge">,
+  ) => request<Activity>("/time-tracking/activities", "POST", data),
   updateActivity: (data: Activity) =>
     request<Activity>(`/time-tracking/activities/${data.id}`, "PUT", data),
   reorder: (ids: string[]) =>

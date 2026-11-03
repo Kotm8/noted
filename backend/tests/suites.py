@@ -5,6 +5,8 @@ import subprocess
 import sys
 
 BACKEND_SMOKE = (
+    "tests/test_browser_state.py",
+    "tests/test_live.py",
     "tests/test_auth.py",
     "tests/test_owner_provisioning.py",
     "tests/test_sessions.py",

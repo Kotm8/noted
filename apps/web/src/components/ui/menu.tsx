@@ -33,15 +33,18 @@ export function MenuItem({
   children,
   onSelect,
   danger = false,
+  disabled = false,
 }: {
   children: ReactNode;
   onSelect: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <DropdownMenu.Item
       className={`dropdown-item ${danger ? "text-danger" : ""}`}
       onSelect={onSelect}
+      disabled={disabled}
     >
       {children}
     </DropdownMenu.Item>

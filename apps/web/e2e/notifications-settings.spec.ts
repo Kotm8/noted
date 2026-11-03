@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("skipped Android setup can be completed in settings and unlocks phone controls", async ({
   page,
@@ -28,6 +28,22 @@ test("skipped Android setup can be completed in settings and unlocks phone contr
   await dialog
     .getByRole("button", { name: "Notifications", exact: true })
     .click();
+  const quiet = dialog.getByRole("checkbox", { name: "Quiet hours" });
+  await quiet.click();
+  await expect(quiet).toBeChecked();
+  const from = dialog.getByLabel("From", { exact: true });
+  await expect(from).toHaveValue("22:00");
+  await from.fill("23:30");
+  await from.press("Enter");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        fetch("/api/v1/notifications/settings").then((response) =>
+          response.json(),
+        ),
+      ),
+    )
+    .toMatchObject({ quiet_hours: true, quiet_start_minute: 1410 });
   const android = dialog.getByRole("region", {
     name: "Android notifications",
     exact: true,

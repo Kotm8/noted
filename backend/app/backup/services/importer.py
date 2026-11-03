@@ -14,6 +14,7 @@ from app.core.security import utc_now
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
 from app.notes.models import Attachment, Message
+from app.notes.versions.models import MessageVersion
 from app.publishing.models import ScheduledMessage, WritingPrompt
 from app.publishing.recurrence import next_occurrence
 from app.reminders.models import Reminder
@@ -165,6 +166,10 @@ class BackupImporter:
                     )
                 )
             for message in data.messages:
+                for earlier in message.versions:
+                    self.db.add(
+                        MessageVersion(message_id=identifiers[message.id], **earlier.model_dump())
+                    )
                 if message.reminder:
                     self.db.add(
                         Reminder(

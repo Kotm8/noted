@@ -6,14 +6,28 @@ from sqlalchemy.orm import Session
 
 from app.backup.schemas import BackupContent
 from app.core.errors import ConflictError, ValidationError
+from app.live import mark
 from app.schedule.models import ScheduleException, SchedulePlan
 from app.schedule.prompts.models import PlanPromptEvent
 from app.schedule.recurrence import occurs_on
 from app.time_tracking.models import Activity, TimeSession
 from app.time_tracking.repository import TrackingRepository
+from app.writing_nudges.models import WritingNudge, WritingNudgeRun
+from app.writing_nudges.schemas import WritingNudgeSettings
 
 
 def validate_tracking(data: BackupContent) -> None:
+    channels = {item.id for item in data.channels}
+    for config in [
+        *[item.writing_nudge for item in data.activities],
+        *[item.writing_nudge for item in data.schedule_plans],
+        *[item.writing_nudge for item in data.schedule_exceptions],
+    ]:
+        if config is not None:
+            if data.version < 8:
+                raise ValidationError("Writing nudges require a version 8 backup")
+            if config.channel_id is not None and config.channel_id not in channels:
+                raise ValidationError("A writing nudge references an unknown channel")
     if data.version < 3 and (
         data.activities or data.time_sessions or data.schedule_plans or data.schedule_exceptions
     ):
@@ -64,11 +78,16 @@ def restore_tracking(
     state = repository.lock(owner_id)
     existing = repository.activities(owner_id)
     if replace:
+        mark(db, "tracker", user=owner_id)
+        mark(db, "schedule", user=owner_id)
+        mark(db, "prompts", user=owner_id)
         state.paused_activity_id = None
         state.elapsed_seconds = 0
         state.last_request_id = None
         state.revision += 1
         db.flush()
+        db.execute(delete(WritingNudgeRun).where(WritingNudgeRun.owner_id == owner_id))
+        db.execute(delete(WritingNudge).where(WritingNudge.owner_id == owner_id))
         db.execute(delete(TimeSession).where(TimeSession.owner_id == owner_id))
         db.execute(delete(SchedulePlan).where(SchedulePlan.owner_id == owner_id))
         db.execute(delete(Activity).where(Activity.owner_id == owner_id))
@@ -113,7 +132,8 @@ def restore_tracking(
                 id=ids[item.id],
                 owner_id=owner_id,
                 **(
-                    item.model_dump(exclude={"id", "name", "position"})
+                    item.model_dump(exclude={"id", "name", "position", "writing_nudge"})
+                    | {"writing_nudge": remap_nudge(item.writing_nudge, ids)}
                     | {"name": name, "position": position}
                 ),
             )
@@ -135,7 +155,8 @@ def restore_tracking(
                 id=ids[plan.id],
                 owner_id=owner_id,
                 activity_id=ids[plan.activity_id],
-                **plan.model_dump(exclude={"id", "activity_id"}),
+                **plan.model_dump(exclude={"id", "activity_id", "writing_nudge"}),
+                writing_nudge=remap_nudge(plan.writing_nudge, ids),
             )
         )
     db.flush()
@@ -144,7 +165,8 @@ def restore_tracking(
             ScheduleException(
                 plan_id=ids[exception.plan_id],
                 activity_id=ids[exception.activity_id],
-                **exception.model_dump(exclude={"plan_id", "activity_id"}),
+                **exception.model_dump(exclude={"plan_id", "activity_id", "writing_nudge"}),
+                writing_nudge=remap_nudge(exception.writing_nudge, ids),
             )
         )
 
@@ -160,9 +182,29 @@ def restore_tracking(
         )
 
 
+def remap_nudge(
+    settings: WritingNudgeSettings | None, ids: dict[UUID, UUID]
+) -> dict[str, Any] | None:
+    if settings is None:
+        return None
+    result = settings.model_dump(mode="json")
+    if settings.channel_id is not None:
+        result["channel_id"] = str(ids[settings.channel_id])
+    return result
+
+
 def tracking_document(rows: dict[str, list[dict[str, Any]]], now: str) -> dict[str, Any]:
     fields = {
-        "activities": ("id", "name", "icon", "color", "position", "archived", "revision"),
+        "activities": (
+            "id",
+            "name",
+            "icon",
+            "color",
+            "position",
+            "archived",
+            "revision",
+            "writing_nudge",
+        ),
         "time_sessions": ("id", "activity_id", "started_at", "ended_at", "revision"),
         "plan_events": (
             "id",
@@ -184,6 +226,7 @@ def tracking_document(rows: dict[str, list[dict[str, Any]]], now: str) -> dict[s
             "timezone",
             "notifications_enabled",
             "notification_minutes",
+            "writing_nudge",
             "frequency",
             "weekdays",
             "repeat_until",
@@ -201,6 +244,7 @@ def tracking_document(rows: dict[str, list[dict[str, Any]]], now: str) -> dict[s
             "deleted",
             "notifications_enabled",
             "notification_minutes",
+            "writing_nudge",
         ),
     }
     result: dict[str, Any] = {
@@ -210,4 +254,16 @@ def tracking_document(rows: dict[str, list[dict[str, Any]]], now: str) -> dict[s
     for session in result["time_sessions"]:
         if session["ended_at"] is None:
             session["ended_at"] = now
+    for name in ("activities", "schedule_plans", "schedule_exceptions"):
+        for record in result[name]:
+            if record["writing_nudge"] is None:
+                record.pop("writing_nudge")
+            elif record["writing_nudge"].get("channel_id") not in {
+                str(row["id"]) for row in rows["channels"]
+            }:
+                record["writing_nudge"] = {
+                    **record["writing_nudge"],
+                    "enabled": False,
+                    "channel_id": None,
+                }
     return result

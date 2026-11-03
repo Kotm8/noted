@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("hosting controls separate transfer and domain change and require exact deletion confirmation", async ({
   page,

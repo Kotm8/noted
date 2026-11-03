@@ -171,7 +171,14 @@ def access_token(configuration: FirebaseConfiguration) -> str:
 
 
 def send_firebase(
-    endpoint: str, storage: Path, origin: str, payload: str, ttl: int, *, urgent: bool = True
+    endpoint: str,
+    storage: Path,
+    origin: str,
+    payload: str,
+    ttl: int,
+    *,
+    urgent: bool = True,
+    collapse_key: str | None = None,
 ) -> Literal["accepted", "expired", "failed"]:
     requests = import_module("requests")
     auth_errors = import_module("google.auth.exceptions")
@@ -193,6 +200,7 @@ def send_firebase(
                         "priority": "HIGH" if urgent else "NORMAL",
                         "ttl": f"{ttl}s",
                         "restricted_package_name": "com.noted.android",
+                        **({"collapse_key": collapse_key} if collapse_key else {}),
                     },
                 }
             },

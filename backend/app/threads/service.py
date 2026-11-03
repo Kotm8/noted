@@ -86,7 +86,11 @@ class ThreadService:
         root = self.root(root_id, owner_id, lock=True)
         if data.reminder is not None:
             raise ValidationError("Schedule reminders on channel notes.")
-        reply = self.messages.repository.create(root.channel_id, owner_id, data.content, root_id)
+        if (sent := self.messages.repository.sent(owner_id, data.client_id)) is not None:
+            return sent
+        reply = self.messages.repository.create(
+            root.channel_id, owner_id, data.content, root_id, client_id=data.client_id
+        )
         complete_writing(self.db, root.channel_id, utc_now())
         self.db.commit()
         self.db.refresh(reply)

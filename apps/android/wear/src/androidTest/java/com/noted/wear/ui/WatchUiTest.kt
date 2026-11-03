@@ -1,5 +1,6 @@
 package com.noted.wear.ui
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
@@ -104,17 +105,14 @@ class WatchUiTest {
         if (installed.slotId == null) runBlocking { installer.activate(slot) }
         SurfaceUpdates.request(context)
         instrumentation.runOnMainSync { activity.finish() }
-        shell("input keyevent KEYCODE_HOME")
-        shell("input keyevent KEYCODE_BACK")
-        SystemClock.sleep(4000)
-        wakeFace()
+        showWatchFace()
         capture("face-W16")
         for (face in listOf("W07", "W24")) {
             snapshot.getJSONObject("settings").put("face", face)
             store.saveSnapshot(snapshot)
             SurfaceUpdates.request(context)
             SystemClock.sleep(2500)
-            wakeFace()
+            showWatchFace()
             capture("face-$face")
         }
     }
@@ -249,14 +247,21 @@ class WatchUiTest {
     }
 
     private fun capture(name: String) {
+        if (name.startsWith("face-"))
+            assertTrue("The watch face must be visible before capture: $name", watchFaceVisible())
         var screenshot = instrumentation.uiAutomation.takeScreenshot()
         if (name.startsWith("face-")) {
-            for (attempt in 0 until 8) {
-                if (hasAgenda(screenshot) && hasClock(screenshot)) break
-                screenshot.recycle()
+            val deadline = SystemClock.uptimeMillis() + 10000
+            var stable = false
+            while (SystemClock.uptimeMillis() < deadline) {
                 SystemClock.sleep(500)
-                screenshot = instrumentation.uiAutomation.takeScreenshot()
+                val next = instrumentation.uiAutomation.takeScreenshot()
+                stable = hasAgenda(next) && hasClock(next) && screenshot.sameAs(next)
+                screenshot.recycle()
+                screenshot = next
+                if (stable) break
             }
+            assertTrue("The watch face must finish rendering before capture: $name", stable)
         }
         File(output, "$name.png").outputStream().use {
             screenshot.compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -273,8 +278,7 @@ class WatchUiTest {
 
     private fun hasAgenda(bitmap: Bitmap): Boolean {
         var foreground = 0
-        // Layouts place their content differently, so look across the whole dial.
-        for (y in bitmap.height / 5 until bitmap.height * 4 / 5 step 2) {
+        for (y in bitmap.height * 2 / 5 until bitmap.height * 4 / 5 step 2) {
             for (x in bitmap.width / 5 until bitmap.width * 4 / 5 step 2) {
                 if (android.graphics.Color.red(bitmap.getPixel(x, y)) > 80) foreground++
             }
@@ -284,7 +288,7 @@ class WatchUiTest {
 
     private fun hasClock(bitmap: Bitmap): Boolean {
         var foreground = 0
-        for (y in bitmap.height / 10 until bitmap.height * 9 / 10 step 2) {
+        for (y in bitmap.height / 10 until bitmap.height * 7 / 20 step 2) {
             for (x in bitmap.width / 10 until bitmap.width * 9 / 10 step 2) {
                 val pixel = bitmap.getPixel(x, y)
                 if (
@@ -343,10 +347,28 @@ class WatchUiTest {
         settle()
     }
 
-    private fun wakeFace() {
-        shell("input keyevent KEYCODE_STEM_PRIMARY")
-        shell("input keyevent KEYCODE_BACK")
-        SystemClock.sleep(750)
+    private fun showWatchFace() {
+        val automation = instrumentation.uiAutomation
+        val info = automation.serviceInfo
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+        automation.serviceInfo = info
+        shell("input keyevent KEYCODE_WAKEUP")
+        shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME")
+        val deadline = SystemClock.uptimeMillis() + 10000
+        while (!watchFaceVisible()) {
+            check(SystemClock.uptimeMillis() < deadline) { "The watch did not return to its face." }
+            SystemClock.sleep(150)
+        }
+        instrumentation.waitForIdleSync()
+    }
+
+    private fun watchFaceVisible(): Boolean {
+        val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
+        return root
+            .findAccessibilityNodeInfosByViewId(
+                "com.google.android.wearable.sysui:id/watchface_overlay",
+            )
+            .any { it.isVisibleToUser }
     }
 
     private fun shell(command: String) {

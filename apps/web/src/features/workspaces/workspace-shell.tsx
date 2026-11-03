@@ -6,6 +6,8 @@ import {
   useAndroidBackLayer,
 } from "../../lib/android-navigation";
 import { finishStartup } from "../../lib/startup";
+import { useLiveUpdates } from "../../lib/use-live-updates";
+import { useOutboxSender } from "../notes/outbox";
 import { JournalSidebar } from "../journals/journal-sidebar";
 import { isAndroidApp } from "../notifications/android";
 import { NotificationPrompt } from "../notifications/notification-prompt";
@@ -50,6 +52,8 @@ function initialTargetNote() {
 
 /** Layout around every signed-in page: navigation, search, panels and dialogs. */
 export function WorkspaceShell() {
+  useLiveUpdates();
+  useOutboxSender();
   useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
@@ -159,9 +163,9 @@ export function WorkspaceShell() {
     setWritingPanel(null);
   }
 
-  function openChannel(workspaceId: string, channelId: string) {
+  function openChannel(workspaceId: string, channelId: string, write = false) {
     void channelNavigation.open({ workspaceId, channelId }, () => {
-      openPage(`/w/${workspaceId}/c/${channelId}`);
+      openPage(`/w/${workspaceId}/c/${channelId}${write ? "?write=1" : ""}`);
       setTargetNote(null);
     });
   }
@@ -274,10 +278,6 @@ export function WorkspaceShell() {
           pendingId={channelNavigation.pending?.workspaceId}
           onSelect={selectWorkspace}
           onCreate={() => setManagement({ kind: "workspace" })}
-          onHome={() => openPage("/")}
-          homeActive={navigation.isHome}
-          onCalendar={() => openPage("/schedule")}
-          calendarActive={navigation.isSchedule}
         />
         <ChannelSidebar
           workspace={navigation.workspace}

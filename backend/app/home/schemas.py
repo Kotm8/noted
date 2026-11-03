@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class HomeActivity(BaseModel):
-    kind: Literal["reminder", "plan", "writing"]
+    kind: Literal["reminder", "plan", "writing", "nudge"]
     id: UUID
     revision: int
     title: str
@@ -24,7 +24,7 @@ class HomeActivityPage(BaseModel):
 
 
 class ReadActivity(BaseModel):
-    kind: Literal["reminder", "plan", "writing"]
+    kind: Literal["reminder", "plan", "writing", "nudge"]
     id: UUID
     revision: int = Field(ge=1)
 

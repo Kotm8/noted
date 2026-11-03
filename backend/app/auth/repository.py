@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.auth.models import AuthThrottle, Installation, LoginSession, User
+from app.live import mark
 
 
 class UserRepository:
@@ -90,7 +91,10 @@ class SessionRepository:
             .values(revoked_at=current_time)
             .returning(LoginSession.id)
         )
-        return self.db.scalar(statement) is not None
+        changed = self.db.scalar(statement) is not None
+        if changed:
+            mark(self.db, "sessions", user=user_id, session=session_id, revoked=True)
+        return changed
 
     def revoke_for_user(self, user_id: UUID, revoked_at: datetime) -> None:
         statement = (
@@ -101,7 +105,8 @@ class SessionRepository:
             )
             .values(revoked_at=revoked_at)
         )
-        self.db.execute(statement)
+        for session_id in self.db.scalars(statement.returning(LoginSession.id)):
+            mark(self.db, "sessions", user=user_id, session=session_id, revoked=True)
 
 
 class InstallationRepository:

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function api(page: Page, path: string, method = "GET", body?: unknown) {
   return page.evaluate(
@@ -51,12 +51,24 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
   await composer.fill("Remember this thought");
   await composer.press("Enter");
   let dialog = page.getByRole("dialog", {
-    name: "When should we remind you?",
+    name: "Remind me",
     exact: true,
   });
   await expect(
     dialog.getByRole("button", { name: "Send reminder", exact: true }),
   ).toBeFocused();
+  await expect(
+    dialog.getByRole("button", { name: "In 1 hour", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("status")).toContainText("in 1h");
+  const slider = dialog.getByRole("slider", { name: "Reminder time" });
+  await slider.focus();
+  await slider.press("Shift+ArrowRight");
+  await expect(dialog.getByRole("status")).toHaveText(
+    /:(00|15|30|45)in (1h [4-5]\dm|2h)/,
+  );
+  await dialog.getByRole("switch", { name: /Urgent/ }).check();
+  await dialog.screenshot({ path: "../../.local/reminder-dialog.png" });
   await expect(page.locator(".note")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(composer).toHaveValue("Remember this thought");
@@ -83,10 +95,10 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
   await expect(page.locator(".reminder-countdown")).toContainText(/(29m|30m)/);
   await page.locator(".reminder-time").click();
   dialog = page.getByRole("dialog", {
-    name: "When should we remind you?",
+    name: "Remind me",
     exact: true,
   });
-  await dialog.getByRole("button", { name: /Choose date & time/ }).click();
+  await dialog.getByRole("button", { name: "Other date…", exact: true }).click();
   await dialog
     .getByRole("button", { name: "Choose reminder date", exact: true })
     .click();

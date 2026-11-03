@@ -7,8 +7,16 @@ from app.auth.services.sessions import AuthenticatedSession
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.notes.models import Message
-from app.notes.schemas import MessageCreate, MessagePage, MessageResponse, MessageUpdate
+from app.notes.schemas import (
+    MessageCreate,
+    MessagePage,
+    MessageResponse,
+    MessageRestore,
+    MessageUpdate,
+    MessageVersionResponse,
+)
 from app.notes.services.messages import MessageService
+from app.notes.versions.models import MessageVersion
 
 router = APIRouter(tags=["messages"])
 
@@ -46,6 +54,26 @@ def update_message(
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> Message:
     return MessageService(db).update_message(message_id, data, current.user.id)
+
+
+@router.get("/messages/{message_id}/versions", response_model=list[MessageVersionResponse])
+def message_versions(
+    message_id: UUID,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> list[MessageVersion]:
+    return MessageService(db).message_versions(message_id, current.user.id)
+
+
+@router.post("/messages/{message_id}/versions/{version_id}/restore", response_model=MessageResponse)
+def restore_version(
+    message_id: UUID,
+    version_id: UUID,
+    data: MessageRestore,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> Message:
+    return MessageService(db).restore_version(message_id, version_id, data, current.user.id)
 
 
 @router.delete("/messages/{message_id}", status_code=204)

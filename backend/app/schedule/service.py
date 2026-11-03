@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, ValidationError
 from app.core.security import utc_now
+from app.live import mark
 from app.schedule.models import ScheduleException, SchedulePlan
 from app.schedule.recurrence import instants, occurs_on
 from app.schedule.repository import ScheduleRepository
 from app.schedule.schemas import PlanCreate, PlanFields, PlanUpdate
 from app.time_tracking.repository import TrackingRepository
+from app.writing_nudges.configuration import validate_target
 
 
 class ScheduleService:
@@ -22,6 +24,21 @@ class ScheduleService:
     def create(self, owner_id: UUID, data: PlanCreate) -> SchedulePlan:
         self.tracking.lock(owner_id)
         self.tracking.activity(owner_id, data.activity_id)
+        validate_target(self.db, owner_id, data.writing_nudge)
+        self.check_capacity(owner_id)
+        if instants(data, data.date) is None:
+            raise ValidationError("This time does not exist in the selected timezone")
+        values = data.model_dump()
+        values["writing_nudge"] = (
+            data.writing_nudge.model_dump(mode="json") if data.writing_nudge else None
+        )
+        item = SchedulePlan(owner_id=owner_id, **values)
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def check_capacity(self, owner_id: UUID) -> None:
         total = (
             self.db.scalar(
                 select(func.count())
@@ -32,10 +49,17 @@ class ScheduleService:
         )
         if total >= 1000:
             raise ValidationError("Keep up to 1,000 schedule plans")
-        if instants(data, data.date) is None:
-            raise ValidationError("This time does not exist in the selected timezone")
-        item = SchedulePlan(owner_id=owner_id, **data.model_dump())
-        self.db.add(item)
+
+    def restore(self, owner_id: UUID, plan_id: UUID, revision: int) -> SchedulePlan:
+        """Brings back a deleted plan for Undo, keeping its id, exceptions, and prompt history."""
+        mark(self.db, "schedule", user=owner_id)
+        item = self.checked(owner_id, plan_id, revision, include_deleted=True)
+        if item.deleted_at is None:
+            return item
+        self.tracking.activity(owner_id, item.activity_id)
+        self.check_capacity(owner_id)
+        item.deleted_at = None
+        item.revision += 1
         self.db.commit()
         self.db.refresh(item)
         return item
@@ -56,20 +80,24 @@ class ScheduleService:
             raise ValidationError("Choose a valid occurrence of this repeating plan")
         exception = self.db.get(ScheduleException, (item.id, day))
         if exception is None:
+            values = PlanFields.model_validate(item, from_attributes=True).model_dump(
+                exclude={"date", "writing_nudge"}
+            )
+            values["writing_nudge"] = item.writing_nudge
             exception = ScheduleException(
                 plan_id=item.id,
                 occurrence_date=day,
-                **PlanFields.model_validate(item, from_attributes=True).model_dump(
-                    exclude={"date"}
-                ),
+                **values,
                 date=day,
             )
             self.db.add(exception)
         return exception
 
     def update(self, owner_id: UUID, plan_id: UUID, data: PlanUpdate) -> SchedulePlan:
+        mark(self.db, "schedule", user=owner_id)
         item = self.checked(owner_id, plan_id, data.revision)
         self.tracking.activity(owner_id, data.activity_id)
+        validate_target(self.db, owner_id, data.writing_nudge)
         if instants(data, data.date) is None:
             raise ValidationError("This time does not exist in the selected timezone")
         if data.scope == "occurrence":
@@ -77,11 +105,21 @@ class ScheduleService:
                 raise ValidationError("Choose the occurrence date")
             target = self.exception(item, data.occurrence_date)
             for key in PlanFields.model_fields:
-                setattr(target, key, getattr(data, key))
+                value = getattr(data, key)
+                setattr(
+                    target,
+                    key,
+                    value.model_dump(mode="json") if key == "writing_nudge" and value else value,
+                )
             target.deleted = False
         else:
             for key in PlanCreate.model_fields:
-                setattr(item, key, getattr(data, key))
+                value = getattr(data, key)
+                setattr(
+                    item,
+                    key,
+                    value.model_dump(mode="json") if key == "writing_nudge" and value else value,
+                )
             self.db.execute(delete(ScheduleException).where(ScheduleException.plan_id == item.id))
         item.revision += 1
         self.db.commit()
@@ -94,6 +132,7 @@ class ScheduleService:
         item = self.checked(owner_id, plan_id, revision)
         if day:
             if reset:
+                mark(self.db, "schedule", user=owner_id)
                 self.exception(item, day)
                 self.db.flush()
                 self.db.execute(

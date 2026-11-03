@@ -4,8 +4,8 @@ use crate::{
 };
 use axum::{
     body::Body,
-    extract::{Request, State},
-    http::{header, Method, Response, StatusCode},
+    extract::{ws::WebSocketUpgrade, Request, State},
+    http::{header, HeaderMap, Method, Response, StatusCode},
     middleware::{self, Next},
     response::IntoResponse,
     routing::get,
@@ -95,7 +95,8 @@ async fn protect(
     let mut response = next.run(request).await;
     response
         .headers_mut()
-        .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
+        .entry(header::CACHE_CONTROL)
+        .or_insert("no-store".parse().unwrap());
     response
         .headers_mut()
         .insert("x-content-type-options", "nosniff".parse().unwrap());
@@ -239,8 +240,24 @@ async fn serve(State(state): State<Arc<Gateway>>, request: Request) -> Response<
     }
 }
 
+async fn live(
+    State(state): State<Arc<Gateway>>,
+    headers: HeaderMap,
+    upgrade: WebSocketUpgrade,
+) -> Response<Body> {
+    let connection = state.connection.read().await.clone();
+    match connection {
+        Some(connection) => crate::live::forward(connection, headers, &state.origin, upgrade).await,
+        None => failure(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Connect to your Noted server first.",
+        ),
+    }
+}
+
 pub fn router(state: Arc<Gateway>) -> Router {
     Router::new()
+        .route("/api/v1/live", get(live))
         .route(
             "/desktop/updates",
             get(crate::client_updates::read).post(crate::client_updates::act),

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("the desktop setup preview separates server access, Cloudflare DNS, and the owner account", async ({
   page,

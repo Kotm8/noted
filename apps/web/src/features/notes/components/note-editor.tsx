@@ -24,6 +24,7 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
   const { channels } = useMentionDirectory();
   const [editable] = useState(() => toEditable(note.content, channels));
   const [content, setContent] = useState(editable.text);
+  const placed = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentions = useMentionPicker(inputRef, content, editable.refs);
   const formatting = useFormatting(inputRef);
@@ -64,6 +65,13 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
         ref={inputRef}
         aria-label="Edit note"
         autoFocus
+        onFocus={(event) => {
+          // Opening the editor starts at the end of the text, ready to add to it.
+          if (placed.current) return;
+          placed.current = true;
+          const end = event.currentTarget.value.length;
+          event.currentTarget.setSelectionRange(end, end);
+        }}
         value={content}
         onChange={(event) => setContent(event.target.value)}
         onSelect={mentions.onSelect}

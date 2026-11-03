@@ -26,6 +26,7 @@ def attach_reminder(db: Session, message: Message, schedule: ReminderSchedule | 
         scheduled_at=schedule.due_at,
         timezone=schedule.timezone,
         repeat=schedule.repeat,
+        urgent=schedule.urgent,
     )
 
 
@@ -62,6 +63,7 @@ class ReminderService:
             raise ValidationError("Choose a reminder time in the future.")
         reminder.due_at = reminder.scheduled_at = data.due_at
         reminder.timezone, reminder.repeat = data.timezone, data.repeat
+        reminder.urgent = data.urgent
         reminder.status = "active"
         reminder.revision += 1
         self.db.commit()

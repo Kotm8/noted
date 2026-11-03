@@ -17,6 +17,7 @@ import com.google.android.gms.wearable.Wearable
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.noted.wear.R
+import com.noted.wear.data.WatchRepository
 import com.noted.wear.data.WatchStore
 import com.noted.wear.navigation.WatchIntentRouter
 import com.noted.wear.ui.WatchActivity
@@ -39,12 +40,13 @@ class WatchMessagingService : FirebaseMessagingService() {
         if (raw.length > 4096) return
         runCatching {
             val payload = JSONObject(raw)
-            if (payload.optString("kind") == "dismiss") dismiss(payload)
+            if (payload.optString("kind") == "sync") {
+                WatchRepository(this).refresh()
+            } else if (payload.optString("kind") == "dismiss") dismiss(payload)
             else if (payload.optString("kind") == "diagnostic") {
                 recordTest(payload)
                 show(payload, credentials, snapshot)
-            } else if (!phoneNearby())
-                show(payload, credentials, snapshot)
+            } else if (!phoneNearby()) show(payload, credentials, snapshot)
         }
     }
 
@@ -56,18 +58,17 @@ class WatchMessagingService : FirebaseMessagingService() {
     }
 
     /** The phone's own notification is mirrored here, so only alert when it can't be. */
-    private fun phoneNearby(): Boolean =
-        runCatching {
-                Tasks.await(
-                        Wearable.getCapabilityClient(this)
-                            .getCapability("noted_phone", CapabilityClient.FILTER_REACHABLE),
-                        3,
-                        TimeUnit.SECONDS,
-                    )
-                    .nodes
-                    .isNotEmpty()
-            }
-            .getOrDefault(false)
+    private fun phoneNearby(): Boolean = runCatching {
+        Tasks.await(
+                Wearable.getCapabilityClient(this)
+                    .getCapability("noted_phone", CapabilityClient.FILTER_REACHABLE),
+                3,
+                TimeUnit.SECONDS,
+            )
+            .nodes
+            .isNotEmpty()
+    }
+        .getOrDefault(false)
 
     private fun dismiss(payload: JSONObject) {
         val id = payload.optString("id")
@@ -90,10 +91,12 @@ class WatchMessagingService : FirebaseMessagingService() {
         )
             return
         val plan = payload.optString("kind") == "plan"
+        val writing = payload.optString("kind") == "writing"
         val ended = plan && payload.optString("phase") == "end"
         val id =
             payload.optString(
                 if (plan) "promptId"
+                else if (writing) "writingPromptId"
                 else if (payload.optString("kind") == "diagnostic") "testId" else "messageId",
             )
         if (runCatching { UUID.fromString(id) }.isFailure) return
@@ -102,9 +105,9 @@ class WatchMessagingService : FirebaseMessagingService() {
             NotificationChannel(CHANNEL, "Noted reminders", NotificationManager.IMPORTANCE_HIGH),
         )
         val open =
-            Intent(this, WatchActivity::class.java)
-                .setData(Uri.parse("noted-watch://open/$id"))
-                .putExtra(if (plan) WatchIntentRouter.PROMPT else WatchIntentRouter.MESSAGE, id)
+            Intent(this, WatchActivity::class.java).setData(Uri.parse("noted-watch://open/$id"))
+        if (!writing)
+            open.putExtra(if (plan) WatchIntentRouter.PROMPT else WatchIntentRouter.MESSAGE, id)
         val hide = snapshot.optJSONObject("settings")?.optBoolean("hide_contents") == true
         val body = if (hide) "Open Noted to view." else payload.optString("body").take(2000)
         val builder =
@@ -127,10 +130,12 @@ class WatchMessagingService : FirebaseMessagingService() {
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .addExtras(
-                    android.os.Bundle().apply { putInt("noted_revision", payload.optInt("revision")) },
+                    android.os.Bundle().apply {
+                        putInt("noted_revision", payload.optInt("revision"))
+                    },
                 )
         val revision = payload.optInt("revision")
-        if (revision > 0) {
+        if (revision > 0 && !writing) {
             val action =
                 Intent(this, WatchActionReceiver::class.java)
                     .setData(Uri.parse("noted-watch://action/$id/$revision"))

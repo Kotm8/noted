@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.auth.repository import AuthThrottleRepository
+from app.core.config import LOGIN_ATTEMPTS_PER_MINUTE
 from app.core.errors import RateLimitError
 from app.core.security import hash_token, utc_now
 
@@ -16,5 +17,5 @@ class RateLimitService:
         global_attempts = self.repository.record_attempt("global", window_start)
         self.db.commit()
 
-        if client_attempts > 10 or global_attempts > 100:
+        if client_attempts > LOGIN_ATTEMPTS_PER_MINUTE or global_attempts > 100:
             raise RateLimitError("Too many attempts. Try again in a minute.")

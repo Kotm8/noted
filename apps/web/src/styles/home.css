@@ -48,7 +48,8 @@
   border-radius: 5px;
   overflow: hidden;
 }
-.home-project-icon img {
+.home-project-icon img,
+.home-project-icon canvas {
   width: 100%;
   height: 100%;
   object-fit: cover;

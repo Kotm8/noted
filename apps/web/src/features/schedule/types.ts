@@ -1,4 +1,5 @@
 import type { TimeSession } from "../time-tracking/types";
+import type { WritingNudgeSettings } from "../writing-nudges/types";
 
 export type Frequency = "none" | "daily" | "weekly" | "biweekly" | "monthly";
 export interface PlanFields {
@@ -10,6 +11,7 @@ export interface PlanFields {
   timezone: string;
   notifications_enabled?: boolean;
   notification_minutes?: 0 | 1 | 5 | 10 | null;
+  writing_nudge?: WritingNudgeSettings | null;
   frequency: Frequency;
   weekdays: number[];
   repeat_until: string | null;

@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,6 +23,7 @@ import { Notice } from "../../components/ui/notice";
 import { useTracking } from "../time-tracking/use-tracking";
 import type { TimeSession } from "../time-tracking/types";
 import { scheduleApi } from "./api";
+import { BLOCK_WEEKS, blockQuery, blockStart, blocksAround } from "./blocks";
 import {
   addDays,
   dayLabel,
@@ -34,6 +36,7 @@ import {
 } from "./dates";
 import { CalendarGrid } from "./components/calendar-grid";
 import { PlanDialog } from "./components/plan-dialog";
+import { PlanCard, type PlanAnchor } from "./components/plan-card";
 import { SessionEditor } from "./components/session-editor";
 import type {
   PlanFields,
@@ -42,11 +45,10 @@ import type {
   ScheduleBoard as BoardData,
 } from "./types";
 import { useScheduleGestures } from "./use-schedule-gestures";
+import { useScheduleHistory } from "./use-schedule-history";
 import type { DragValues } from "./use-schedule-gestures";
 
-const INITIAL_WEEKS = 4;
-
-/** Weeks load separately, so items spanning a week boundary arrive twice. */
+/** Blocks load separately, so items spanning a block boundary arrive twice. */
 function mergeBoards(boards: BoardData[]): BoardData {
   const unique = <T,>(items: T[], key: (item: T) => string) => [
     ...new Map(items.map((item) => [key(item), item])).values(),
@@ -81,11 +83,6 @@ function weekOffset(box: HTMLElement, row: HTMLElement) {
   );
 }
 
-const loadedAround = (day: string) => ({
-  first: addDays(weekDays(day)[0], -7),
-  weeks: INITIAL_WEEKS,
-});
-
 export function ScheduleBoard({
   onNavigation,
   onReminder,
@@ -107,12 +104,16 @@ export function ScheduleBoard({
   const [mode, setMode] = useState<"week" | "day">("week");
   const [editing, setEditing] = useState<{
     plan: PlanFields | PlanOccurrence;
+    /** The block the quick card points at; without it the full form opens. */
+    anchor?: PlanAnchor;
     anchorX?: number;
+    deleting?: boolean;
   } | null>(null);
   const [session, setSession] = useState<TimeSession | null>(null);
+  const [draft, setDraft] = useState<PlanFields | null>(null);
   const [pending, setPending] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [loaded, setLoaded] = useState(() => loadedAround(date));
+  const [loaded, setLoaded] = useState(() => blocksAround(date));
   const [visibleWeek, setVisibleWeek] = useState(() => weekDays(date)[0]);
   const [jumps, setJumps] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -122,28 +123,37 @@ export function ScheduleBoard({
   const scrollTarget = useRef<string | null>(weekDays(date)[0]);
   const prepended = useRef<{ height: number; top: number } | null>(null);
   const client = useQueryClient();
-  const weekStarts = Array.from({ length: loaded.weeks }, (_, index) =>
-    addDays(loaded.first, index * 7),
-  );
-  const ranges =
+  const history = useScheduleHistory();
+  const blockStarts =
     mode === "week"
-      ? weekStarts.map((week) => [week, addDays(week, 7)])
-      : [[date, addDays(date, 1)]];
+      ? Array.from({ length: loaded.weeks / BLOCK_WEEKS }, (_, index) =>
+          addDays(loaded.first, index * BLOCK_WEEKS * 7),
+        )
+      : [blockStart(date)];
   const boards = useQueries({
-    queries: ranges.map(([first, next]) => {
-      const start = wallTime(first, 0, preferences.timezone);
-      const end = wallTime(next, 0, preferences.timezone);
-      return {
-        queryKey: ["schedule", start, end],
-        queryFn: () => scheduleApi.board(start, end),
-        enabled: Boolean(tracker.data),
-        refetchInterval: () =>
-          document.body.classList.contains("schedule-dragging") || pending
-            ? false
-            : 15000,
-      };
-    }),
+    queries: blockStarts.map((first) => ({
+      ...blockQuery(first, preferences.timezone),
+      enabled: Boolean(tracker.data),
+      refetchInterval: () =>
+        document.body.classList.contains("schedule-dragging") || pending
+          ? false
+          : liveInterval(15000),
+    })),
   });
+  const timezone = preferences.timezone;
+  const edges =
+    mode === "week"
+      ? [
+          addDays(loaded.first, -BLOCK_WEEKS * 7),
+          addDays(loaded.first, loaded.weeks * 7),
+        ].join()
+      : "";
+  // The blocks just past each edge are fetched ahead, so scrolling into them never waits.
+  useEffect(() => {
+    if (!tracker.data || !edges) return;
+    for (const first of edges.split(","))
+      void client.prefetchQuery(blockQuery(first, timezone));
+  }, [client, edges, timezone, tracker.data]);
   const days =
     mode === "week"
       ? Array.from({ length: loaded.weeks * 7 }, (_, index) =>
@@ -152,8 +162,12 @@ export function ScheduleBoard({
       : [date];
   const loading = new Set(
     mode === "week"
-      ? weekStarts.flatMap((week, index) =>
-          boards[index]?.data ? [] : weekDays(week),
+      ? blockStarts.flatMap((first, index) =>
+          boards[index]?.data
+            ? []
+            : Array.from({ length: BLOCK_WEEKS * 7 }, (_, day) =>
+                addDays(first, day),
+              ),
         )
       : [],
   );
@@ -168,7 +182,7 @@ export function ScheduleBoard({
     setDate(day);
     const week = weekDays(day)[0];
     const last = addDays(loaded.first, loaded.weeks * 7);
-    if (week < loaded.first || week >= last) setLoaded(loadedAround(day));
+    if (week < loaded.first || week >= last) setLoaded(blocksAround(day));
     scrollTarget.current = week;
     setJumps((count) => count + 1);
   }
@@ -204,13 +218,16 @@ export function ScheduleBoard({
         if (entry.target === topEdge.current) {
           prepended.current = { height: box.scrollHeight, top: box.scrollTop };
           setLoaded((current) => ({
-            first: addDays(current.first, -7),
-            weeks: current.weeks + 1,
+            first: addDays(current.first, -BLOCK_WEEKS * 7),
+            weeks: current.weeks + BLOCK_WEEKS,
           }));
         } else
-          setLoaded((current) => ({ ...current, weeks: current.weeks + 1 }));
+          setLoaded((current) => ({
+            ...current,
+            weeks: current.weeks + BLOCK_WEEKS,
+          }));
       },
-      { root: box, rootMargin: "400px 0px" },
+      { root: box, rootMargin: "1200px 0px" },
     );
     observer.observe(topEdge.current);
     observer.observe(bottomEdge.current);
@@ -231,6 +248,28 @@ export function ScheduleBoard({
     }, 30000);
     return () => clearInterval(timer);
   }, []);
+  /** Where a new plan's block will appear, so the card can point at it before it exists. */
+  function trackAnchor(values: DragValues, activityId: string) {
+    const tracks = root.current?.querySelectorAll<HTMLElement>(
+      `[data-draw][data-date="${values.date}"]`,
+    );
+    const track =
+      [...(tracks ?? [])].find(
+        (item) =>
+          !item.dataset.activity || item.dataset.activity === activityId,
+      ) ?? tracks?.[0];
+    if (!track) return undefined;
+    const box = track.getBoundingClientRect();
+    const span = preferences.end_minute - preferences.start_minute;
+    const x = (minute: number) =>
+      box.left + ((minute - preferences.start_minute) / span) * box.width;
+    return {
+      left: x(values.start_minute),
+      right: x(values.end_minute),
+      top: box.top,
+      bottom: box.top + 62,
+    };
+  }
   function create(values: DragValues) {
     const activityId =
       values.activity_id ?? activities.data?.find((item) => !item.archived)?.id;
@@ -241,6 +280,7 @@ export function ScheduleBoard({
     }
     setEditing({
       anchorX: values.anchorX,
+      anchor: trackAnchor(values, activityId),
       plan: {
         activity_id: activityId,
         title: "",
@@ -254,14 +294,43 @@ export function ScheduleBoard({
       },
     });
   }
+  /** Shows a move straight away; the next refetch replaces it with the server's version. */
+  function showMoved(original: PlanOccurrence, values: DragValues) {
+    const key = `${original.id}~${original.occurrence_date}`;
+    const end =
+      values.end_minute === 1440 ? addDays(values.date, 1) : values.date;
+    const moved = {
+      ...values,
+      start_at: wallTime(
+        values.date,
+        values.start_minute,
+        preferences.timezone,
+      ),
+      end_at: wallTime(end, values.end_minute % 1440, preferences.timezone),
+    };
+    client.setQueriesData<BoardData>(
+      { queryKey: ["schedule"] },
+      (board) =>
+        board && {
+          ...board,
+          plans: board.plans.map((plan) =>
+            `${plan.id}~${plan.occurrence_date}` === key
+              ? { ...plan, ...moved }
+              : plan,
+          ),
+        },
+    );
+  }
   async function change(id: string, values: DragValues) {
     const original = data?.plans.find(
       (item) => `${item.id}~${item.occurrence_date}` === id,
     );
     if (!original || pending) return;
     setPending(true);
+    await client.cancelQueries({ queryKey: ["schedule"] });
+    showMoved(original, values);
     try {
-      const updated = await scheduleApi.update(original.id, {
+      await scheduleApi.update(original.id, {
         ...original,
         ...values,
         timezone: preferences.timezone,
@@ -269,45 +338,17 @@ export function ScheduleBoard({
         revision: original.revision,
         occurrence_date: original.occurrence_date,
       });
-      void client.invalidateQueries({ queryKey: ["schedule"] });
+      history.changed(original, { ...values, timezone: preferences.timezone });
       toast.success(
         original.frequency === "none"
           ? "Plan updated"
           : "Updated this occurrence; the series is unchanged",
-        {
-          action: {
-            label: "Undo",
-            onClick: () => {
-              void (async () => {
-                try {
-                  if (original.frequency !== "none" && !original.is_override)
-                    await scheduleApi.remove(
-                      original.id,
-                      updated.revision,
-                      original.occurrence_date,
-                      true,
-                    );
-                  else
-                    await scheduleApi.update(original.id, {
-                      ...original,
-                      revision: updated.revision,
-                      scope:
-                        original.frequency === "none" ? "series" : "occurrence",
-                      occurrence_date: original.occurrence_date,
-                    });
-                  void client.invalidateQueries({ queryKey: ["schedule"] });
-                } catch (error) {
-                  toast.error((error as Error).message);
-                }
-              })();
-            },
-          },
-        },
+        history.undoToast(),
       );
     } catch (error) {
       toast.error((error as Error).message);
-      void client.invalidateQueries({ queryKey: ["schedule"] });
     } finally {
+      void client.invalidateQueries({ queryKey: ["schedule"] });
       setPending(false);
     }
   }
@@ -333,23 +374,12 @@ export function ScheduleBoard({
         repeat_until: null,
       });
       void client.invalidateQueries({ queryKey: ["schedule"] });
+      history.created(created, "the copy");
       toast.success(
         original.frequency === "none"
           ? "Plan copied"
           : "Copied this occurrence as a one-off plan",
-        {
-          action: {
-            label: "Undo",
-            onClick: () => {
-              void scheduleApi
-                .remove(created.id, created.revision)
-                .then(() =>
-                  client.invalidateQueries({ queryKey: ["schedule"] }),
-                )
-                .catch((error: Error) => toast.error(error.message));
-            },
-          },
-        },
+        history.undoToast(),
       );
     } catch (error) {
       toast.error((error as Error).message);
@@ -587,13 +617,24 @@ export function ScheduleBoard({
               preferences={preferences}
               activities={activities.data ?? []}
               now={now}
-              onPlan={(plan) => setEditing({ plan })}
+              onPlan={(plan, block) =>
+                setEditing({
+                  plan,
+                  anchor: {
+                    left: block.left,
+                    right: block.right,
+                    top: block.top,
+                    bottom: block.bottom,
+                  },
+                })
+              }
               onSession={setSession}
               onReminder={onReminder}
               onDay={(day) => {
                 setDate(day);
                 setMode("day");
               }}
+              draft={editing?.anchor && !("id" in editing.plan) ? draft : null}
               onStart={(id) =>
                 action.mutate({ action: "start", activityId: id })
               }
@@ -613,12 +654,35 @@ export function ScheduleBoard({
           </span>
         </footer>
       </div>
-      {editing && (
+      {editing?.anchor && (
+        <PlanCard
+          key={`${editing.anchor.left}:${editing.anchor.top}`}
+          initial={editing.plan}
+          anchor={editing.anchor}
+          activities={activities.data ?? []}
+          history={history}
+          onMore={(fields, deleting) =>
+            setEditing({
+              plan: { ...editing.plan, ...fields },
+              anchorX: editing.anchor!.right,
+              deleting,
+            })
+          }
+          onDraft={setDraft}
+          onClose={() => {
+            setEditing(null);
+            setDraft(null);
+          }}
+        />
+      )}
+      {editing && !editing.anchor && (
         <PlanDialog
           initial={editing.plan}
+          deleting={editing.deleting}
           anchorX={editing.anchorX}
           activities={activities.data ?? []}
           hours={preferences}
+          history={history}
           onClose={() => setEditing(null)}
         />
       )}

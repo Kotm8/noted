@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import { journalsApi } from "./api";
 
@@ -8,6 +9,6 @@ export function journalsQuery(channelId: string) {
     initialPageParam: 0,
     getNextPageParam: (lastPage, _pages, offset) =>
       lastPage.length === 50 ? offset + 50 : undefined,
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
   });
 }

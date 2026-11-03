@@ -13,6 +13,7 @@ from app.reminders.models import Reminder
 from app.schedule.prompts.models import PlanPrompt
 from app.schedule.prompts.service import refresh_prompts
 from app.workspaces.models import Channel, Workspace
+from app.writing_nudges.models import WritingNudge
 
 
 class HomeService:
@@ -113,12 +114,35 @@ class HomeService:
             )
             for prompt, channel, project in writing
         )
+        nudges = self.db.execute(
+            select(WritingNudge, Channel, Workspace)
+            .join(Channel, Channel.id == WritingNudge.channel_id)
+            .join(Workspace, Workspace.id == Channel.workspace_id)
+            .where(WritingNudge.owner_id == owner_id, WritingNudge.completed_at.is_(None))
+            .order_by(WritingNudge.due_at.desc(), WritingNudge.id)
+            .limit(limit + 1)
+        ).all()
+        items.extend(
+            HomeActivity(
+                kind="nudge",
+                id=item.id,
+                revision=item.revision,
+                title=item.content,
+                due_at=item.due_at,
+                read=item.read_revision == item.revision,
+                channel_id=channel.id,
+                channel_name=channel.name,
+                workspace_id=project.id,
+                workspace_name=project.name,
+            )
+            for item, channel, project in nudges
+        )
         items.sort(key=lambda item: (item.due_at, str(item.id)), reverse=True)
         self.db.commit()
         return HomeActivityPage(items=items[:limit], has_more=len(items) > limit)
 
     def read(self, owner_id: UUID, data: ReadActivities) -> None:
-        record: Reminder | PlanPrompt | WritingPrompt | None
+        record: Reminder | PlanPrompt | WritingPrompt | WritingNudge | None
         for item in sorted(data.items, key=lambda item: (item.kind, str(item.id))):
             if item.kind == "reminder":
                 record = self.db.scalar(
@@ -137,6 +161,12 @@ class HomeService:
                 record = self.db.scalar(
                     select(WritingPrompt)
                     .where(WritingPrompt.id == item.id, WritingPrompt.owner_id == owner_id)
+                    .with_for_update()
+                )
+            elif item.kind == "nudge":
+                record = self.db.scalar(
+                    select(WritingNudge)
+                    .where(WritingNudge.id == item.id, WritingNudge.owner_id == owner_id)
                     .with_for_update()
                 )
             else:

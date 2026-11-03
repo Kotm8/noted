@@ -1,3 +1,4 @@
+import { liveInterval } from "../../lib/live";
 import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 import { WritingSidebar } from "../../components/ui/writing-sidebar";
@@ -18,7 +19,7 @@ export function JournalSidebar({
   const query = useQuery({
     queryKey: ["journal-entry", entryId],
     queryFn: () => journalsApi.get(entryId),
-    refetchInterval: 15000,
+    refetchInterval: () => liveInterval(15000),
   });
   if (query.data)
     return (

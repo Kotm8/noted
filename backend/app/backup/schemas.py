@@ -69,6 +69,12 @@ class BackupReminder(ReminderSchedule):
     status: Literal["active", "done"]
 
 
+class BackupVersion(BackupRecord):
+    content: str = Field(max_length=40000)
+    written_at: AwareDatetime
+    replaced_at: AwareDatetime
+
+
 class BackupMessage(BackupRecord):
     id: UUID
     channel_id: UUID
@@ -77,6 +83,7 @@ class BackupMessage(BackupRecord):
     updated_at: AwareDatetime
     reminder: BackupReminder | None = None
     thread_root_id: UUID | None = None
+    versions: list[BackupVersion] = Field(default_factory=list, max_length=100)
 
 
 class BackupJournal(BackupRecord):
@@ -159,7 +166,7 @@ class BackupWritingPrompt(WritingFields, BackupRecord):
 
 class BackupContent(BackupRecord):
     format: Literal["noted-content-backup"] = "noted-content-backup"
-    version: Literal[1, 2, 3, 4, 5, 6, 7] = 1
+    version: Literal[1, 2, 3, 4, 5, 6, 7, 8] = 1
     created_at: AwareDatetime
     workspaces: list[BackupWorkspace]
     categories: list[BackupCategory]

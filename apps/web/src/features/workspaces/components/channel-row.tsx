@@ -1,5 +1,6 @@
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { ChannelIcon } from "./channel-icon";
+import { ChannelPinItem } from "./channel-pin-item";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import type { Channel, OpenManagement } from "../types";
 import type { SidebarReorder } from "../hooks/use-sidebar-reorder";
@@ -47,6 +48,7 @@ export function ChannelRow({
           </button>
         }
       >
+        <ChannelPinItem channel={channel} />
         <MenuItem
           onSelect={() =>
             onManage({

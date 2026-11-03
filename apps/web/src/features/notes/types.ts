@@ -21,6 +21,9 @@ export interface Attachment {
   download_url: string;
   preview_url: string | null;
   playback_url?: string | null;
+  original_url?: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface NoteCursor {
@@ -33,4 +36,11 @@ export interface NotePage {
   items: Note[];
   next_cursor: string | null;
   newer_cursor: string | null;
+}
+
+export interface NoteVersion {
+  id: string;
+  content: string;
+  written_at: string;
+  replaced_at: string;
 }

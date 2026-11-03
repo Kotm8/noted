@@ -109,7 +109,9 @@ export function MissedActivity({
               <HomeReminderActions id={item.id} revision={item.revision} />
             ) : (
               <button className="home-text-button" onClick={() => onOpen(item)}>
-                {item.kind === "writing" ? "Write in channel" : "Choose activity"}
+                {item.kind === "writing" || item.kind === "nudge"
+                  ? "Write in channel"
+                  : "Choose activity"}
                 <ArrowRight size={12} />
               </button>
             )}
