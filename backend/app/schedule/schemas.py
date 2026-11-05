@@ -62,6 +62,10 @@ class PlanResponse(PlanCreate):
     revision: int
 
 
+class PlanCreateRequest(PlanCreate):
+    client_id: UUID | None = None
+
+
 class PlanUpdate(PlanCreate):
     revision: int = Field(ge=1)
     scope: Literal["series", "occurrence"] = "series"
@@ -69,6 +73,7 @@ class PlanUpdate(PlanCreate):
 
 
 class PlanOccurrence(PlanResponse):
+    series_date: date | None = None
     occurrence_date: date
     start_at: datetime
     end_at: datetime

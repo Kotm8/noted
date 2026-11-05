@@ -187,6 +187,41 @@ class BackupExporter:
                 for row in rows[key]
             ):
                 document["version"] = 8
+            if rows["day_templates"] or rows["note_templates"]:
+                document["version"] = 9
+                for group, field in (("day_templates", "blocks"), ("note_templates", "content")):
+                    document[group] = [
+                        {key: row[key] for key in ("id", "name", "revision", field)}
+                        for row in rows[group]
+                    ]
+                channels = {str(row["id"]) for row in rows["channels"]}
+                for template in document["day_templates"]:
+                    for block in template["blocks"]:
+                        nudge = block.get("writing_nudge")
+                        if nudge and nudge.get("channel_id") not in channels:
+                            block["writing_nudge"] = {**nudge, "enabled": False, "channel_id": None}
+            if rows["habits"]:
+                from app.backup.schemas import BackupHabit, BackupHabitEntry
+
+                document["version"] = 10
+                document["habits"] = [
+                    BackupHabit.model_validate(
+                        {key: row[key] for key in BackupHabit.model_fields}
+                    ).model_dump(mode="json")
+                    for row in rows["habits"]
+                ]
+                document["habit_entries"] = [
+                    BackupHabitEntry.model_validate(row).model_dump(mode="json")
+                    for row in rows["habit_entries"]
+                ]
+            from app.backup.services.nutrition import NUTRITION_VERSION, nutrition_document
+
+            nutrition = await nutrition_document(
+                rows, lambda key, size: self.add_file(archive, key, size, destination)
+            )
+            if nutrition:
+                document["version"] = NUTRITION_VERSION
+                document.update(nutrition)
             raw = json.dumps(document, default=str, ensure_ascii=False).encode()
             if len(raw) > MAX_METADATA:
                 raise ContentTooLargeError("The content metadata exceeds the 16 MB backup limit.")

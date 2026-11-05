@@ -8,13 +8,14 @@ export function useWorkspaceNavigation() {
   const navigate = useNavigate();
   const channelRoute = useMatch("/w/:workspaceId/c/:channelId");
   const workspaceRoute = useMatch("/w/:workspaceId");
+  const isHabits = useMatch("/habits") !== null;
+  const isNutrition = useMatch("/nutrition") !== null;
   const isSchedule = useMatch("/schedule") !== null;
   const homeRoute = useMatch("/home");
   const rootRoute = useMatch("/");
   const isHome = homeRoute !== null || rootRoute !== null;
   const workspaceId =
-    channelRoute?.params.workspaceId ??
-    workspaceRoute?.params.workspaceId;
+    channelRoute?.params.workspaceId ?? workspaceRoute?.params.workspaceId;
   const channelId = channelRoute?.params.channelId;
 
   const workspacesQuery = useQuery({
@@ -39,7 +40,7 @@ export function useWorkspaceNavigation() {
   const channel = channelsQuery.data?.find((item) => item.id === channelId);
 
   useEffect(() => {
-    if (isSchedule || isHome) return;
+    if (isSchedule || isHome || isHabits || isNutrition) return;
     if (!workspacesQuery.data?.length || workspace) {
       return;
     }
@@ -52,10 +53,18 @@ export function useWorkspaceNavigation() {
       ? lastPath
       : `/w/${workspacesQuery.data[0].id}`;
     navigate(destination, { replace: true });
-  }, [workspacesQuery.data, workspace, navigate, isSchedule, isHome]);
+  }, [
+    workspacesQuery.data,
+    workspace,
+    navigate,
+    isSchedule,
+    isHome,
+    isHabits,
+    isNutrition,
+  ]);
 
   useEffect(() => {
-    if (isSchedule || isHome) return;
+    if (isSchedule || isHome || isHabits || isNutrition) return;
     if (!workspace || !channelsQuery.data || channel) {
       return;
     }
@@ -79,9 +88,19 @@ export function useWorkspaceNavigation() {
     navigate,
     isSchedule,
     isHome,
+    isHabits,
+    isNutrition,
   ]);
 
   useEffect(() => {
+    if (isHabits) {
+      document.title = "Habits \u00b7 Noted";
+      return;
+    }
+    if (isNutrition) {
+      document.title = "Nutrition · Noted";
+      return;
+    }
     if (isHome) {
       document.title = "Home · Noted";
       return;
@@ -96,7 +115,7 @@ export function useWorkspaceNavigation() {
     writeStoredValue("noted.navigation", `/w/${workspace.id}${channelPath}`);
     if (channel) writeStoredValue(`noted.channel.${workspace.id}`, channel.id);
     document.title = `${channel ? `#${channel.name}` : workspace.name} · Noted`;
-  }, [workspace, channel, isSchedule, isHome]);
+  }, [workspace, channel, isSchedule, isHome, isHabits, isNutrition]);
 
   function retry() {
     void workspacesQuery.refetch();
@@ -109,6 +128,8 @@ export function useWorkspaceNavigation() {
   return {
     isSchedule,
     isHome,
+    isHabits,
+    isNutrition,
     workspace,
     channel,
     workspaces: workspacesQuery.data ?? [],

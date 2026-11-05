@@ -39,6 +39,8 @@ function scoped(key: string, id?: string): QueryKey {
 
 export function liveQueryKeys(event: LiveEvent): QueryKey[] {
   switch (event.topic) {
+    case "templates":
+      return [["templates"]];
     case "notes":
       return [
         scoped("notes", event.channel),
@@ -76,10 +78,15 @@ export function liveQueryKeys(event: LiveEvent): QueryKey[] {
         ["schedule"],
         ["thread"],
       ];
+    case "nutrition":
+      return [["nutrition"]];
+    case "habits":
+      return [["habits"], ["home-activity"]];
     case "schedule":
-      return [["schedule"], ["schedule-plan"], ["home-activity"]];
+      return [["schedule"], ["schedule-plan"], ["home-activity"], ["habits"]];
     case "tracker":
       return [
+        ["habits"],
         ["time-tracker"],
         ["activities"],
         ["watch-activities"],

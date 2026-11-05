@@ -11,20 +11,36 @@ import { removeStoredValue } from "../../lib/storage";
 import { journalsApi } from "./api";
 import { useJournalDraft } from "./use-journal-draft";
 import type { JournalEntry } from "./types";
+import { useAiWriting } from "../ai/writing/use-ai-writing";
+import { AiWritingSurface } from "../ai/writing/ai-writing-surface";
 
 export function JournalEditor({
   entry,
   initiallyEditing,
   onClose,
+  onOpenEntry,
 }: {
   entry: JournalEntry;
   initiallyEditing: boolean;
   onClose: () => void;
+  onOpenEntry?: (id: string) => void;
 }) {
   const client = useQueryClient();
   const model = useJournalDraft(entry);
   const [editing, setEditing] = useState(initiallyEditing);
   const [confirm, setConfirm] = useState<"delete" | "reload" | null>(null);
+  const ai = useAiWriting({
+    place: "journals",
+    channelId: entry.channel_id,
+    title: model.draft.title,
+    content: model.draft.content,
+    revision: model.draft.revision,
+    onChange: (content) => model.setDraft({ content }),
+    onOpenEntry,
+    flush: model.flush,
+    checkSource: () => journalsApi.get(entry.id),
+    saveError: model.error,
+  });
   const remove = useMutation({
     mutationFn: () => journalsApi.remove(entry.id, entry.revision),
     onSuccess: async () => {
@@ -41,6 +57,10 @@ export function JournalEditor({
     <WritingSidebar
       title="Journal entry"
       onClose={() => {
+        if (ai.previewing) {
+          toast("Apply or cancel the preview before closing this entry.");
+          return;
+        }
         void model
           .flush()
           .then(onClose)
@@ -52,18 +72,22 @@ export function JournalEditor({
           type="button"
           className="icon-button"
           aria-label={editing ? "Preview entry" : "Edit entry"}
+          disabled={ai.previewing}
           onClick={() => setEditing(!editing)}
         >
           {editing ? <Eye size={16} /> : <Pencil size={16} />}
         </button>
+        {ai.button}
         <span role="status">
-          {model.error
-            ? "Not saved"
-            : model.saving
-              ? "Saving…"
-              : model.dirty
-                ? "Draft"
-                : "Saved"}
+          {ai.previewing
+            ? "Preview"
+            : model.error
+              ? "Not saved"
+              : model.saving
+                ? "Saving…"
+                : model.dirty
+                  ? "Draft"
+                  : "Saved"}
         </span>
         <button
           className="icon-button"
@@ -78,7 +102,7 @@ export function JournalEditor({
           className="icon-button"
           type="button"
           aria-label="Delete entry"
-          disabled={model.saving || model.dirty}
+          disabled={model.saving || model.dirty || ai.previewing}
           onClick={() => setConfirm("delete")}
         >
           <Trash2 size={15} />
@@ -113,7 +137,9 @@ export function JournalEditor({
           </div>
         </div>
       )}
-      <div className="journal-page">
+      <div
+        className={`journal-page${ai.connected ? " ai-writing-enabled" : ""}`}
+      >
         <time className="journal-date" dateTime={entry.created_at}>
           {new Date(entry.created_at).toLocaleDateString(undefined, {
             year: "numeric",
@@ -126,16 +152,20 @@ export function JournalEditor({
           aria-label="Entry title"
           value={model.draft.title}
           maxLength={120}
+          disabled={ai.previewing}
           onChange={(event) => model.setDraft({ title: event.target.value })}
         />
-        <MarkdownWritingArea
-          content={model.draft.content}
-          onChange={(content) => model.setDraft({ content })}
-          editing={editing}
-          pending={model.saving}
-          label="Entry contents"
-          onEdit={() => setEditing(true)}
-        />
+        <AiWritingSurface controller={ai}>
+          <MarkdownWritingArea
+            content={model.draft.content}
+            onChange={(content) => model.setDraft({ content })}
+            editing={editing}
+            pending={model.saving}
+            label="Entry contents"
+            onEdit={() => setEditing(true)}
+            onSelection={ai.onEditorSelection}
+          />
+        </AiWritingSurface>
       </div>
       <Modal
         open={confirm !== null}

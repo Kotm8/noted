@@ -14,6 +14,12 @@
     request_body {
         max_size 1073741824
     }
+    # AI answers stream as they're written; pass each piece on immediately.
+    handle /api/v1/ai/* {
+        reverse_proxy backend:8000 {
+            flush_interval -1
+        }
+    }
     handle /api/* {
         reverse_proxy backend:8000
     }

@@ -44,6 +44,37 @@ function worker() {
 }
 
 describe("notification service worker", () => {
+  it("opens a habit notification without message reminder actions", async () => {
+    const test = worker();
+    const data = {
+      kind: "habit",
+      habitReminderId: "occurrence-1",
+      habitId: "habit-1",
+      title: "Read",
+      body: "10 / 20 min",
+      url: "/habits?habit=habit-1",
+      revision: 1,
+    };
+    const waitUntil = vi.fn();
+    test.handlers.push({ data: { json: () => data }, waitUntil });
+    await waitUntil.mock.calls[0][0];
+    expect(test.showNotification).toHaveBeenCalledWith(
+      "Read",
+      expect.objectContaining({
+        tag: "habit-occurrence-1",
+        actions: [{ action: "open-habit", title: "View habit" }],
+      }),
+    );
+    test.handlers.notificationclick({
+      notification: { data, close: vi.fn() },
+      action: "done",
+      waitUntil,
+    });
+    await waitUntil.mock.calls[1][0];
+    expect(test.navigate).toHaveBeenCalledWith(
+      "https://notes.example.com/habits?habit=habit-1",
+    );
+  });
   it("opens writing prompts in their channel without applying reminder actions", async () => {
     const test = worker();
     const data = {

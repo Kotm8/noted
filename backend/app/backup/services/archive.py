@@ -12,6 +12,9 @@ from starlette.datastructures import Headers, UploadFile
 
 from app.backup.repository import MAX_RECORDS
 from app.backup.schemas import BackupBlob, BackupContent, BackupCounts
+from app.backup.services.habits import validate_habits
+from app.backup.services.nutrition import validate_nutrition
+from app.backup.services.templates import validate_templates
 from app.backup.services.tracking import validate_tracking
 from app.core.errors import ContentTooLargeError, ValidationError
 from app.core.storage_limits import MAX_BATCH_SIZE, MAX_FILES
@@ -23,6 +26,10 @@ MAX_METADATA = 16 * 1024 * 1024
 
 def counts(data: BackupContent) -> BackupCounts:
     return BackupCounts(
+        meals=len(data.meals),
+        habits=len(data.habits),
+        day_templates=len(data.day_templates),
+        note_templates=len(data.note_templates),
         projects=len(data.workspaces),
         categories=len(data.categories),
         channels=len(data.channels),
@@ -36,7 +43,8 @@ def counts(data: BackupContent) -> BackupCounts:
         writing_prompts=len(data.writing_prompts),
         files=len(data.attachments)
         + sum(bool(project.image) for project in data.workspaces)
-        + sum(bool(channel.image) for channel in data.channels),
+        + sum(bool(channel.image) for channel in data.channels)
+        + sum(len(meal.photos) for meal in data.meals),
     )
 
 
@@ -46,11 +54,15 @@ def blobs(data: BackupContent) -> list[tuple[BackupBlob, str | None]]:
     ]
     result.extend((item.image, item.image_type) for item in data.workspaces if item.image)
     result.extend((item.image, item.image_type) for item in data.channels if item.image)
+    result.extend((photo, "image/webp") for meal in data.meals for photo in meal.photos)
     return result
 
 
 def validate_graph(data: BackupContent) -> None:
     groups = [
+        [item.id for item in data.habits],
+        [item.id for item in data.day_templates],
+        [item.id for item in data.note_templates],
         [item.id for item in data.workspaces],
         [item.id for item in data.categories],
         [item.id for item in data.channels],
@@ -65,12 +77,24 @@ def validate_graph(data: BackupContent) -> None:
         [item.id for item in data.scheduled_messages],
         [item.id for item in data.writing_prompts],
     ]
-    if sum(len(group) for group in groups) + len(data.schedule_exceptions) > MAX_RECORDS:
+    if (
+        sum(len(group) for group in groups)
+        + len(data.schedule_exceptions)
+        + len(data.habit_entries)
+        + len(data.meals)
+        + len(data.saved_meals)
+        + len(data.nutrition_targets)
+        + len(data.weigh_ins)
+        > MAX_RECORDS
+    ):
         raise ContentTooLargeError("The backup exceeds the 50,000 record limit.")
     for group in groups:
         if len(set(group)) != len(group):
             raise ValidationError("The backup contains duplicate record IDs.")
     validate_tracking(data)
+    validate_templates(data)
+    validate_habits(data)
+    validate_nutrition(data)
     if len({item.channel_id for item in data.writing_prompts}) != len(data.writing_prompts):
         raise ValidationError("The backup contains duplicate channel writing prompts.")
     projects = {item.id for item in data.workspaces}

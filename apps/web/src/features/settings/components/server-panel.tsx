@@ -7,8 +7,20 @@ import { SessionsPanel } from "./sessions-panel";
 import { UpdatesPanel } from "../../updates/components/updates-panel";
 import { HostPanel } from "../../host/components/host-panel";
 import { ServerAddressPanel } from "../../desktop/server-address-panel";
+import { SwitchServerButton } from "../../desktop/switch-server-button";
+import { isAndroidApp } from "../../notifications/android";
 
 export function ServerPanel() {
+  return (
+    <section className="settings-panel">
+      <h2>Server</h2>
+      {isAndroidApp() && <SwitchServerButton />}
+      <ServerContent />
+    </section>
+  );
+}
+
+function ServerContent() {
   const query = useQuery({
     queryKey: ["server-settings"],
     queryFn: settingsApi.getServer,
@@ -16,23 +28,18 @@ export function ServerPanel() {
 
   if (query.isPending)
     return (
-      <section className="settings-panel">
-        <h2>Server</h2>
-        <p role="status">Loading instance details...</p>
-      </section>
+      <p role="status">Loading instance details...</p>
     );
   if (query.isError)
     return (
-      <section className="settings-panel">
-        <h2>Server</h2>
+      <>
         <Notice tone="error">{query.error.message}</Notice>
         <Button onClick={() => void query.refetch()}>Retry</Button>
-      </section>
+      </>
     );
 
   return (
-    <section className="settings-panel">
-      <h2>Server</h2>
+    <>
       <dl className="server-details">
         <div>
           <dt>Name</dt>
@@ -70,6 +77,6 @@ export function ServerPanel() {
         instance={query.data.instance_url}
       />
       <ServerAddressPanel />
-    </section>
+    </>
   );
 }

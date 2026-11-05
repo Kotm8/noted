@@ -1,3 +1,66 @@
+.work-schedule-settings {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+.work-schedule-cycle,
+.work-schedule-override-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.work-schedule-cycle > .schedule-field {
+  flex: 1;
+  min-width: 120px;
+}
+.work-schedule-weekdays {
+  flex-wrap: wrap;
+}
+.work-schedule-preview {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  margin: 18px 0 24px;
+}
+.work-schedule-preview > div {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 0;
+  border-radius: 4px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.work-schedule-preview > .is-day-off {
+  background: color-mix(in srgb, var(--surface-main) 94%, white);
+}
+.work-schedule-preview strong {
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  font-weight: 400;
+}
+.work-schedule-preview small {
+  font-size: calc(10px * var(--text-scale, 1));
+}
+.work-schedule-override-form {
+  margin: 14px 0;
+}
+.work-schedule-override {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+.work-schedule-override > span:nth-child(2) {
+  color: var(--text-muted);
+}
+
 .plan-prompt-history {
   border-top: 1px solid var(--border-subtle);
   padding: 12px 0;
@@ -257,6 +320,21 @@
 .schedule-week-row:last-child {
   border-bottom: 1px solid var(--border-subtle);
 }
+.schedule-week-row.is-day-off,
+.schedule-activity-grid.is-day-off .schedule-activity-row,
+.schedule-day-strip button.is-day-off {
+  background-color: color-mix(in srgb, var(--surface-main) 96%, white);
+}
+.schedule-day-kind {
+  font-size: calc(10px * var(--text-scale, 1));
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.schedule-day-strip .schedule-day-kind {
+  display: block;
+  grid-column: 1 / -1;
+}
 .schedule-week-row.selected-day .schedule-dual-track {
   background-color: color-mix(in srgb, var(--accent) 1.5%, transparent);
 }
@@ -478,7 +556,8 @@
   margin-bottom: 24px;
 }
 .schedule-day-strip button {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto;
   align-items: center;
   gap: 7px;
   padding: 7px 9px;
@@ -900,7 +979,9 @@ input.time-input[aria-invalid="true"] {
     gap: 3px;
   }
   .schedule-day-strip button {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-width: 0;
     flex: 1;
     gap: 4px;
     padding: 7px 5px;
@@ -1064,4 +1145,31 @@ input.time-input[aria-invalid="true"] {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--activity) 70%, transparent);
   pointer-events: none;
+}
+.schedule-sync-status {
+  flex-shrink: 0;
+  padding-top: 9px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.schedule-sync-status > p,
+.schedule-sync-failure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.6;
+}
+.schedule-sync-failure {
+  padding-top: 5px;
+  color: var(--danger);
+  flex-wrap: wrap;
+}
+.schedule-sync-failure > span {
+  flex: 1;
+  min-width: 180px;
+}
+.schedule-sync-failure > button {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

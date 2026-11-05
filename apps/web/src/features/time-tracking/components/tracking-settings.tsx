@@ -4,8 +4,10 @@ import { useTracking } from "../use-tracking";
 import { SchedulePreferences } from "./schedule-preferences";
 import { ActivitiesSettings } from "./activity-settings";
 import { HistorySettings } from "./history-settings";
+import { DayTemplatesPanel } from "../../templates/components/day-templates-panel";
 
-export type TrackingSection = "schedule" | "activities" | "history";
+export type TrackingSection =
+  "schedule" | "activities" | "history" | "templates";
 
 export function TrackingSettings({
   initialSection,
@@ -37,6 +39,12 @@ export function TrackingSettings({
           </section>
           <section className="tracking-section" data-section="schedule">
             <SchedulePreferences tracker={tracker.data} />
+          </section>
+          <section className="tracking-section" data-section="templates">
+            <DayTemplatesPanel
+              activities={activities.data}
+              hours={tracker.data.preferences}
+            />
           </section>
           <section className="tracking-section" data-section="history">
             <h3>History</h3>

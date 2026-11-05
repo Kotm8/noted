@@ -17,25 +17,32 @@ worker.addEventListener("push", (event) => {
       body: data.body,
       icon: "/favicon.svg",
       tag:
-        data.kind === "diagnostic"
-          ? `noted-test-${data.testId}`
-          : data.kind === "plan"
-            ? `plan-${data.promptId}`
-            : data.kind === "writing"
-              ? `writing-${data.writingPromptId}`
-              : `reminder-${data.messageId}`,
+        data.kind === "habit"
+          ? `habit-${data.habitReminderId}`
+          : data.kind === "diagnostic"
+            ? `noted-test-${data.testId}`
+            : data.kind === "plan"
+              ? `plan-${data.promptId}`
+              : data.kind === "writing"
+                ? `writing-${data.writingPromptId}`
+                : `reminder-${data.messageId}`,
       data,
       actions:
-        data.kind === "diagnostic"
-          ? []
-          : data.kind === "plan"
-            ? [{ action: "open-plan", title: "View activity" }]
-            : data.kind === "writing"
-              ? [{ action: "open-channel", title: "Write in channel" }]
-              : [
-                  { action: "done", title: "Done" },
-                  { action: "snooze", title: `Snooze ${data.snoozeMinutes}m` },
-                ],
+        data.kind === "habit"
+          ? [{ action: "open-habit", title: "View habit" }]
+          : data.kind === "diagnostic"
+            ? []
+            : data.kind === "plan"
+              ? [{ action: "open-plan", title: "View activity" }]
+              : data.kind === "writing"
+                ? [{ action: "open-channel", title: "Write in channel" }]
+                : [
+                    { action: "done", title: "Done" },
+                    {
+                      action: "snooze",
+                      title: `Snooze ${data.snoozeMinutes}m`,
+                    },
+                  ],
     }),
   );
 });
@@ -49,6 +56,7 @@ worker.addEventListener("notificationclick", (event) => {
     data.kind !== "diagnostic" &&
     data.kind !== "plan" &&
     data.kind !== "writing" &&
+    data.kind !== "habit" &&
     (event.action === "done" || event.action === "snooze")
   ) {
     url.searchParams.set("reminderAction", event.action);

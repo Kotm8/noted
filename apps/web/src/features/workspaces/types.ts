@@ -14,7 +14,8 @@ export interface Category {
   position: number;
 }
 
-export type ChannelKind = "note" | "reminder" | "journal" | "document" | "tasks";
+export type ChannelKind =
+  "note" | "reminder" | "journal" | "document" | "tasks";
 
 export interface Channel {
   kind?: ChannelKind;

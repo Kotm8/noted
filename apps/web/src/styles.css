@@ -19,3 +19,11 @@
 @import "./styles/home.css";
 @import "./styles/publishing.css";
 @import "./styles/formatting.css";
+@import "./features/templates/templates.css";
+@import "./styles/ai.css";
+@import "./styles/ai-writing.css";
+@import "./features/ai/calendar/calendar.css";
+
+@import "./features/habits/habits.css";
+@import "./features/nutrition/nutrition.css";
+@import "./features/ai/assistant/assistant.css";

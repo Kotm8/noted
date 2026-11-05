@@ -1,6 +1,14 @@
 import { useState } from "react";
-import { CalendarDays, House, Inbox, Settings } from "lucide-react";
+import {
+  Apple,
+  CalendarDays,
+  House,
+  Inbox,
+  Settings,
+  CheckSquare,
+} from "lucide-react";
 import { StillImage } from "../../../components/ui/still-image";
+import { useAiStatus } from "../../ai/queries";
 import { TimeTracker } from "../../time-tracking/components/tracker";
 import { Button } from "../../../components/ui/button";
 import { useCategoryCollapse } from "../hooks/use-category-collapse";
@@ -26,6 +34,10 @@ interface ChannelSidebarProps {
   onTrackingSettings: () => void;
   onSchedule: () => void;
   scheduleActive: boolean;
+  habitsActive: boolean;
+  onHabits: () => void;
+  nutritionActive: boolean;
+  onNutrition: () => void;
   homeActive: boolean;
   onHome: () => void;
   workspaces: Workspace[];
@@ -49,6 +61,10 @@ export function ChannelSidebar({
   onTrackingSettings,
   onSchedule,
   scheduleActive,
+  habitsActive,
+  onHabits,
+  nutritionActive,
+  onNutrition,
   homeActive,
   onHome,
   workspaces,
@@ -63,12 +79,14 @@ export function ChannelSidebar({
     (channel) => channel.category_id === null,
   );
   const isEmpty = !channels.length && !categories.length;
+  // Nutrition only exists while AI is connected; its data stays when disconnected.
+  const aiConnected = useAiStatus().data?.connected ?? false;
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
 
   return (
     <aside className="channel-sidebar" aria-label="Channels">
       <div className="workspace-header">
-        {homeActive || scheduleActive ? (
+        {homeActive || scheduleActive || habitsActive || nutritionActive ? (
           <span className="home-space-name">Your space</span>
         ) : (
           <WorkspaceMenu workspace={workspace} onManage={onManage} />
@@ -87,7 +105,23 @@ export function ChannelSidebar({
           <CalendarDays size={17} />
           Calendar
         </button>
-        {(homeActive || scheduleActive) && (
+        <button
+          aria-current={habitsActive ? "page" : undefined}
+          onClick={onHabits}
+        >
+          <CheckSquare size={17} />
+          Habits
+        </button>
+        {(aiConnected || nutritionActive) && (
+          <button
+            aria-current={nutritionActive ? "page" : undefined}
+            onClick={onNutrition}
+          >
+            <Apple size={17} />
+            Nutrition
+          </button>
+        )}
+        {(homeActive || scheduleActive || habitsActive || nutritionActive) && (
           <button onClick={onMissed}>
             <Inbox size={17} />
             Missed activity
@@ -102,7 +136,7 @@ export function ChannelSidebar({
             reorder.clearMarker();
         }}
       >
-        {homeActive || scheduleActive ? (
+        {homeActive || scheduleActive || habitsActive || nutritionActive ? (
           <div className="home-project-navigation">
             <span className="home-project-label">Projects</span>
             {workspaces.map((item) => (

@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.security import utc_now
+from app.habits.models import Habit, HabitDelivery
+from app.habits.worker import dispatch_habits
 from app.notifications.models import NotificationDelivery
 from app.notifications.worker import dispatch_dismissals, dispatch_due
 from app.publishing.delivery import dispatch_writing
@@ -27,6 +29,8 @@ logger = logging.getLogger(__name__)
 MAX_SLEEP = timedelta(seconds=60)
 MIN_SLEEP = timedelta(seconds=1)
 WATCHED_TABLES = {
+    "habits",
+    "habit_entries",
     "reminders",
     "plan_prompts",
     "schedule_plans",
@@ -75,10 +79,17 @@ def next_due(engine: Engine, now: datetime) -> datetime | None:
         select(PlanPrompt.notify_at).where(PlanPrompt.status == "pending"),
         select(WritingPrompt.next_at).where(WritingPrompt.enabled.is_(True)),
         select(WritingNudgeRun.next_at),
+        select(Habit.next_reminder_at).where(Habit.archived.is_(False)),
         select(ScheduledMessage.send_at).where(ScheduledMessage.status == "pending"),
         *(
             select(model.retry_at).where(model.delivered_at.is_(None))
-            for model in (NotificationDelivery, PlanPromptDelivery, WritingDelivery, NudgeDelivery)
+            for model in (
+                NotificationDelivery,
+                PlanPromptDelivery,
+                WritingDelivery,
+                NudgeDelivery,
+                HabitDelivery,
+            )
         ),
     ]
     times = union_all(*candidates).subquery()
@@ -101,6 +112,7 @@ def run_cycle(
     dispatch_writing(engine, settings, started)
     advance_nudges(engine, now)
     dispatch_nudges(engine, settings)
+    dispatch_habits(engine, settings, now)
     return True
 
 

@@ -1,17 +1,47 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Notice } from "../../../components/ui/notice";
 
 const icons = [
-  ["✦", "Star"], ["📚", "Books"], ["💻", "Computer"], ["🌿", "Plant"],
-  ["☕", "Coffee"], ["🎨", "Art"], ["💡", "Idea"], ["📝", "Notes"],
-  ["🏠", "Home"], ["🧠", "Learning"], ["🎮", "Games"], ["🎵", "Music"],
-  ["🎬", "Movies"], ["📷", "Photography"], ["🌙", "Moon"], ["☀️", "Sun"],
-  ["🌻", "Flower"], ["🍃", "Leaf"], ["🌊", "Ocean"], ["🔥", "Fire"],
-  ["🛠️", "Tools"], ["🚀", "Rocket"], ["🧪", "Experiments"], ["🔭", "Research"],
-  ["📦", "Projects"], ["🗂️", "Files"], ["🔖", "Bookmarks"], ["📅", "Calendar"],
-  ["🎯", "Goals"], ["🏋️", "Fitness"], ["🍳", "Cooking"], ["🐈", "Cat"],
+  ["✦", "Star"],
+  ["📚", "Books"],
+  ["💻", "Computer"],
+  ["🌿", "Plant"],
+  ["☕", "Coffee"],
+  ["🎨", "Art"],
+  ["💡", "Idea"],
+  ["📝", "Notes"],
+  ["🏠", "Home"],
+  ["🧠", "Learning"],
+  ["🎮", "Games"],
+  ["🎵", "Music"],
+  ["🎬", "Movies"],
+  ["📷", "Photography"],
+  ["🌙", "Moon"],
+  ["☀️", "Sun"],
+  ["🌻", "Flower"],
+  ["🍃", "Leaf"],
+  ["🌊", "Ocean"],
+  ["🔥", "Fire"],
+  ["🛠️", "Tools"],
+  ["🚀", "Rocket"],
+  ["🧪", "Experiments"],
+  ["🔭", "Research"],
+  ["📦", "Projects"],
+  ["🗂️", "Files"],
+  ["🔖", "Bookmarks"],
+  ["📅", "Calendar"],
+  ["🎯", "Goals"],
+  ["🏋️", "Fitness"],
+  ["🍳", "Cooking"],
+  ["🐈", "Cat"],
 ] as const;
 
 interface WorkspaceIconPickerProps {
@@ -24,15 +54,27 @@ interface WorkspaceIconPickerProps {
 }
 
 function navigateIcons(event: KeyboardEvent<HTMLDivElement>) {
-  const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+  const buttons = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>("button"),
+  );
   const index = buttons.indexOf(event.target as HTMLButtonElement);
-  const columns = getComputedStyle(event.currentTarget).gridTemplateColumns.split(" ").length;
-  const next = event.key === "ArrowRight" ? index + 1
-    : event.key === "ArrowLeft" ? index - 1
-    : event.key === "ArrowDown" ? index + columns
-    : event.key === "ArrowUp" ? index - columns
-    : event.key === "Home" ? 0
-    : event.key === "End" ? buttons.length - 1 : null;
+  const columns = getComputedStyle(
+    event.currentTarget,
+  ).gridTemplateColumns.split(" ").length;
+  const next =
+    event.key === "ArrowRight"
+      ? index + 1
+      : event.key === "ArrowLeft"
+        ? index - 1
+        : event.key === "ArrowDown"
+          ? index + columns
+          : event.key === "ArrowUp"
+            ? index - columns
+            : event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? buttons.length - 1
+                : null;
   if (index < 0 || next === null) return;
   event.preventDefault();
   buttons[(next + buttons.length) % buttons.length]?.focus();
@@ -51,9 +93,12 @@ export function WorkspaceIconPicker({
   const [error, setError] = useState<string | null>(null);
   const imageUrl = preview ?? (image === undefined ? existingImage : null);
 
-  useEffect(() => () => {
-    if (preview) URL.revokeObjectURL(preview);
-  }, [preview]);
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
 
   function removeImage() {
     onImageChange(null);
@@ -79,7 +124,11 @@ export function WorkspaceIconPicker({
       <legend>Workspace icon</legend>
       <div className="workspace-icon-header">
         <div className="workspace-image-preview">
-          {imageUrl ? <img src={imageUrl} alt="Workspace icon preview" /> : <span>{value}</span>}
+          {imageUrl ? (
+            <img src={imageUrl} alt="Workspace icon preview" />
+          ) : (
+            <span>{value}</span>
+          )}
         </div>
         <div className="workspace-icon-actions">
           <Button
@@ -137,8 +186,8 @@ export function WorkspaceIconPicker({
         ))}
       </div>
       <p>
-        Images are stretched to a square and resized to 512 × 512.
-        GIFs stay animated. Up to 5 MB.
+        Images are stretched to a square and resized to 512 × 512. GIFs stay
+        animated. Up to 5 MB.
       </p>
       {error && <Notice tone="error">{error}</Notice>}
     </fieldset>

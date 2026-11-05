@@ -6,10 +6,12 @@ export function Menu({
   trigger,
   children,
   align = "end",
+  onCloseAutoFocus,
 }: {
   trigger: ReactNode;
   children: ReactNode;
   align?: "start" | "end";
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const [open, setOpen] = useState(false);
   useAndroidBackLayer(open, () => setOpen(false));
@@ -21,6 +23,7 @@ export function Menu({
           className="dropdown-content"
           align={align}
           sideOffset={6}
+          onCloseAutoFocus={onCloseAutoFocus}
         >
           {children}
         </DropdownMenu.Content>

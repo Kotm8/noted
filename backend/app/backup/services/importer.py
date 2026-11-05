@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from app.backup.repository import BackupRepository
 from app.backup.schemas import BackupContent
 from app.backup.services.archive import blobs
+from app.backup.services.habits import restore_habits
+from app.backup.services.nutrition import restore_nutrition
+from app.backup.services.templates import restore_templates
 from app.backup.services.tracking import restore_tracking
 from app.core.security import utc_now
 from app.journals.models import JournalEntry
@@ -51,6 +54,9 @@ class BackupImporter:
                 data.plan_events,
                 data.scheduled_messages,
                 data.writing_prompts,
+                data.habits,
+                data.day_templates,
+                data.note_templates,
             )
             for item in group
         }
@@ -198,6 +204,9 @@ class BackupImporter:
                         **rule.model_dump(exclude={"id", "channel_id"}),
                     )
                 )
+            restore_templates(self.db, owner_id, data, identifiers, replace)
+            restore_habits(self.db, owner_id, data, identifiers)
+            restore_nutrition(self.db, owner_id, data, keys, replace)
             self.db.commit()
         except BaseException:
             self.db.rollback()

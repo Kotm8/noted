@@ -6,8 +6,10 @@ import {
   MoreHorizontal,
   Pencil,
   Share2,
+  Sparkles,
   Trash2,
 } from "lucide-react";
+import { useRef } from "react";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { NoteAttachments } from "./note-attachments";
 import type { Note } from "../types";
@@ -26,6 +28,8 @@ interface NoteCardProps {
   onCancelEdit: () => void;
   onDelete: () => void;
   onOpenThread?: () => void;
+  onAskAi?: (anchor: HTMLElement) => void;
+  preview?: { text: string; done: boolean };
 }
 
 export function NoteCard({
@@ -36,16 +40,34 @@ export function NoteCard({
   onCancelEdit,
   onDelete,
   onOpenThread,
+  onAskAi,
+  preview,
 }: NoteCardProps) {
+  const aiButton = useRef<HTMLButtonElement>(null);
+  const openingAi = useRef(false);
   const createdAt = new Date(note.created_at);
   const hasText = Boolean(note.content.trim());
   const hasFiles = note.attachments.length > 0;
+  const hasAiInput =
+    hasText ||
+    note.attachments.some((file) =>
+      ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+        file.content_type,
+      ),
+    );
   const sharing = canShare();
   const wasEdited = note.updated_at !== note.created_at;
   const content = (
     <>
       {editing ? (
         <NoteEditor note={note} onClose={onCancelEdit} />
+      ) : preview ? (
+        <div className="ai-preview">
+          <p className="ai-before">{note.content}</p>
+          <p className={`ai-after${preview.done ? "" : " streaming"}`}>
+            {preview.text}
+          </p>
+        </div>
       ) : (
         <MessageMarkdown note={note} />
       )}
@@ -102,6 +124,18 @@ export function NoteCard({
             <Pencil size={14} />
           </button>
           <CopyNoteButton content={note.content} />
+          {onAskAi && hasAiInput && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Ask AI"
+              title="Ask AI"
+              ref={aiButton}
+              onClick={(event) => onAskAi(event.currentTarget)}
+            >
+              <Sparkles size={14} />
+            </button>
+          )}
           {onOpenThread && !note.thread_root_id && (
             <button
               type="button"
@@ -113,12 +147,32 @@ export function NoteCard({
             </button>
           )}
           <Menu
+            onCloseAutoFocus={(event) => {
+              if (openingAi.current) {
+                event.preventDefault();
+                openingAi.current = false;
+              }
+            }}
             trigger={
               <button className="icon-button" aria-label="Note options">
                 <MoreHorizontal size={17} />
               </button>
             }
           >
+            {onAskAi && hasAiInput && (
+              <MenuItem
+                onSelect={() => {
+                  const anchor = aiButton.current;
+                  if (anchor) {
+                    openingAi.current = true;
+                    requestAnimationFrame(() => onAskAi(anchor));
+                  }
+                }}
+              >
+                <Sparkles size={14} />
+                Ask AI
+              </MenuItem>
+            )}
             <MenuItem onSelect={onEdit}>
               <Pencil size={14} />
               Edit note

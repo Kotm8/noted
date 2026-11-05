@@ -39,6 +39,11 @@ class SearchRepository:
         sort: Literal["newest", "oldest"],
         limit: int,
         offset: int,
+        kind: Literal["message", "journal", "document"] | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        channel_name: str | None = None,
+        workspace_name: str | None = None,
     ) -> tuple[list[SearchRecord], int]:
         escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = f"%{escaped}%"
@@ -82,6 +87,16 @@ class SearchRepository:
             ),
         ).subquery()
         filters = [Workspace.owner_id == owner_id]
+        if kind:
+            filters.append(source.c.kind == kind)
+        if since:
+            filters.append(source.c.created_at >= since)
+        if until:
+            filters.append(source.c.created_at < until)
+        for column, value in ((Channel.name, channel_name), (Workspace.name, workspace_name)):
+            if value:
+                escaped_name = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                filters.append(column.ilike(f"%{escaped_name}%", escape="\\"))
         if workspace_id:
             filters.append(Workspace.id == workspace_id)
         if channel_id:

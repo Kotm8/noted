@@ -1,7 +1,6 @@
 import { Menu as MenuIcon, MoreHorizontal, Search } from "lucide-react";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { ChannelIcon } from "./channel-icon";
-import { ChannelPinItem } from "./channel-pin-item";
 import type { Channel, OpenManagement, Workspace } from "../types";
 
 interface ChannelHeaderProps {
@@ -70,7 +69,6 @@ export function ChannelHeader({
             <MenuItem onSelect={() => onScheduling("writing")}>
               Writing prompt
             </MenuItem>
-            <ChannelPinItem channel={channel} />
             <MenuItem
               onSelect={() =>
                 onManage({

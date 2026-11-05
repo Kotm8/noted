@@ -9,6 +9,9 @@ import {
   Smartphone,
   Timer,
   Watch,
+  Layers,
+  Sparkles,
+  Apple,
 } from "lucide-react";
 import { isDesktop } from "../../desktop/connection-context";
 import { Modal } from "../../../components/ui/dialog";
@@ -17,15 +20,28 @@ import { AppearancePanel } from "./appearance-panel";
 import { ServerPanel } from "./server-panel";
 import { BackupsPanel } from "../../backups/components/backups-panel";
 import { NotificationsPanel } from "../../notifications/notifications-panel";
-import { isAndroidApp } from "../../notifications/android";
-import { SwitchServerButton } from "../../desktop/switch-server-button";
 import { TrackingSettings } from "../../time-tracking/components/tracking-settings";
 import type { TrackingSection } from "../../time-tracking/components/tracking-settings";
 import { WatchAppearancePanel } from "../../wear/watch-panel";
 import { DesktopAppPanel } from "../../desktop/desktop-app-panel";
 import { DevicesPanel } from "./devices-panel";
+import { NoteTemplatesPanel } from "../../templates/components/note-templates-panel";
+import { AiSettingsPanel } from "../../ai/components/ai-settings-panel";
+import { AiPromptsPanel } from "../../ai/components/ai-prompts-panel";
+import { AiHistoryPanel } from "../../ai/components/ai-history-panel";
+import { useAiStatus } from "../../ai/queries";
+import {
+  NutritionSettingsPanel,
+  SavedMealsPanel,
+} from "../../nutrition/settings-panels";
 
 type Section =
+  | "templates"
+  | "ai"
+  | "ai-prompts"
+  | "ai-history"
+  | "nutrition"
+  | "saved-meals"
   | "appearance"
   | "notifications"
   | "tracking"
@@ -41,11 +57,12 @@ export function SettingsDialog({
   trackingSection,
 }: {
   onClose: () => void;
-  initialTab?: "appearance" | "tracking";
+  initialTab?: "appearance" | "tracking" | "templates" | "ai";
   trackingSection?: TrackingSection;
 }) {
   const [section, setSection] = useState<Section>(initialTab);
   const logout = useLogout();
+  const aiConnected = useAiStatus().data?.connected ?? false;
 
   function item(
     value: Section,
@@ -80,13 +97,22 @@ export function SettingsDialog({
           {item("appearance", <Palette size={16} />, "Appearance")}
           {item("notifications", <Bell size={16} />, "Notifications")}
           {item("tracking", <Timer size={16} />, "Time tracking")}
+          {item("templates", <Layers size={16} />, "Note templates")}
+          {item("ai", <Sparkles size={16} />, "AI")}
+          {item("ai-prompts", null, "Saved prompts", true)}
+          {item("ai-history", null, "History", true)}
+          {aiConnected && (
+            <>
+              {item("nutrition", <Apple size={16} />, "Nutrition")}
+              {item("saved-meals", null, "Saved meals", true)}
+            </>
+          )}
           {item("server", <Server size={16} />, "Server")}
           {item("backups", <Archive size={16} />, "Backups")}
           {item("devices", <Smartphone size={16} />, "Devices")}
           {item("watch", <Watch size={16} />, "Watch appearance", true)}
           {isDesktop && item("desktop", <AppWindow size={16} />, "Desktop app")}
           <div className="settings-navigation-end">
-            {isAndroidApp() && <SwitchServerButton />}
             <button
               className="settings-signout"
               disabled={logout.isPending}
@@ -104,6 +130,18 @@ export function SettingsDialog({
             <NotificationsPanel />
           ) : section === "tracking" ? (
             <TrackingSettings initialSection={trackingSection} />
+          ) : section === "templates" ? (
+            <NoteTemplatesPanel />
+          ) : section === "ai" ? (
+            <AiSettingsPanel />
+          ) : section === "ai-prompts" ? (
+            <AiPromptsPanel />
+          ) : section === "ai-history" ? (
+            <AiHistoryPanel />
+          ) : section === "nutrition" ? (
+            <NutritionSettingsPanel />
+          ) : section === "saved-meals" ? (
+            <SavedMealsPanel />
           ) : section === "server" ? (
             <ServerPanel />
           ) : section === "backups" ? (

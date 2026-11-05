@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -49,6 +50,8 @@ interface NoteComposerProps {
   ) => Promise<void>;
   onEditLast: () => void;
   onSent?: () => void;
+  /** Text to add to the draft, such as an AI draft; a new `key` adds it again. */
+  insert?: { key: number; text: string } | null;
 }
 
 export function NoteComposer({
@@ -58,9 +61,17 @@ export function NoteComposer({
   onSend,
   onEditLast,
   onSent,
+  insert,
 }: NoteComposerProps) {
   const { draft, setDraft, clearSentDraft } = useDraft(channel.id);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!insert) return;
+    setDraft((current) =>
+      current.trim() ? `${current.trimEnd()}\n\n${insert.text}` : insert.text,
+    );
+    inputRef.current?.focus();
+  }, [insert, setDraft]);
   const location = useLocation();
   useLayoutEffect(() => {
     if (new URLSearchParams(location.search).get("write") === "1")

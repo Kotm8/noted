@@ -30,10 +30,19 @@ export interface TimeSession {
   ended_at: string | null;
   revision: number;
 }
+export interface WorkSchedule {
+  mode: "weekly" | "cycle";
+  off_weekdays: number[];
+  work_days: number;
+  off_days: number;
+  cycle_start: string | null;
+  overrides: Record<string, "work" | "off">;
+}
 export interface TrackingPreferences {
   start_minute: number;
   end_minute: number;
   timezone: string;
+  work_schedule?: WorkSchedule;
 }
 export interface Tracker {
   revision: number;

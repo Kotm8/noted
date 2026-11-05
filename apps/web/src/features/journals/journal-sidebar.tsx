@@ -11,10 +11,12 @@ export function JournalSidebar({
   entryId,
   editing,
   onClose,
+  onOpenEntry,
 }: {
   entryId: string;
   editing: boolean;
   onClose: () => void;
+  onOpenEntry?: (id: string) => void;
 }) {
   const query = useQuery({
     queryKey: ["journal-entry", entryId],
@@ -28,6 +30,7 @@ export function JournalSidebar({
         entry={query.data}
         initiallyEditing={editing}
         onClose={onClose}
+        onOpenEntry={onOpenEntry}
       />
     );
   return (

@@ -25,7 +25,7 @@ With Firebase configured, the VPS sends directly to FCM using its own service ac
 
 When the browser verifies app/domain association and supports delegation, it displays notifications under Noted. Otherwise browser notifications or a Custom Tab toolbar may be used. The app reports a missing or mismatched server association rather than bypassing HTTPS or verification.
 
-**Switch server** in Noted settings removes this server's push subscription, unsubscribes the browser, signs out, and opens the native server selector. Choosing a domain directly in the native selector does not erase Chrome's other site sessions. Notifications for any site you previously enabled remain manageable in that site's Noted settings or Chrome site permissions.
+**Settings > Server > Switch server** removes this server's push subscription, unsubscribes the browser, signs out, and opens the native server selector. Choosing a domain directly in the native selector does not erase Chrome's other site sessions. Notifications for any site you previously enabled remain manageable in that site's Noted settings or Chrome site permissions.
 
 If you installed the earlier debug APK, uninstall that APK once before installing the release-signed APK. They use different signing certificates. Notes and uploaded files remain on the VPS; sign in again afterward.
 

@@ -9,7 +9,7 @@ import type {
 export const scheduleApi = {
   board: (start: string, end: string) =>
     request<ScheduleBoard>(`/schedule?${new URLSearchParams({ start, end })}`),
-  create: (data: PlanFields) =>
+  create: (data: PlanFields & { client_id?: string }) =>
     request<SchedulePlan>("/schedule/plans", "POST", data),
   get: (id: string) => request<SchedulePlan>(`/schedule/plans/${id}`),
   update: (id: string, data: PlanUpdate) =>

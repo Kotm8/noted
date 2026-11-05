@@ -153,6 +153,9 @@ export async function prepareStartup(client: QueryClient, url: URL) {
         workspaceId: workspaceId ?? fallback?.id ?? workspaces[0].id,
         channelId: workspaceId ? parts?.[2] : fallback ? saved?.[2] : undefined,
         noteId: url.searchParams.get("note") ?? undefined,
+        journalEntryId: url.searchParams.get("entry") ?? undefined,
+        threadId: url.searchParams.get("thread") ?? undefined,
+        replyId: url.searchParams.get("reply") ?? undefined,
       },
       true,
     );

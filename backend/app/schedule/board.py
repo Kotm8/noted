@@ -66,6 +66,7 @@ def schedule_board(db: Session, owner_id: UUID, start: datetime, end: datetime) 
                     id=item.id,
                     revision=item.revision,
                     occurrence_date=day,
+                    series_date=item.date,
                     start_at=times[0],
                     end_at=times[1],
                     is_override=override is not None,

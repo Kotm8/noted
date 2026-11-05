@@ -8,11 +8,19 @@ interface WorkspaceEmptyProps {
   onManage: OpenManagement;
 }
 
-export function WorkspaceEmpty({ workspace, isLoading, onManage }: WorkspaceEmptyProps) {
+export function WorkspaceEmpty({
+  workspace,
+  isLoading,
+  onManage,
+}: WorkspaceEmptyProps) {
   if (isLoading) {
     return (
       <div className="empty-main">
-        <LoaderCircle className="spin" size={24} aria-label="Loading workspace" />
+        <LoaderCircle
+          className="spin"
+          size={24}
+          aria-label="Loading workspace"
+        />
       </div>
     );
   }

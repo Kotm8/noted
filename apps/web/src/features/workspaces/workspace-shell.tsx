@@ -1,3 +1,4 @@
+import { useAssistant } from "../ai/assistant/context";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { isMobileLayout } from "../../lib/layout";
@@ -50,8 +51,25 @@ function initialTargetNote() {
     : null;
 }
 
+function initialWriting(): WritingPanel | null {
+  const params = new URLSearchParams(window.location.search);
+  const channelId = window.location.pathname.split("/").at(-1) ?? "";
+  const entry = params.get("entry");
+  if (entry) return { kind: "journal", id: entry, channelId };
+  const thread = params.get("thread");
+  return thread
+    ? {
+        kind: "thread",
+        id: thread,
+        targetId: params.get("reply") ?? undefined,
+        channelId,
+      }
+    : null;
+}
+
 /** Layout around every signed-in page: navigation, search, panels and dialogs. */
 export function WorkspaceShell() {
+  const assistant = useAssistant();
   useLiveUpdates();
   useOutboxSender();
   useNotifications();
@@ -65,6 +83,8 @@ export function WorkspaceShell() {
     !navigation.isLoading &&
     (navigation.isHome ||
       navigation.isSchedule ||
+      navigation.isHabits ||
+      navigation.isNutrition ||
       Boolean(navigation.channel) ||
       !navigation.workspaces.length ||
       Boolean(navigation.workspace && !navigation.channels.length));
@@ -74,6 +94,27 @@ export function WorkspaceShell() {
 
   const [management, setManagement] = useState<ManagementAction | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [templateSettings, setTemplateSettings] = useState(false);
+  const [aiSettings, setAiSettings] = useState(false);
+  useEffect(() => {
+    const openAi = () => {
+      setAiSettings(true);
+      setSettingsOpen(true);
+    };
+    window.addEventListener("noted:ai-settings", openAi);
+    return () => window.removeEventListener("noted:ai-settings", openAi);
+  }, []);
+  useEffect(() => {
+    function openTemplates(event: Event) {
+      const kind = (event as CustomEvent<string>).detail;
+      setTemplateSettings(kind === "notes");
+      setTrackingSection(kind === "days" ? "templates" : null);
+      setSettingsOpen(true);
+    }
+    window.addEventListener("noted:template-settings", openTemplates);
+    return () =>
+      window.removeEventListener("noted:template-settings", openTemplates);
+  }, []);
   const [trackingSection, setTrackingSection] =
     useState<TrackingSection | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -82,7 +123,9 @@ export function WorkspaceShell() {
     channel: Channel;
     tab: "messages" | "writing";
   } | null>(null);
-  const [writing, setWritingPanel] = useState<WritingPanel | null>(null);
+  const [writing, setWritingPanel] = useState<WritingPanel | null>(
+    initialWriting,
+  );
   const [targetNote, setTargetNote] = useState(initialTargetNote);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [trackerRequest, setTrackerRequest] = useState(0);
@@ -104,6 +147,13 @@ export function WorkspaceShell() {
   useAndroidBackLayer(searchOpen, () => closeSearch());
   useAndroidBackLayer(Boolean(writing), () => setWritingPanel(null));
   useEffect(() => syncAndroidRoute(location.pathname), [location.pathname]);
+  useEffect(() => {
+    if (
+      location.pathname === "/nutrition" &&
+      location.search.includes("setup=1")
+    )
+      setSettingsOpen(false);
+  }, [location.pathname, location.search]);
   useEffect(() => {
     if (!new URLSearchParams(location.search).get("prompt")) return;
     setTrackerRequest((value) => value + 1);
@@ -178,6 +228,7 @@ export function WorkspaceShell() {
   }
 
   function openTracking(tab: TrackingSection | null) {
+    setTemplateSettings(false);
     cancelChannelNavigation();
     setTrackingSection(tab);
     setSettingsOpen(true);
@@ -262,7 +313,7 @@ export function WorkspaceShell() {
     <MentionContext.Provider value={mentions}>
       <div
         ref={sidebarSwipeRef}
-        className={`app-shell ${mobileNavigationOpen ? "mobile-nav-open" : ""} ${searchOpen ? "search-open" : ""} ${activeWriting ? "writing-open" : ""}`}
+        className={`app-shell ${assistant.open ? "assistant-open" : ""} ${mobileNavigationOpen ? "mobile-nav-open" : ""} ${searchOpen ? "search-open" : ""} ${activeWriting ? "writing-open" : ""}`}
       >
         {mobileNavigationOpen && (
           <button
@@ -292,6 +343,10 @@ export function WorkspaceShell() {
           onManage={setManagement}
           onOpenSettings={() => openTracking(null)}
           scheduleActive={navigation.isSchedule}
+          habitsActive={navigation.isHabits}
+          onHabits={() => openPage("/habits")}
+          nutritionActive={navigation.isNutrition}
+          onNutrition={() => openPage("/nutrition")}
           homeActive={navigation.isHome}
           onHome={() => openPage("/")}
           workspaces={navigation.workspaces}
@@ -326,6 +381,9 @@ export function WorkspaceShell() {
             <JournalSidebar
               key={activeWriting.id}
               entryId={activeWriting.id}
+              onOpenEntry={(id) =>
+                setWritingPanel({ ...activeWriting, id, editing: false })
+              }
               editing={activeWriting.editing ?? false}
               onClose={() => setWritingPanel(null)}
             />
@@ -360,9 +418,20 @@ export function WorkspaceShell() {
           )}
           {settingsOpen && (
             <SettingsDialog
-              initialTab={trackingSection ? "tracking" : "appearance"}
+              initialTab={
+                aiSettings
+                  ? "ai"
+                  : templateSettings
+                    ? "templates"
+                    : trackingSection
+                      ? "tracking"
+                      : "appearance"
+              }
               trackingSection={trackingSection ?? undefined}
-              onClose={() => setSettingsOpen(false)}
+              onClose={() => {
+                setSettingsOpen(false);
+                setAiSettings(false);
+              }}
             />
           )}
         </Suspense>

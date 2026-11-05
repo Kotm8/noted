@@ -113,6 +113,7 @@ export function useScheduleHistory() {
   }, []);
 
   return {
+    recordBatch: record,
     undo,
     redo,
     /** Toast options for an undoable change. Showing one dismisses the last, so the Undo
@@ -135,7 +136,9 @@ export function useScheduleHistory() {
     },
     /** A move or resize. `changes` holds the new times, applied the same way on redo. */
     changed(original: PlanOccurrence, changes: Partial<PlanUpdate>) {
-      const scope = original.frequency === "none" ? "series" : "occurrence";
+      const scope =
+        changes.scope ??
+        (original.frequency === "none" ? "series" : "occurrence");
       record({
         label: "the move",
         undo: async () => {

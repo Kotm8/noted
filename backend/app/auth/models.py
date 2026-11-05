@@ -32,6 +32,7 @@ class User(Base):
     appearance: Mapped[dict[str, str | int] | None] = mapped_column(JSONB)
     notification_preferences: Mapped[dict[str, int | bool] | None] = mapped_column(JSONB)
     watch_preferences: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    ai_preferences: Mapped[dict[str, object] | None] = mapped_column(JSONB)
 
 
 class LoginSession(Base):

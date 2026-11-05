@@ -105,6 +105,14 @@ export function HomePage({
           <h1>Home</h1>
         </div>
         <button
+          className="button ghost"
+          onClick={() =>
+            window.dispatchEvent(new Event("noted:assistant-open"))
+          }
+        >
+          Ask AI
+        </button>
+        <button
           className="icon-button"
           aria-label="Open search"
           onClick={onSearch}

@@ -60,10 +60,33 @@ class ActivityOrder(BaseModel):
     ids: list[UUID] = Field(max_length=100)
 
 
+class WorkSchedule(BaseModel):
+    mode: Literal["weekly", "cycle"] = "weekly"
+    off_weekdays: list[int] = Field(default_factory=lambda: [5, 6], max_length=7)
+    work_days: int = Field(default=2, ge=1, le=31)
+    off_days: int = Field(default=2, ge=1, le=31)
+    cycle_start: date | None = None
+    overrides: dict[date, Literal["work", "off"]] = Field(default_factory=dict, max_length=1000)
+
+    @field_validator("off_weekdays")
+    @classmethod
+    def valid_weekdays(cls, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value) or any(day < 0 or day > 6 for day in value):
+            raise ValueError("Choose distinct weekdays from Monday to Sunday")
+        return sorted(value)
+
+    @model_validator(mode="after")
+    def valid_cycle(self) -> "WorkSchedule":
+        if self.mode == "cycle" and self.cycle_start is None:
+            raise ValueError("Choose the first working day of the cycle")
+        return self
+
+
 class TrackingPreferences(BaseModel):
     start_minute: int = Field(default=480, ge=0, le=1380)
     end_minute: int = Field(default=1320, ge=60, le=1440)
     timezone: str = Field(default="UTC", max_length=64)
+    work_schedule: WorkSchedule = Field(default_factory=WorkSchedule)
     _timezone = field_validator("timezone")(check_timezone)
 
     @model_validator(mode="after")

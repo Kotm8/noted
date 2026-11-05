@@ -5,9 +5,12 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.core.storage_limits import MAX_FILE_SIZE, MAX_ICON_SIZE
+from app.habits.schemas import HabitFields
+from app.nutrition.schemas import MealItem, ProfileFields, Slot, Source
 from app.publishing.schemas import ScheduledFields, WritingFields
 from app.reminders.schemas import ReminderSchedule
 from app.schedule.schemas import PlanCreate, PlanFields
+from app.templates.schemas import DayTemplateFields, NoteTemplateFields
 from app.time_tracking.schemas import ActivityCreate
 from app.workspaces.schemas import ChannelKind
 
@@ -164,9 +167,74 @@ class BackupWritingPrompt(WritingFields, BackupRecord):
     channel_id: UUID
 
 
+class BackupDayTemplate(DayTemplateFields, BackupRecord):
+    id: UUID
+    revision: int = Field(ge=1)
+
+
+class BackupNoteTemplate(NoteTemplateFields, BackupRecord):
+    id: UUID
+    revision: int = Field(ge=1)
+
+
+class BackupHabit(HabitFields, BackupRecord):
+    id: UUID
+    revision: int = Field(ge=1)
+
+
+class BackupHabitEntry(BackupRecord):
+    habit_id: UUID
+    day: date
+    value: float = Field(ge=0, le=100000, allow_inf_nan=False)
+    revision: int = Field(ge=1)
+
+
+class BackupNutritionProfile(ProfileFields, BackupRecord):
+    age_given_on: date
+
+
+class BackupNutritionTarget(BackupRecord):
+    starts_on: date
+    resting: int = Field(ge=0, le=10000)
+    maintenance: int = Field(ge=0, le=10000)
+    kcal: int = Field(ge=800, le=6000)
+    protein: int = Field(ge=0, le=400)
+    carbs: int = Field(ge=0, le=900)
+    fat: int = Field(ge=0, le=300)
+    explanation: str = Field(default="", max_length=4000)
+    sources: list[Source] = Field(default_factory=list, max_length=12)
+
+
+class BackupSavedMeal(BackupRecord):
+    id: UUID
+    name: str = Field(min_length=1, max_length=80)
+    items: list[MealItem] = Field(min_length=1, max_length=40)
+    uses: int = Field(default=0, ge=0)
+
+
+class BackupMeal(BackupRecord):
+    id: UUID
+    day: date
+    minute: int = Field(ge=0, le=1439)
+    slot: Slot
+    name: str = Field(min_length=1, max_length=80)
+    items: list[MealItem] = Field(min_length=1, max_length=40)
+    source: Literal["ai", "saved", "manual"] = "manual"
+    saved_meal_id: UUID | None = None
+    created_at: AwareDatetime
+    photos: list[BackupBlob] = Field(default_factory=list, max_length=4)
+
+
+class BackupWeighIn(BackupRecord):
+    day: date
+    weight_kg: float = Field(ge=30, le=300, allow_inf_nan=False)
+
+
 class BackupContent(BackupRecord):
+    habits: list[BackupHabit] = Field(default_factory=list)
+    habit_entries: list[BackupHabitEntry] = Field(default_factory=list)
     format: Literal["noted-content-backup"] = "noted-content-backup"
-    version: Literal[1, 2, 3, 4, 5, 6, 7, 8] = 1
+    version: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] = 1
     created_at: AwareDatetime
     workspaces: list[BackupWorkspace]
     categories: list[BackupCategory]
@@ -182,9 +250,20 @@ class BackupContent(BackupRecord):
     plan_events: list[BackupPlanEvent] = Field(default_factory=list)
     scheduled_messages: list[BackupScheduledMessage] = Field(default_factory=list)
     writing_prompts: list[BackupWritingPrompt] = Field(default_factory=list)
+    day_templates: list[BackupDayTemplate] = Field(default_factory=list)
+    note_templates: list[BackupNoteTemplate] = Field(default_factory=list)
+    nutrition_profile: BackupNutritionProfile | None = None
+    nutrition_targets: list[BackupNutritionTarget] = Field(default_factory=list)
+    saved_meals: list[BackupSavedMeal] = Field(default_factory=list)
+    meals: list[BackupMeal] = Field(default_factory=list)
+    weigh_ins: list[BackupWeighIn] = Field(default_factory=list)
 
 
 class BackupCounts(BaseModel):
+    meals: int = 0
+    habits: int = 0
+    day_templates: int = 0
+    note_templates: int = 0
     projects: int
     categories: int
     channels: int

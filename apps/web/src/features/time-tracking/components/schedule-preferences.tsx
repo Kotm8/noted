@@ -8,11 +8,15 @@ import { Select } from "../../../components/ui/select";
 import { TimeField } from "../../schedule/components/time-field";
 import { trackingApi } from "../api";
 import type { Tracker, TrackingPreferences } from "../types";
+import { defaultWorkSchedule } from "../work-schedule";
+import { WorkScheduleFields } from "./work-schedule-fields";
 
 export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
-  const [preferences, setPreferences] = useState(tracker.preferences);
+  const [draft, setDraft] = useState<TrackingPreferences | null>(null);
+  const preferences = draft ?? tracker.preferences;
   const revision = useRef(tracker.revision);
   const pending = useRef<number | undefined>(undefined);
+  const pendingValues = useRef<TrackingPreferences | null>(null);
   const client = useQueryClient();
   const zones = [
     ...new Set([
@@ -26,21 +30,37 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
     scope: { id: "schedule-preferences" },
     mutationFn: (values: TrackingPreferences) =>
       trackingApi.preferences(values, revision.current),
-    onSuccess: (data) => {
+    onSuccess: (data, values) => {
       client.setQueryData(["time-tracker"], data);
       void client.invalidateQueries({ queryKey: ["schedule"] });
       revision.current = data.revision;
+      setDraft((current) => (current === values ? null : current));
     },
     onError: () => {
       void client.invalidateQueries({ queryKey: ["time-tracker"] });
     },
   });
-  useEffect(() => () => window.clearTimeout(pending.current), []);
-  /** Arrow keys step the hours quickly, so saves wait for a short pause. */
+  const { mutate } = save;
+  useEffect(() => {
+    if (!draft && !save.isPending) {
+      revision.current = Math.max(revision.current, tracker.revision);
+    }
+  }, [tracker.revision, draft, save.isPending]);
+  useEffect(
+    () => () => {
+      window.clearTimeout(pending.current);
+      if (pendingValues.current) mutate(pendingValues.current);
+    },
+    [mutate],
+  );
   function change(values: TrackingPreferences) {
-    setPreferences(values);
+    setDraft(values);
+    pendingValues.current = values;
     window.clearTimeout(pending.current);
-    pending.current = window.setTimeout(() => save.mutate(values), 400);
+    pending.current = window.setTimeout(() => {
+      pendingValues.current = null;
+      mutate(values);
+    }, 400);
   }
   return (
     <div>
@@ -79,6 +99,11 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
         Saved to your account and shared across devices. Existing repeating
         plans keep their original timezone.
       </p>
+      <WorkScheduleFields
+        value={preferences.work_schedule ?? defaultWorkSchedule}
+        timezone={preferences.timezone}
+        onChange={(work_schedule) => change({ ...preferences, work_schedule })}
+      />
       {save.error && (
         <Notice tone="error">
           {save.error.message}
@@ -94,7 +119,7 @@ export function SchedulePreferences({ tracker }: { tracker: Tracker }) {
                   staleTime: 0,
                 })
                 .then((data) => {
-                  setPreferences(data.preferences);
+                  setDraft(null);
                   revision.current = data.revision;
                   save.reset();
                 })

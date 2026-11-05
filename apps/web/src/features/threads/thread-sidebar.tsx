@@ -26,6 +26,7 @@ import { chatEnter } from "../notes/chat-enter";
 import { useMentionPicker } from "../notes/components/mention-picker";
 import { toStored } from "../notes/mentions";
 import { threadQuery } from "./queries";
+import { useMessageAi } from "../ai/use-message-ai";
 
 export function ThreadSidebar({
   rootId,
@@ -44,6 +45,9 @@ export function ThreadSidebar({
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Note | null>(null);
   const { draft, setDraft, clearSentDraft } = useDraft(`thread.${rootId}`);
+  const messageAi = useMessageAi(channel, (text) =>
+    setDraft((current) => [current, text].filter(Boolean).join("\n\n")),
+  );
   const query = useInfiniteQuery(threadQuery(rootId, targetId));
   const scroll = useTimelineScroll(query.data, !targetId);
   const highlighted = useRef(false);
@@ -184,6 +188,8 @@ export function ThreadSidebar({
                   onEdit={setEditing}
                   onCancelEdit={() => setEditing(null)}
                   onDelete={setDeleting}
+                  onAskAi={messageAi.ask}
+                  preview={messageAi.preview}
                 />
                 {!query.hasPreviousPage && (
                   <OutgoingNotes channelId={channel.id} threadRootId={rootId} />
@@ -265,6 +271,7 @@ export function ThreadSidebar({
           </>
         )
       )}
+      {messageAi.popover}
       <DeleteNoteDialog
         open={deleting !== null}
         pending={remove.isPending}

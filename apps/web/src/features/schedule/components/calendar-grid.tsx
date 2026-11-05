@@ -1,5 +1,5 @@
 import { Flag, Info, Play, Repeat2 } from "lucide-react";
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import {
   ActivityIcon,
   ActivityGlyphIcon,
@@ -26,6 +26,9 @@ import type {
 } from "../types";
 
 import { ReminderFlags } from "./reminder-flags";
+import { DayTemplatePicker } from "../../templates/components/day-template-picker";
+import type { PreviewPlan } from "../../ai/calendar/types";
+import { isDayOff } from "../../time-tracking/work-schedule";
 
 function position(
   start: number,
@@ -73,9 +76,11 @@ export interface GridProps {
   onStart: (id: string) => void;
   /** A new plan being edited in the quick card, shown before it's saved. */
   draft?: PlanFields | null;
+  proposals?: PreviewPlan[];
+  proposalConflicts?: Map<string, string>;
 }
 
-export function CalendarGrid(props: GridProps) {
+function CalendarGridView(props: GridProps) {
   const { preferences, days, mode, activities } = props;
   const start = preferences.start_minute;
   const span = preferences.end_minute - start;
@@ -96,7 +101,7 @@ export function CalendarGrid(props: GridProps) {
   );
   return (
     <div
-      className={`schedule-grid ${mode === "day" ? "schedule-activity-grid" : ""}`}
+      className={`schedule-grid ${mode === "day" ? "schedule-activity-grid" : ""}${mode === "day" && isDayOff(days[0], preferences.work_schedule) ? " is-day-off" : ""}`}
       style={{ "--schedule-hours": span / 60 } as CSSProperties}
     >
       <div className="schedule-axis-row">
@@ -131,19 +136,38 @@ export function CalendarGrid(props: GridProps) {
                   </div>,
                 ]),
             <div
-              className={`schedule-week-row${date === props.selected ? " selected-day" : ""}${props.loading?.has(date) ? " loading" : ""}`}
+              className={`schedule-week-row${date === props.selected ? " selected-day" : ""}${props.loading?.has(date) ? " loading" : ""}${isDayOff(date, preferences.work_schedule) ? " is-day-off" : ""}`}
               key={date}
+              data-date={date}
               data-week={index % 7 ? undefined : date}
               aria-busy={props.loading?.has(date) || undefined}
             >
-              <button
-                className="schedule-day-label"
-                onClick={() => props.onDay(date)}
-                title={`Open ${dayLabel(date)} in Day view`}
-              >
-                <span>{dayLabel(date, { weekday: "short" })}</span>
-                <strong>{Number(date.slice(8))}</strong>
-              </button>
+              <div className="schedule-date-cell">
+                <button
+                  className="schedule-day-label"
+                  onClick={() => props.onDay(date)}
+                  title={`Open ${dayLabel(date)} in Day view`}
+                >
+                  <span>{dayLabel(date, { weekday: "short" })}</span>
+                  <strong>{Number(date.slice(8))}</strong>
+                  <small
+                    className="schedule-day-kind"
+                    title={
+                      preferences.work_schedule?.overrides[date]
+                        ? "One-off change"
+                        : undefined
+                    }
+                  >
+                    {isDayOff(date, preferences.work_schedule)
+                      ? "Day off"
+                      : "Workday"}
+                  </small>
+                </button>
+                <DayTemplatePicker
+                  date={date}
+                  timezone={preferences.timezone}
+                />
+              </div>
               <CalendarTracks {...props} date={date} />
             </div>,
           ])
@@ -216,6 +240,8 @@ export function CalendarGrid(props: GridProps) {
   );
 }
 
+export const CalendarGrid = memo(CalendarGridView);
+
 function CalendarTracks(
   props: GridProps & { date: string; activityId?: string },
 ) {
@@ -283,6 +309,9 @@ function CalendarTracks(
           .filter((item) => visible(item.start, item.end))
           .map(({ plan, start, end, row }) => {
             const activity = getActivity(plan.activity_id);
+            const proposal = props.proposals?.find(
+              (item) => item.id === plan.id,
+            );
             const dragDisabled =
               zonedParts(plan.start_at, preferences.timezone).date !== date ||
               zonedParts(plan.end_at, preferences.timezone).date !== date ||
@@ -292,7 +321,7 @@ function CalendarTracks(
               <button
                 type="button"
                 key={`${plan.id}-${plan.occurrence_date}`}
-                className={`schedule-block planned-block ${plan.frequency !== "none" ? "recurring-block" : ""}`}
+                className={`schedule-block planned-block ${plan.frequency !== "none" ? "recurring-block" : ""}${proposal ? " ai-proposal-block" : ""}${proposal && !proposal.selected ? " excluded" : ""}${proposal && props.proposalConflicts?.has(plan.id) && proposal.selected ? " has-conflict" : ""}`}
                 style={
                   {
                     ...position(start, end, preferences),

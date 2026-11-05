@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.backup.schemas import BackupContent
 from app.core.errors import ConflictError, ValidationError
+from app.habits.models import Habit
 from app.live import mark
 from app.schedule.models import ScheduleException, SchedulePlan
 from app.schedule.prompts.models import PlanPromptEvent
@@ -90,6 +91,8 @@ def restore_tracking(
         db.execute(delete(WritingNudge).where(WritingNudge.owner_id == owner_id))
         db.execute(delete(TimeSession).where(TimeSession.owner_id == owner_id))
         db.execute(delete(SchedulePlan).where(SchedulePlan.owner_id == owner_id))
+        db.execute(delete(Habit).where(Habit.owner_id == owner_id))
+        mark(db, "habits", user=owner_id)
         db.execute(delete(Activity).where(Activity.owner_id == owner_id))
         existing = []
     elif data.time_sessions:

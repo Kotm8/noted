@@ -13,6 +13,7 @@ export function MarkdownWritingArea({
   pending,
   label,
   onEdit,
+  onSelection,
 }: {
   content: string;
   onChange: (content: string) => void;
@@ -20,6 +21,10 @@ export function MarkdownWritingArea({
   pending: boolean;
   label: string;
   onEdit: () => void;
+  onSelection?: (
+    range: { start: number; end: number },
+    input: HTMLTextAreaElement,
+  ) => void;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const { channels } = useMentionDirectory();
@@ -46,7 +51,23 @@ export function MarkdownWritingArea({
             maxLength={200000}
             value={shown.text}
             onChange={(event) => change(event.target.value)}
-            onSelect={mentions.onSelect}
+            onSelect={(event) => {
+              mentions.onSelect();
+              const input = event.currentTarget;
+              onSelection?.(
+                {
+                  start: toStored(
+                    input.value.slice(0, input.selectionStart),
+                    mentions.refs.current,
+                  ).length,
+                  end: toStored(
+                    input.value.slice(0, input.selectionEnd),
+                    mentions.refs.current,
+                  ).length,
+                },
+                input,
+              );
+            }}
             onKeyDown={(event) => {
               if (mentions.onKeyDown(event) || formatting.onKeyDown(event))
                 return;

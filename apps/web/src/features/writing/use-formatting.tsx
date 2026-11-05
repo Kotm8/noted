@@ -38,6 +38,7 @@ import {
 } from "../../lib/markdown-format";
 import { readStoredValue, writeStoredValue } from "../../lib/storage";
 import { isMobileLayout } from "../../lib/layout";
+import { NoteTemplatePicker } from "../templates/components/note-template-picker";
 
 const VISIBLE_KEY = "noted.formatting.visible";
 
@@ -273,6 +274,8 @@ export function useFormatting(inputRef: RefObject<HTMLTextAreaElement | null>) {
       {tool("Code block", <Braces size={15} />, () => run(codeBlock))}
       <span className="format-divider" />
       {tool("Divider", <Minus size={15} />, () => run(insertDivider))}
+      <span className="format-divider" />
+      <NoteTemplatePicker inputRef={inputRef} />
     </div>
   );
 

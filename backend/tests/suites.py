@@ -12,6 +12,8 @@ BACKEND_SMOKE = (
     "tests/test_sessions.py",
     "tests/test_notes.py",
     "tests/test_backups.py",
+    "tests/test_templates.py",
+    "tests/test_habits.py",
     "tests/test_push_isolation.py",
     "tests/test_plan_end_prompts.py",
 )

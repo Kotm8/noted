@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alembic import command
+from app.core.config import SCHEMA_REVISION
 from app.core.errors import NotFoundError
 from app.notes.models import Message
 from app.workspaces.models import Channel
@@ -165,7 +166,7 @@ def test_invalid_cursor_and_page_size_are_rejected(
 def test_health_checks_validate_schema(client: TestClient, db: Session) -> None:
     assert client.get(f"{API}/health/live").status_code == 200
     assert client.get(f"{API}/health/ready").status_code == 200
-    assert client.get(f"{API}/version").json()["schema_revision"] == "0023_message_history"
+    assert client.get(f"{API}/version").json()["schema_revision"] == SCHEMA_REVISION
     db.execute(text("UPDATE alembic_version SET version_num = 'incompatible'"))
     db.commit()
     assert client.get(f"{API}/health/ready").status_code == 503
@@ -187,10 +188,7 @@ def test_upgrade_from_023_schema_preserves_notes_and_sign_in(
         command.downgrade(config, "0015_wear_os")
         assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0015_wear_os"
         command.upgrade(config, "head")
-        assert (
-            connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0023_message_history"
-        )
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == SCHEMA_REVISION
     assert owner.get(f"{API}/auth/session").status_code == 200
     messages = owner.get(path).json()["items"]
     assert (

@@ -3,8 +3,13 @@ import { readStoredValue, writeStoredValue } from "../../../lib/storage";
 
 function readCollapsedCategories(): Set<string> {
   try {
-    const value: unknown = JSON.parse(readStoredValue("noted.collapsed") ?? "[]");
-    if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+    const value: unknown = JSON.parse(
+      readStoredValue("noted.collapsed") ?? "[]",
+    );
+    if (
+      Array.isArray(value) &&
+      value.every((item) => typeof item === "string")
+    ) {
       return new Set(value);
     }
   } catch {

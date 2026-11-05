@@ -21,7 +21,28 @@ class ScheduleService:
         self.repository = ScheduleRepository(db)
         self.tracking = TrackingRepository(db)
 
-    def create(self, owner_id: UUID, data: PlanCreate) -> SchedulePlan:
+    def create(
+        self, owner_id: UUID, data: PlanCreate, client_id: UUID | None = None
+    ) -> SchedulePlan:
+        if client_id:
+            self.tracking.lock(owner_id)
+            previous = self.db.get(SchedulePlan, client_id)
+            if previous is not None:
+                if (
+                    previous.owner_id != owner_id
+                    or previous.deleted_at is not None
+                    or PlanCreate.model_validate(previous, from_attributes=True) != data
+                ):
+                    raise ConflictError("This plan was already saved differently. Review it first.")
+                return previous
+        item = self.add(owner_id, data)
+        if client_id:
+            item.id = client_id
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def add(self, owner_id: UUID, data: PlanCreate) -> SchedulePlan:
         self.tracking.lock(owner_id)
         self.tracking.activity(owner_id, data.activity_id)
         validate_target(self.db, owner_id, data.writing_nudge)
@@ -34,8 +55,6 @@ class ScheduleService:
         )
         item = SchedulePlan(owner_id=owner_id, **values)
         self.db.add(item)
-        self.db.commit()
-        self.db.refresh(item)
         return item
 
     def check_capacity(self, owner_id: UUID) -> None:
@@ -93,7 +112,9 @@ class ScheduleService:
             self.db.add(exception)
         return exception
 
-    def update(self, owner_id: UUID, plan_id: UUID, data: PlanUpdate) -> SchedulePlan:
+    def update(
+        self, owner_id: UUID, plan_id: UUID, data: PlanUpdate, *, commit: bool = True
+    ) -> SchedulePlan:
         mark(self.db, "schedule", user=owner_id)
         item = self.checked(owner_id, plan_id, data.revision)
         self.tracking.activity(owner_id, data.activity_id)
@@ -122,8 +143,11 @@ class ScheduleService:
                 )
             self.db.execute(delete(ScheduleException).where(ScheduleException.plan_id == item.id))
         item.revision += 1
-        self.db.commit()
-        self.db.refresh(item)
+        if commit:
+            self.db.commit()
+            self.db.refresh(item)
+        else:
+            self.db.flush()
         return item
 
     def remove(

@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    ai,
     android_notifications,
+    assistant,
     attachments,
     auth,
     backups,
@@ -9,6 +11,7 @@ from app.api.v1.endpoints import (
     channel_banners,
     channels,
     documents,
+    habits,
     health,
     home,
     host,
@@ -16,12 +19,14 @@ from app.api.v1.endpoints import (
     live,
     messages,
     notifications,
+    nutrition,
     plan_prompts,
     publishing,
     reminders,
     schedule,
     search,
     settings,
+    templates,
     threads,
     time_tracking,
     updates,
@@ -33,6 +38,8 @@ from app.api.v1.endpoints import (
 router = APIRouter(prefix="/api/v1")
 
 router.include_router(auth.router)
+router.include_router(ai.router)
+router.include_router(templates.router)
 router.include_router(live.router)
 router.include_router(backups.router)
 router.include_router(workspaces.router)
@@ -60,3 +67,9 @@ router.include_router(schedule.router)
 router.include_router(plan_prompts.router)
 router.include_router(publishing.router)
 router.include_router(wear.router)
+
+router.include_router(habits.router)
+
+router.include_router(assistant.router)
+router.include_router(nutrition.router)
+router.include_router(nutrition.ai_router)

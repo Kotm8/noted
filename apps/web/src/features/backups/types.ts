@@ -1,4 +1,8 @@
 export interface BackupCounts {
+  habits: number;
+  meals?: number;
+  day_templates?: number;
+  note_templates?: number;
   projects: number;
   categories: number;
   channels: number;

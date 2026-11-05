@@ -7,22 +7,38 @@ export function weekDays(day: string): string[] {
   const weekday = (new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7;
   return Array.from({ length: 7 }, (_, index) => addDays(day, index - weekday));
 }
+const zoneFormatters = new Map<string, Intl.DateTimeFormat>();
+const zoneParts = new Map<string, { date: string; minute: number }>();
+
 export function zonedParts(value: string | number, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(value));
+  const timestamp = new Date(value).getTime();
+  const key = `${timezone}:${Math.floor(timestamp / 60000)}`;
+  const cached = zoneParts.get(key);
+  if (cached) return cached;
+  let formatter = zoneFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    if (zoneFormatters.size >= 32) zoneFormatters.clear();
+    zoneFormatters.set(timezone, formatter);
+  }
+  const parts = formatter.formatToParts(new Date(timestamp));
   const part = (type: string) =>
     parts.find((item) => item.type === type)!.value;
-  return {
+  const result = {
     date: `${part("year")}-${part("month")}-${part("day")}`,
     minute: Number(part("hour")) * 60 + Number(part("minute")),
   };
+  if (zoneParts.size >= 4096) zoneParts.clear();
+  zoneParts.set(key, result);
+  return result;
 }
 export function wallTime(
   day: string,

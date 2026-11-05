@@ -23,6 +23,8 @@ import { DeleteNoteDialog } from "./delete-note-dialog";
 import { NoteComposer } from "./note-composer";
 import { NoteList } from "./note-list";
 import { OutgoingNotes } from "./outgoing-notes";
+import { AskAi, type AiPreview } from "../../ai/components/ask-ai";
+import { useMessageAi } from "../../ai/use-message-ai";
 
 interface NotesTimelineProps {
   channel: Channel;
@@ -50,6 +52,13 @@ export function NotesTimeline({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [deletingSelected, setDeletingSelected] = useState(false);
+  const [aiPreview, setAiPreview] = useState<AiPreview | null>(null);
+  const [insert, setInsert] = useState<{ key: number; text: string } | null>(
+    null,
+  );
+  const messageAi = useMessageAi(channel, (text) =>
+    setInsert({ key: Date.now(), text }),
+  );
   const [removing, setRemoving] = useState(false);
   const client = useQueryClient();
   const ids = useMemo(() => notes.map((note) => note.id), [notes]);
@@ -188,7 +197,16 @@ export function NotesTimeline({
                 onCancelEdit={() => setEditingId(null)}
                 onDelete={setNoteToDelete}
                 onOpenThread={onOpenThread}
+                onAskAi={
+                  messageAi.ask
+                    ? (note, anchor) => {
+                        selection.clear();
+                        messageAi.ask?.(note, anchor);
+                      }
+                    : undefined
+                }
                 selection={selection}
+                preview={messageAi.preview ?? aiPreview}
                 selectionTools={
                   <div
                     className="selection-tools"
@@ -196,6 +214,14 @@ export function NotesTimeline({
                     aria-label="Selected messages"
                   >
                     <strong>{plural}</strong>
+                    <AskAi
+                      channel={channel}
+                      notes={notes}
+                      selected={selection.selected}
+                      onPreview={setAiPreview}
+                      onDraft={(text) => setInsert({ key: Date.now(), text })}
+                      onDone={selection.clear}
+                    />
                     <button
                       className="icon-button"
                       aria-label="Copy selected messages"
@@ -241,7 +267,9 @@ export function NotesTimeline({
         </div>
       </div>
 
+      {messageAi.popover}
       <NoteComposer
+        insert={insert}
         above={
           (targetId || !scroll.isAtBottom) && (
             <button

@@ -1,5 +1,6 @@
 import { fireEvent, render as renderInPage, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NoteComposer } from "./note-composer";
@@ -14,8 +15,13 @@ const channel = {
   created_at: "2026-10-15T12:00:00Z",
 };
 
-/** The composer reads the URL to focus itself when a writing nudge opens the channel. */
-const render = (ui: ReactElement) => renderInPage(<MemoryRouter>{ui}</MemoryRouter>);
+/** The composer reads the URL (writing nudges focus it) and queries note templates. */
+const render = (ui: ReactElement) =>
+  renderInPage(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
 
 beforeEach(() => window.localStorage.clear());
 

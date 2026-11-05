@@ -65,3 +65,6 @@ class TrackerState(Base):
     start_minute: Mapped[int] = mapped_column(default=480)
     end_minute: Mapped[int] = mapped_column(default=1320)
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
+    work_schedule: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )

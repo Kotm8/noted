@@ -4,6 +4,14 @@ export function BackupSummary({ counts }: { counts: BackupCounts }) {
   return (
     <dl className="backup-counts">
       {Object.entries({
+        ...(counts.habits ? { Habits: counts.habits } : {}),
+        ...(counts.meals ? { Meals: counts.meals } : {}),
+        ...(counts.day_templates
+          ? { "Day templates": counts.day_templates }
+          : {}),
+        ...(counts.note_templates
+          ? { "Note templates": counts.note_templates }
+          : {}),
         Projects: counts.projects,
         Categories: counts.categories,
         Channels: counts.channels,

@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Info, Repeat2, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { Modal } from "../../../components/ui/dialog";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { Select } from "../../../components/ui/select";
@@ -15,7 +14,7 @@ import type { Frequency, PlanFields, PlanOccurrence } from "../types";
 import { TimeRange } from "./time-range";
 import { PromptHistory } from "./prompt-history";
 import { planTitle } from "../plan-title";
-import type { ScheduleHistory } from "../use-schedule-history";
+import type { ScheduleWrites } from "../use-schedule-writes";
 import { NudgeFields } from "../../writing-nudges/nudge-fields";
 
 const DIALOG_WIDTH = 440;
@@ -39,7 +38,7 @@ export function PlanDialog({
   hours,
   anchorX,
   deleting = false,
-  history,
+  writes,
   onClose,
 }: {
   initial: PlanFields | PlanOccurrence;
@@ -48,7 +47,7 @@ export function PlanDialog({
   deleting?: boolean;
   activities: Activity[];
   hours: { start_minute: number; end_minute: number };
-  history: ScheduleHistory;
+  writes: ScheduleWrites;
   onClose: () => void;
 }) {
   const existing = "id" in initial ? initial : null;
@@ -56,58 +55,35 @@ export function PlanDialog({
   const [scope, setScope] = useState<"series" | "occurrence">(
     existing?.frequency !== "none" && existing ? "occurrence" : "series",
   );
-  const client = useQueryClient();
   const source = useQuery({
     queryKey: ["schedule-plan", existing?.id],
     queryFn: () => scheduleApi.get(existing!.id),
-    enabled: Boolean(existing),
+    enabled: Boolean(
+      existing && existing.frequency !== "none" && !existing.series_date,
+    ),
   });
   const [deleteScope, setDeleteScope] = useState(deleting);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   function change<K extends keyof PlanFields>(key: K, value: PlanFields[K]) {
     setFields((current) => ({ ...current, [key]: value }));
   }
-  const save = useMutation({
-    mutationFn: async () => {
-      if (fields.end_minute <= fields.start_minute)
-        throw new Error("End time must follow start time.");
-      const values = { ...fields, title: planTitle(fields, activities) };
-      return existing
-        ? scheduleApi.update(existing.id, {
-            ...values,
-            revision: existing.revision,
-            scope,
-            occurrence_date: existing.occurrence_date,
-          })
-        : scheduleApi.create(values);
-    },
-    onSuccess: (plan) => {
-      void client.invalidateQueries({ queryKey: ["schedule"] });
-      if (existing) toast.success("Plan saved");
-      else {
-        history.created(plan);
-        toast.success("Plan added", history.undoToast());
-      }
+  function save() {
+    try {
+      writes.save(
+        { ...fields, title: planTitle(fields, activities) },
+        existing ?? undefined,
+        scope,
+      );
       onClose();
-    },
-    onError: () => {
-      void client.invalidateQueries({ queryKey: ["schedule"] });
-    },
-  });
-  const remove = useMutation({
-    mutationFn: (occurrence: boolean) =>
-      scheduleApi.remove(
-        existing!.id,
-        existing!.revision,
-        occurrence ? existing!.occurrence_date : undefined,
-      ),
-    onSuccess: (plan, occurrence) => {
-      void client.invalidateQueries({ queryKey: ["schedule"] });
-      history.deleted(existing!, plan, occurrence);
-      onClose();
-      toast.success("Plan deleted", history.undoToast());
-    },
-  });
+    } catch (failure) {
+      setError((failure as Error).message);
+    }
+  }
+  function remove(occurrence: boolean) {
+    writes.remove(existing!, occurrence);
+    onClose();
+  }
   const locked = Boolean(
     existing && existing.frequency !== "none" && scope === "occurrence",
   );
@@ -115,7 +91,7 @@ export function PlanDialog({
     <Modal
       open
       onOpenChange={(open) => {
-        if (!open && !save.isPending && !remove.isPending) onClose();
+        if (!open) onClose();
       }}
       title={existing ? "Edit plan" : "New plan"}
       description="Plans appear above tracked time. Planning never starts your timer."
@@ -125,7 +101,7 @@ export function PlanDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          save.mutate();
+          save();
         }}
       >
         {existing && existing.frequency !== "none" && (
@@ -140,8 +116,8 @@ export function PlanDialog({
               ]}
               onChange={(next) => {
                 setScope(next as typeof scope);
-                if (next === "series" && source.data)
-                  change("date", source.data.date);
+                if (next === "series" && (existing.series_date || source.data))
+                  change("date", existing.series_date ?? source.data!.date);
                 else change("date", existing.date);
               }}
             />
@@ -298,27 +274,19 @@ export function PlanDialog({
         )}
         <p className="schedule-help">Times use {fields.timezone}.</p>
         {existing && <PromptHistory planId={existing.id} />}
-        {(save.error || remove.error) && (
-          <Notice tone="error">
-            {(save.error ?? remove.error)?.message} Your changes have been kept.
-          </Notice>
+        {error && (
+          <Notice tone="error">{error} Your changes have been kept.</Notice>
         )}
         {deleteScope && (
           <div className="schedule-delete-scope">
             <p>Delete only this occurrence or the entire series?</p>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(true)}
-            >
+            <Button type="button" variant="ghost" onClick={() => remove(true)}>
               Only this occurrence
             </Button>
             <Button
               type="button"
               variant="danger"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(false)}
+              onClick={() => remove(false)}
             >
               Entire series
             </Button>
@@ -329,7 +297,6 @@ export function PlanDialog({
             <Button
               type="button"
               variant="ghost"
-              disabled={save.isPending || remove.isPending}
               onClick={() => {
                 if (existing.frequency !== "none") setDeleteScope(!deleteScope);
                 else setConfirmDelete(true);
@@ -342,24 +309,20 @@ export function PlanDialog({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={save.isPending || remove.isPending}>
-            {save.isPending
-              ? "Saving…"
-              : existing
-                ? "Save changes"
-                : "Add plan"}
+          <Button type="submit">
+            {existing ? "Save changes" : "Add plan"}
           </Button>
         </div>
       </form>
       <ConfirmDialog
         open={confirmDelete}
-        pending={remove.isPending}
+        pending={false}
         title="Delete this plan?"
         description="This one-off plan will be removed from your calendar."
         keepLabel="Keep plan"
         confirmLabel="Delete plan"
         onClose={() => setConfirmDelete(false)}
-        onConfirm={() => remove.mutate(false)}
+        onConfirm={() => remove(false)}
       />
     </Modal>
   );

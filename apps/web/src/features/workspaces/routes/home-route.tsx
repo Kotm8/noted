@@ -7,7 +7,9 @@ export function HomeRoute() {
   const shell = useWorkspaceShell();
 
   function openActivity(item: HomeActivity) {
-    if (item.kind === "plan") {
+    if (item.kind === "habit") {
+      shell.openPage(`/habits?habit=${item.habit_id}`);
+    } else if (item.kind === "plan") {
       shell.openPage(`/?prompt=${item.id}`);
     } else if (item.kind === "writing" || item.kind === "nudge") {
       shell.openChannel(item.workspace_id!, item.channel_id!, true);

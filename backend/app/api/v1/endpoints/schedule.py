@@ -9,7 +9,13 @@ from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
 from app.schedule.board import schedule_board
 from app.schedule.models import SchedulePlan
-from app.schedule.schemas import PlanCreate, PlanResponse, PlanUpdate, ScheduleBoard
+from app.schedule.schemas import (
+    PlanCreate,
+    PlanCreateRequest,
+    PlanResponse,
+    PlanUpdate,
+    ScheduleBoard,
+)
 from app.schedule.service import ScheduleService
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
@@ -27,11 +33,13 @@ def board(
 
 @router.post("/plans", response_model=PlanResponse, status_code=201)
 def create(
-    data: PlanCreate,
+    data: PlanCreateRequest,
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> SchedulePlan:
-    return ScheduleService(db).create(current.user.id, data)
+    return ScheduleService(db).create(
+        current.user.id, PlanCreate(**data.model_dump(exclude={"client_id"})), data.client_id
+    )
 
 
 @router.get("/plans/{plan_id}", response_model=PlanResponse)

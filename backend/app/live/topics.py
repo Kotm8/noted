@@ -22,6 +22,9 @@ Topic = Literal[
     "publishing",
     "settings",
     "sessions",
+    "templates",
+    "habits",
+    "nutrition",
 ]
 
 
@@ -43,6 +46,17 @@ class LiveEvent(BaseModel):
 
 
 TABLE_TOPICS: dict[str, Topic] = {
+    "habits": "habits",
+    "habit_entries": "habits",
+    "habit_reminders": "habits",
+    "nutrition_profiles": "nutrition",
+    "nutrition_targets": "nutrition",
+    "meals": "nutrition",
+    "saved_meals": "nutrition",
+    "weigh_ins": "nutrition",
+    "meal_photos": "nutrition",
+    "day_templates": "templates",
+    "note_templates": "templates",
     "messages": "notes",
     "attachments": "notes",
     "journal_entries": "journals",
@@ -71,6 +85,11 @@ def event_owner(db: Session, row: Any) -> UUID | None:
             return cast(UUID, value)
     if isinstance(row, User):
         return row.id
+    if habit_id := getattr(row, "habit_id", None):
+        from app.habits.models import Habit
+
+        habit = db.get(Habit, habit_id)
+        return habit.owner_id if habit else None
     if workspace := getattr(row, "workspace_id", None):
         parent = db.get(Workspace, workspace)
         if parent is not None:

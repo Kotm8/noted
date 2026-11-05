@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError
 from app.core.security import utc_now
+from app.habits.models import Habit, HabitReminder
 from app.home.schemas import HomeActivity, HomeActivityPage, ReadActivities
 from app.notes.mentions import readable
 from app.notes.models import Message
@@ -137,12 +138,35 @@ class HomeService:
             )
             for item, channel, project in nudges
         )
+        habit_reminders = self.db.execute(
+            select(HabitReminder, Habit)
+            .join(Habit, Habit.id == HabitReminder.habit_id)
+            .where(
+                HabitReminder.owner_id == owner_id,
+                HabitReminder.completed_at.is_(None),
+                Habit.archived.is_(False),
+            )
+            .order_by(HabitReminder.due_at.desc())
+            .limit(limit + 1)
+        ).all()
+        items.extend(
+            HomeActivity(
+                kind="habit",
+                id=item.id,
+                habit_id=habit.id,
+                revision=item.revision,
+                title=habit.name,
+                due_at=item.due_at,
+                read=item.read_revision == item.revision,
+            )
+            for item, habit in habit_reminders
+        )
         items.sort(key=lambda item: (item.due_at, str(item.id)), reverse=True)
         self.db.commit()
         return HomeActivityPage(items=items[:limit], has_more=len(items) > limit)
 
     def read(self, owner_id: UUID, data: ReadActivities) -> None:
-        record: Reminder | PlanPrompt | WritingPrompt | WritingNudge | None
+        record: Reminder | PlanPrompt | WritingPrompt | WritingNudge | HabitReminder | None
         for item in sorted(data.items, key=lambda item: (item.kind, str(item.id))):
             if item.kind == "reminder":
                 record = self.db.scalar(
@@ -156,6 +180,12 @@ class HomeService:
                         Message.deleted_at.is_(None),
                     )
                     .with_for_update(of=Reminder)
+                )
+            elif item.kind == "habit":
+                record = self.db.scalar(
+                    select(HabitReminder)
+                    .where(HabitReminder.id == item.id, HabitReminder.owner_id == owner_id)
+                    .with_for_update()
                 )
             elif item.kind == "writing":
                 record = self.db.scalar(

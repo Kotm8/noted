@@ -6,12 +6,13 @@ from pydantic import BaseModel, Field
 
 
 class HomeActivity(BaseModel):
-    kind: Literal["reminder", "plan", "writing", "nudge"]
+    kind: Literal["reminder", "plan", "writing", "nudge", "habit"]
     id: UUID
     revision: int
     title: str
     due_at: datetime
     read: bool
+    habit_id: UUID | None = None
     workspace_id: UUID | None = None
     workspace_name: str | None = None
     channel_id: UUID | None = None
@@ -24,7 +25,7 @@ class HomeActivityPage(BaseModel):
 
 
 class ReadActivity(BaseModel):
-    kind: Literal["reminder", "plan", "writing", "nudge"]
+    kind: Literal["reminder", "plan", "writing", "nudge", "habit"]
     id: UUID
     revision: int = Field(ge=1)
 

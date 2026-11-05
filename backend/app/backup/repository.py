@@ -5,6 +5,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ContentTooLargeError
+from app.habits.models import Habit, HabitEntry
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
 from app.notes.models import Attachment, Message
@@ -13,6 +14,7 @@ from app.publishing.models import ScheduledMessage, WritingPrompt
 from app.reminders.models import Reminder
 from app.schedule.models import ScheduleException, SchedulePlan
 from app.schedule.prompts.models import PlanPromptEvent
+from app.templates.models import DayTemplate, NoteTemplate
 from app.time_tracking.models import Activity, TimeSession
 from app.workspaces.models import Category, Channel, Workspace
 
@@ -68,7 +70,14 @@ class BackupRepository:
         plans = select(SchedulePlan.id).where(
             SchedulePlan.owner_id == owner_id, SchedulePlan.deleted_at.is_(None)
         )
+        habit_ids = select(Habit.id).where(Habit.owner_id == owner_id, Habit.archived.is_(False))
         queries = {
+            "habits": select(Habit.__table__).where(Habit.id.in_(habit_ids)),
+            "habit_entries": select(HabitEntry.__table__).where(HabitEntry.habit_id.in_(habit_ids)),
+            "day_templates": select(DayTemplate.__table__).where(DayTemplate.owner_id == owner_id),
+            "note_templates": select(NoteTemplate.__table__).where(
+                NoteTemplate.owner_id == owner_id
+            ),
             "scheduled_messages": select(ScheduledMessage.__table__).where(
                 ScheduledMessage.channel_id.in_(channels)
             ),
@@ -98,6 +107,9 @@ class BackupRepository:
                 ChannelDocument.channel_id.in_(channels)
             ),
         }
+        from app.backup.services.nutrition import nutrition_queries
+
+        queries.update(nutrition_queries(owner_id))
         result: dict[str, list[dict[str, Any]]] = {}
         total = 0
         for name, query in queries.items():

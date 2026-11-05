@@ -25,6 +25,13 @@
     "0020_reminder_urgent",
     "0021_writing_nudges",
     "0022_image_previews",
-    "0023_message_history"
+    "0023_message_history",
+    "0024_templates",
+    "0025_ai",
+    "0026_ai_writing",
+    "0027_ai_calendar",
+    "0028_work_schedule",
+    "0029_habits",
+    "0030_nutrition"
   ]
 }

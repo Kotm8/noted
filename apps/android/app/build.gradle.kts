@@ -10,8 +10,8 @@ android {
         applicationId = "com.noted.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.4.0"
+        versionCode = 14
+        versionName = "0.4.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

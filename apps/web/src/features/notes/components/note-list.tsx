@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Note } from "../types";
 import type { NoteSelection } from "../hooks/use-note-selection";
+import type { AiPreview } from "../../ai/components/ask-ai";
 import { useAppearance } from "../../settings/appearance-context";
 import { noteGrouping } from "../grouping";
 import { NoteCard } from "./note-card";
@@ -13,9 +14,12 @@ interface NoteListProps {
   onCancelEdit: () => void;
   onDelete: (note: Note) => void;
   onOpenThread?: (id: string) => void;
+  onAskAi?: (note: Note, anchor: HTMLElement) => void;
   /** Adds the selection gutter; `selectionTools` shows beside the first selected note. */
   selection?: NoteSelection;
   selectionTools?: ReactNode;
+  /** Rewrites shown on messages before they're applied. */
+  preview?: AiPreview | null;
 }
 
 export function NoteList({
@@ -26,8 +30,10 @@ export function NoteList({
   onCancelEdit,
   onDelete,
   onOpenThread,
+  onAskAi,
   selection,
   selectionTools,
+  preview,
 }: NoteListProps) {
   const { preferences } = useAppearance();
   const firstSelected = selection
@@ -94,12 +100,14 @@ export function NoteList({
               channelName={channelName}
               note={note}
               editing={editingId === note.id}
+              preview={preview?.get(note.id)}
               onEdit={() => onEdit(note.id)}
               onCancelEdit={onCancelEdit}
               onDelete={() => onDelete(note)}
               onOpenThread={
                 onOpenThread ? () => onOpenThread(note.id) : undefined
               }
+              onAskAi={onAskAi ? (anchor) => onAskAi(note, anchor) : undefined}
             />
           </div>
         );

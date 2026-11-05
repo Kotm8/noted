@@ -4,13 +4,14 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { FileText, Plus } from "lucide-react";
+import { Check, FileText, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/dialog";
 import { Notice } from "../../components/ui/notice";
 import { journalsApi } from "./api";
 import { journalsQuery } from "./queries";
 import type { Channel } from "../workspaces/types";
+import { useJournalLookBack } from "../ai/writing/use-journal-look-back";
 
 export function JournalList({
   channel,
@@ -36,6 +37,7 @@ export function JournalList({
     },
   });
   const entries = query.data?.pages.flat() ?? [];
+  const ai = useJournalLookBack({ channel, entries, onSelect });
   const createFromEmptySpace = (event: MouseEvent) => {
     if (event.target === event.currentTarget && !getSelection()?.toString())
       setCreating(true);
@@ -44,6 +46,7 @@ export function JournalList({
     <>
       <div className="journal-list-heading" onClick={createFromEmptySpace}>
         <h2>Your entries</h2>
+        {ai.button}
         <Button size="small" variant="ghost" onClick={() => setCreating(true)}>
           <Plus size={15} />
           New entry
@@ -68,11 +71,23 @@ export function JournalList({
           <button
             type="button"
             key={entry.id}
-            className="journal-entry-row"
+            className={`journal-entry-row${ai.marked.has(entry.id) ? " ai-entry-selected" : ""}`}
             aria-current={selectedId === entry.id ? "page" : undefined}
-            onClick={() => onSelect(entry.id)}
+            onClick={() => {
+              if (!ai.toggle(entry.id)) onSelect(entry.id);
+            }}
           >
             <span>
+              {ai.picking && (
+                <span
+                  role="checkbox"
+                  aria-label={`Include ${entry.title}`}
+                  aria-checked={ai.marked.has(entry.id)}
+                  className="ai-entry-checkbox"
+                >
+                  {ai.marked.has(entry.id) && <Check size={12} />}
+                </span>
+              )}
               <FileText size={15} />
               {entry.title}
             </span>
@@ -86,6 +101,7 @@ export function JournalList({
             variant="ghost"
             size="small"
             disabled={query.isFetchingNextPage}
+            data-ai-load-entries
             onClick={() => void query.fetchNextPage()}
           >
             Earlier entries

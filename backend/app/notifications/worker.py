@@ -104,6 +104,7 @@ def dispatch_due(engine: Engine, origin: str, settings: Settings | None = None) 
 
 
 def dispatch_dismissals(engine: Engine, origin: str, settings: Settings | None = None) -> None:
+    from app.habits.models import HabitDelivery, HabitReminder
     from app.publishing.models import WritingDelivery, WritingPrompt
     from app.schedule.prompts.models import PlanPrompt, PlanPromptDelivery
     from app.writing_nudges.models import NudgeDelivery, WritingNudge
@@ -111,6 +112,7 @@ def dispatch_dismissals(engine: Engine, origin: str, settings: Settings | None =
     with Session(engine) as db:
         for model, item, kind in (
             (NotificationDelivery, Reminder, "reminder"),
+            (HabitDelivery, HabitReminder, "habit"),
             (PlanPromptDelivery, PlanPrompt, "plan"),
             (WritingDelivery, WritingPrompt, "writing"),
             (NudgeDelivery, WritingNudge, "writing"),

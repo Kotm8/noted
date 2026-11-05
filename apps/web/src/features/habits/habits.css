@@ -1,0 +1,406 @@
+.habits-scroll {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 32px 34px;
+}
+.habits-heading,
+.habits-layout {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.habits-heading {
+  margin-bottom: 32px;
+}
+.habits-heading h2 {
+  font-size: calc(21px * var(--text-scale, 1));
+  font-weight: 500;
+}
+.habits-heading p {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  margin-top: 9px;
+}
+.habits-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 224px;
+  gap: 52px;
+}
+.habits-total {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 30px;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+.habits-total strong {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.habit-progress-bar {
+  display: block;
+  height: 3px;
+  background: var(--border-default);
+  overflow: hidden;
+}
+.habit-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.habits-total > .habit-progress-bar {
+  width: 100px;
+}
+.habits-group {
+  margin-bottom: 25px;
+}
+.habits-group h3 {
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.habit-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 65px;
+}
+.habit-checkbox {
+  appearance: none;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--text-muted);
+  border-radius: 3px;
+  background: var(--surface-input);
+  cursor: pointer;
+}
+.habit-checkbox:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23201e1a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 10 3 3 7-7'/%3E%3C/svg%3E");
+}
+.habit-checkbox:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.habit-name-button {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 14px 0;
+  font-size: var(--font-md);
+}
+.habit-name-button > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.habit-name-button:hover > span {
+  color: var(--text-primary);
+}
+.habit-name-button > small {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.habit-name-button > small > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 3px;
+}
+.habit-row.is-done .habit-name-button > span {
+  color: var(--text-muted);
+}
+.habit-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 114px;
+  min-height: 34px;
+  padding: 7px 10px;
+  flex: none;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--surface-input);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+.habit-count strong {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.habit-count small {
+  font-size: var(--font-xs);
+}
+.habit-count svg {
+  margin-left: 6px;
+}
+.habit-count:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+}
+.habit-count.automatic {
+  background: transparent;
+  border-color: transparent;
+}
+.habits-week > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -7px;
+  margin-bottom: 14px;
+}
+.habits-week h3 {
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+.habits-week-days > button {
+  width: 100%;
+  min-height: 63px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 10px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.habits-week-days > button:hover {
+  background: var(--surface-hover);
+}
+.habits-week-days > .day-off {
+  background: color-mix(in srgb, var(--surface-main) 96%, var(--text-primary));
+}
+.habits-week-days > .selected {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--surface-main));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-main));
+}
+.habit-day-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 27px;
+}
+.habit-day-date small,
+.habit-day-total {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.habit-day-date strong {
+  font-size: calc(16px * var(--text-scale, 1));
+  font-weight: 400;
+}
+.selected .habit-day-date {
+  color: var(--accent);
+}
+.habit-day-status {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.habit-day-total {
+  min-width: 22px;
+}
+.habits-week > .button {
+  margin-top: 12px;
+}
+.habit-help {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.habit-editor {
+  max-width: 460px;
+}
+.habit-editor form > label,
+.habit-editor form > fieldset,
+.habit-goal-fields {
+  display: block;
+  margin-top: 20px;
+}
+.habit-editor legend {
+  margin-bottom: 9px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+.habit-segments,
+.habit-weekdays {
+  display: flex;
+  gap: 4px;
+}
+.habit-segments > button,
+.habit-weekdays > button {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  font-size: var(--font-sm);
+}
+.habit-segments > [aria-pressed="true"],
+.habit-weekdays > [aria-pressed="true"] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-default));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-main));
+}
+.habit-goal-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.habit-reminder-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 17px;
+  margin-top: 22px;
+  font-size: var(--font-sm);
+}
+.habit-reminder-toggle > span {
+  display: grid;
+  gap: 5px;
+}
+.habit-reminder-toggle small {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+.habit-reminder-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.habit-reminder-picker .reminder-when {
+  margin-top: 18px;
+}
+.habit-reminder-picker .reminder-timeline {
+  margin-bottom: 28px;
+}
+.habit-details {
+  position: absolute;
+  right: 0;
+  top: 52px;
+  bottom: 0;
+  width: min(320px, 100%);
+  padding: 20px;
+  border-left: 1px solid var(--border-default);
+  background: var(--surface-sidebar);
+  box-shadow: -15px 0 30px #0003;
+  z-index: 35;
+  overflow: auto;
+}
+.habit-details header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.habit-details p,
+.habit-details label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+.habit-detail-total {
+  font-size: 28px;
+  margin: 20px 0;
+}
+.habit-detail-total small {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+.habit-details form {
+  display: grid;
+  gap: 12px;
+  margin: 15px 0;
+}
+.habit-details > .button {
+  margin: 10px 0;
+}
+.habit-remove {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 30px;
+  padding-top: 20px;
+  font-size: var(--font-sm);
+}
+.habit-remove p {
+  margin: 12px 0;
+}
+@media (max-width: 1100px) {
+  .habits-scroll {
+    padding: 26px 23px;
+  }
+  .habits-layout {
+    grid-template-columns: minmax(0, 1fr) 185px;
+    gap: 25px;
+  }
+}
+@media (max-width: 760px) {
+  .habits-scroll {
+    padding: 23px 17px;
+  }
+  .habits-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 23px;
+  }
+  .habits-week {
+    order: -1;
+  }
+  .habits-week-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .habits-week-days > button {
+    flex-direction: column;
+    padding: 8px 3px;
+    gap: 8px;
+    min-width: 0;
+  }
+  .habit-day-status {
+    width: 90%;
+  }
+  .habit-day-status > span:first-child,
+  .habit-day-total,
+  .habits-week > .button {
+    display: none;
+  }
+  .habit-row {
+    gap: 11px;
+    min-height: 68px;
+  }
+  .habit-count {
+    min-width: 105px;
+    padding: 8px;
+    gap: 4px;
+  }
+  .habit-count svg {
+    margin-left: 2px;
+  }
+  .habit-weekdays {
+    gap: 3px;
+  }
+  .habit-weekdays > button {
+    flex: 1;
+    padding: 8px 3px;
+  }
+}

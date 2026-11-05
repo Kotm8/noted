@@ -21,6 +21,7 @@ export interface SchedulePlan extends PlanFields {
   revision: number;
 }
 export interface PlanOccurrence extends SchedulePlan {
+  series_date?: string | null;
   occurrence_date: string;
   start_at: string;
   end_at: string;

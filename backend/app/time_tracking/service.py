@@ -40,7 +40,10 @@ class TrackingService:
             + (max(0, int((now - active.started_at).total_seconds())) if active else 0),
             server_time=now,
             preferences=TrackingPreferences.model_validate(
-                {key: getattr(state, key) for key in ("start_minute", "end_minute", "timezone")}
+                {
+                    key: getattr(state, key)
+                    for key in ("start_minute", "end_minute", "timezone", "work_schedule")
+                }
             ),
         )
         self.db.commit()
@@ -129,7 +132,9 @@ class TrackingService:
         state = self.repository.lock(owner_id)
         if state.revision != data.revision:
             raise ConflictError("These settings changed on another device. Reload and try again.")
-        for key, value in data.model_dump(exclude={"revision"}).items():
+        for key, value in data.model_dump(
+            mode="json", exclude={"revision"}, exclude_unset=True
+        ).items():
             setattr(state, key, value)
         state.revision += 1
         return self.read(owner_id)

@@ -1,10 +1,11 @@
 export interface HomeActivity {
-  kind: "reminder" | "plan" | "writing" | "nudge";
+  kind: "reminder" | "plan" | "writing" | "nudge" | "habit";
   id: string;
   revision: number;
   title: string;
   due_at: string;
   read: boolean;
+  habit_id?: string | null;
   workspace_id: string | null;
   workspace_name: string | null;
   channel_id: string | null;

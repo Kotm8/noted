@@ -111,7 +111,9 @@ export function MissedActivity({
               <button className="home-text-button" onClick={() => onOpen(item)}>
                 {item.kind === "writing" || item.kind === "nudge"
                   ? "Write in channel"
-                  : "Choose activity"}
+                  : item.kind === "habit"
+                    ? "Open habit"
+                    : "Choose activity"}
                 <ArrowRight size={12} />
               </button>
             )}

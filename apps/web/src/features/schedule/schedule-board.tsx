@@ -1,6 +1,18 @@
+import { useAssistant } from "../ai/assistant/context";
 import { liveInterval } from "../../lib/live";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  useQueries,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import {
   CalendarDays,
   ChevronLeft,
@@ -14,6 +26,7 @@ import {
   Settings,
   Square,
   Timer,
+  Sparkles,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { toast } from "sonner";
@@ -22,7 +35,6 @@ import { DatePicker } from "../../components/ui/date-picker";
 import { Notice } from "../../components/ui/notice";
 import { useTracking } from "../time-tracking/use-tracking";
 import type { TimeSession } from "../time-tracking/types";
-import { scheduleApi } from "./api";
 import { BLOCK_WEEKS, blockQuery, blockStart, blocksAround } from "./blocks";
 import {
   addDays,
@@ -30,7 +42,6 @@ import {
   dateRangeLabel,
   defaultPlanTimes,
   minuteLabel,
-  wallTime,
   weekDays,
   zonedParts,
 } from "./dates";
@@ -46,7 +57,19 @@ import type {
 } from "./types";
 import { useScheduleGestures } from "./use-schedule-gestures";
 import { useScheduleHistory } from "./use-schedule-history";
+import { SaveDayTemplate } from "../templates/components/save-day-template";
+import { DayTemplatePicker } from "../templates/components/day-template-picker";
 import type { DragValues } from "./use-schedule-gestures";
+import { useAiStatus } from "../ai/queries";
+import { useCalendarPlanner } from "../ai/calendar/use-calendar-planner";
+import { CalendarPlanner } from "../ai/calendar/calendar-planner";
+import { ProposalEditor } from "../ai/calendar/proposal-editor";
+import { previewOccurrence } from "../ai/calendar/plans";
+import type { PreviewPlan } from "../ai/calendar/types";
+import { useScheduleWrites } from "./use-schedule-writes";
+import { applyLocalWrite, localOccurrence } from "./local-plans";
+import { ScheduleSyncStatus } from "./components/sync-status";
+import { isDayOff } from "../time-tracking/work-schedule";
 
 /** Blocks load separately, so items spanning a block boundary arrive twice. */
 function mergeBoards(boards: BoardData[]): BoardData {
@@ -66,6 +89,16 @@ function mergeBoards(boards: BoardData[]): BoardData {
       boards.flatMap((board) => board.reminders),
       (flag) => flag.message_id,
     ),
+  };
+}
+
+function combineBoards(boards: UseQueryResult<BoardData>[]) {
+  const loaded = boards.flatMap((board) => (board.data ? [board.data] : []));
+  return {
+    data: loaded.length ? mergeBoards(loaded) : undefined,
+    error: boards.find((board) => board.error)?.error,
+    missing: boards.map((board) => !board.data),
+    fetching: boards.some((board) => board.isFetching),
   };
 }
 
@@ -111,7 +144,6 @@ export function ScheduleBoard({
   } | null>(null);
   const [session, setSession] = useState<TimeSession | null>(null);
   const [draft, setDraft] = useState<PlanFields | null>(null);
-  const [pending, setPending] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [loaded, setLoaded] = useState(() => blocksAround(date));
   const [visibleWeek, setVisibleWeek] = useState(() => weekDays(date)[0]);
@@ -124,18 +156,28 @@ export function ScheduleBoard({
   const prepended = useRef<{ height: number; top: number } | null>(null);
   const client = useQueryClient();
   const history = useScheduleHistory();
-  const blockStarts =
-    mode === "week"
-      ? Array.from({ length: loaded.weeks / BLOCK_WEEKS }, (_, index) =>
-          addDays(loaded.first, index * BLOCK_WEEKS * 7),
-        )
-      : [blockStart(date)];
+  const writes = useScheduleWrites(history);
+  const ai = useAiStatus();
+  const [proposalEditor, setProposalEditor] = useState<{
+    plan: PreviewPlan;
+    anchor: DOMRect;
+  } | null>(null);
+  const blockStarts = useMemo(
+    () =>
+      mode === "week"
+        ? Array.from({ length: loaded.weeks / BLOCK_WEEKS }, (_, index) =>
+            addDays(loaded.first, index * BLOCK_WEEKS * 7),
+          )
+        : [blockStart(date)],
+    [mode, loaded.first, loaded.weeks, date],
+  );
   const boards = useQueries({
+    combine: combineBoards,
     queries: blockStarts.map((first) => ({
       ...blockQuery(first, preferences.timezone),
       enabled: Boolean(tracker.data),
       refetchInterval: () =>
-        document.body.classList.contains("schedule-dragging") || pending
+        document.body.classList.contains("schedule-dragging")
           ? false
           : liveInterval(15000),
     })),
@@ -154,28 +196,48 @@ export function ScheduleBoard({
     for (const first of edges.split(","))
       void client.prefetchQuery(blockQuery(first, timezone));
   }, [client, edges, timezone, tracker.data]);
-  const days =
-    mode === "week"
-      ? Array.from({ length: loaded.weeks * 7 }, (_, index) =>
-          addDays(loaded.first, index),
-        )
-      : [date];
-  const loading = new Set(
-    mode === "week"
-      ? blockStarts.flatMap((first, index) =>
-          boards[index]?.data
-            ? []
-            : Array.from({ length: BLOCK_WEEKS * 7 }, (_, day) =>
-                addDays(first, day),
-              ),
-        )
-      : [],
+  const days = useMemo(
+    () =>
+      mode === "week"
+        ? Array.from({ length: loaded.weeks * 7 }, (_, index) =>
+            addDays(loaded.first, index),
+          )
+        : [date],
+    [mode, loaded.first, loaded.weeks, date],
   );
-  const loadedBoards = boards.flatMap((board) =>
-    board.data ? [board.data] : [],
+  const loading = useMemo(
+    () =>
+      new Set(
+        mode === "week"
+          ? blockStarts.flatMap((first, index) =>
+              boards.missing[index]
+                ? Array.from({ length: BLOCK_WEEKS * 7 }, (_, day) =>
+                    addDays(first, day),
+                  )
+                : [],
+            )
+          : [],
+      ),
+    [mode, blockStarts, boards.missing],
   );
-  const data = loadedBoards.length ? mergeBoards(loadedBoards) : undefined;
-  const boardError = boards.find((board) => board.error)?.error;
+  const data = boards.data;
+  const localData = useMemo(
+    () =>
+      data &&
+      writes.pending.reduce(
+        (board, state) =>
+          applyLocalWrite(
+            board,
+            state.write,
+            days[0],
+            days[days.length - 1],
+            preferences.timezone,
+          ),
+        data,
+      ),
+    [data, writes.pending, days, preferences.timezone],
+  );
+  const boardError = boards.error;
 
   /** Jumps to a day, reloading around it when it is outside the loaded weeks. */
   function showDay(day: string) {
@@ -186,6 +248,108 @@ export function ScheduleBoard({
     scrollTarget.current = week;
     setJumps((count) => count + 1);
   }
+  const sharedAssistant = useAssistant();
+  const sharedProposals = useMemo(
+    () =>
+      sharedAssistant.applied
+        ? []
+        : (sharedAssistant.proposal?.plans ?? []).map((change, index) => ({
+            ...change.fields,
+            id: `assistant-${index}`,
+            notifications_enabled: change.fields.notifications_enabled ?? true,
+            notification_minutes: change.fields.notification_minutes ?? null,
+            selected: sharedAssistant.selected.has(`plan-${index}`),
+          })),
+    [
+      sharedAssistant.applied,
+      sharedAssistant.proposal,
+      sharedAssistant.selected,
+    ],
+  );
+  useEffect(() => {
+    const edit = (event: Event) => {
+      const { index, anchor } = (
+        event as CustomEvent<{ index: number; anchor: DOMRect }>
+      ).detail;
+      const plan = sharedProposals[index];
+      if (plan && !sharedAssistant.busy && !sharedAssistant.applying)
+        setProposalEditor({ plan, anchor });
+    };
+    window.addEventListener("noted:assistant-edit-plan", edit);
+    return () => window.removeEventListener("noted:assistant-edit-plan", edit);
+  }, [sharedProposals, sharedAssistant.busy, sharedAssistant.applying]);
+  const sharedEditingChanges = useMemo(() => sharedAssistant.applied ? [] : (sharedAssistant.proposal?.plans ?? []).filter((change,index)=>change.id && sharedAssistant.selected.has(`plan-${index}`)),[sharedAssistant.applied,sharedAssistant.proposal,sharedAssistant.selected]);
+  const planner = useCalendarPlanner(
+    date,
+    preferences,
+    activities.data ?? [],
+    history,
+    showDay,
+  );
+  const previewPlans = useMemo(
+    () =>
+      [...planner.proposals, ...sharedProposals].flatMap((plan) => {
+        const occurrence = previewOccurrence(
+          plan,
+          plan.id.startsWith("assistant-")
+            ? (sharedAssistant.scope?.timezone ?? preferences.timezone)
+            : planner.scope.timezone,
+        );
+        return occurrence ? [occurrence] : [];
+      }),
+    [
+      planner.proposals,
+      planner.scope.timezone,
+      sharedProposals,
+      sharedAssistant.scope?.timezone,
+      preferences.timezone,
+    ],
+  );
+  const gridData = useMemo(
+    () =>
+      localData && {
+        ...localData,
+        plans: [
+          ...localData.plans.filter((plan) => !sharedEditingChanges.some((change) => change.id === plan.id && (change.scope !== "occurrence" || change.occurrence_date === plan.occurrence_date))),
+          ...previewPlans,
+        ],
+      },
+    [localData, previewPlans, sharedEditingChanges],
+  );
+  const onGridPlan = useCallback(
+    (plan: PlanOccurrence, block: DOMRect) => {
+      if (plan.id.startsWith("assistant-")) {
+        const proposed = sharedProposals.find((item) => item.id === plan.id);
+        if (proposed && !sharedAssistant.busy && !sharedAssistant.applying)
+          setProposalEditor({ plan: proposed, anchor: block });
+        return;
+      }
+      const proposal = planner.proposals.find((item) => item.id === plan.id);
+      if (proposal) {
+        if (!planner.busy) setProposalEditor({ plan: proposal, anchor: block });
+        return;
+      }
+      setEditing({
+        plan,
+        anchor: {
+          left: block.left,
+          right: block.right,
+          top: block.top,
+          bottom: block.bottom,
+        },
+      });
+    },
+    [planner.proposals, planner.busy, sharedAssistant, sharedProposals],
+  );
+  const onGridDay = useCallback((day: string) => {
+    setDate(day);
+    setMode("day");
+  }, []);
+  const startActivity = action.mutate;
+  const onGridStart = useCallback(
+    (id: string) => startActivity({ action: "start", activityId: id }),
+    [startActivity],
+  );
   const ready = Boolean(data);
   useLayoutEffect(() => {
     const box = scroller.current;
@@ -294,373 +458,400 @@ export function ScheduleBoard({
       },
     });
   }
-  /** Shows a move straight away; the next refetch replaces it with the server's version. */
-  function showMoved(original: PlanOccurrence, values: DragValues) {
-    const key = `${original.id}~${original.occurrence_date}`;
-    const end =
-      values.end_minute === 1440 ? addDays(values.date, 1) : values.date;
-    const moved = {
-      ...values,
-      start_at: wallTime(
-        values.date,
-        values.start_minute,
-        preferences.timezone,
-      ),
-      end_at: wallTime(end, values.end_minute % 1440, preferences.timezone),
-    };
-    client.setQueriesData<BoardData>(
-      { queryKey: ["schedule"] },
-      (board) =>
-        board && {
-          ...board,
-          plans: board.plans.map((plan) =>
-            `${plan.id}~${plan.occurrence_date}` === key
-              ? { ...plan, ...moved }
-              : plan,
-          ),
+  function change(id: string, values: DragValues) {
+    if (id.startsWith("assistant-")) {
+      sharedAssistant.changePlan(Number(id.split("~")[0].slice(10)), values);
+      return;
+    }
+    const proposal = planner.proposals.find(
+      (item) => `${item.id}~${item.date}` === id,
+    );
+    if (proposal) {
+      if (!planner.busy) planner.change(proposal.id, values);
+      return;
+    }
+    const original = localData?.plans.find(
+      (item) => `${item.id}~${item.occurrence_date}` === id,
+    );
+    if (!original) return;
+    try {
+      writes.save({ ...original, ...values }, original, undefined, "the move");
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+  function copy(id: string, values: DragValues) {
+    if (id.startsWith("proposal-") || id.startsWith("assistant-")) {
+      change(id, values);
+      return;
+    }
+    const original = localData?.plans.find(
+      (item) => `${item.id}~${item.occurrence_date}` === id,
+    );
+    if (!original) return;
+    try {
+      writes.save(
+        {
+          ...original,
+          ...values,
+          frequency: "none",
+          weekdays: [],
+          repeat_until: null,
         },
-    );
-  }
-  async function change(id: string, values: DragValues) {
-    const original = data?.plans.find(
-      (item) => `${item.id}~${item.occurrence_date}` === id,
-    );
-    if (!original || pending) return;
-    setPending(true);
-    await client.cancelQueries({ queryKey: ["schedule"] });
-    showMoved(original, values);
-    try {
-      await scheduleApi.update(original.id, {
-        ...original,
-        ...values,
-        timezone: preferences.timezone,
-        scope: original.frequency === "none" ? "series" : "occurrence",
-        revision: original.revision,
-        occurrence_date: original.occurrence_date,
-      });
-      history.changed(original, { ...values, timezone: preferences.timezone });
-      toast.success(
-        original.frequency === "none"
-          ? "Plan updated"
-          : "Updated this occurrence; the series is unchanged",
-        history.undoToast(),
+        undefined,
+        "series",
+        "the copy",
       );
     } catch (error) {
       toast.error((error as Error).message);
-    } finally {
-      void client.invalidateQueries({ queryKey: ["schedule"] });
-      setPending(false);
     }
   }
-  /** Copies are always one-off plans, even when the original repeats. */
-  async function copy(id: string, values: DragValues) {
-    const original = data?.plans.find(
-      (item) => `${item.id}~${item.occurrence_date}` === id,
-    );
-    if (!original || pending) return;
-    setPending(true);
-    try {
-      const created = await scheduleApi.create({
-        activity_id: values.activity_id ?? original.activity_id,
-        title: original.title,
-        date: values.date,
-        start_minute: values.start_minute,
-        end_minute: values.end_minute,
-        timezone: preferences.timezone,
-        notifications_enabled: original.notifications_enabled,
-        notification_minutes: original.notification_minutes,
-        frequency: "none",
-        weekdays: [weekday(values.date)],
-        repeat_until: null,
-      });
-      void client.invalidateQueries({ queryKey: ["schedule"] });
-      history.created(created, "the copy");
-      toast.success(
-        original.frequency === "none"
-          ? "Plan copied"
-          : "Copied this occurrence as a one-off plan",
-        history.undoToast(),
-      );
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setPending(false);
-    }
-  }
-  useScheduleGestures(root, { preferences, pending, create, change, copy });
+  useScheduleGestures(root, {
+    preferences,
+    pending: false,
+    create,
+    change,
+    copy,
+  });
   return (
     <>
-      <header className="channel-header schedule-header">
-        <div className="channel-heading">
-          <button
-            className="icon-button mobile-menu"
-            aria-label="Open navigation"
-            onClick={onNavigation}
-          >
-            <Menu size={20} />
-          </button>
-          <CalendarDays size={19} />
-          <h1>Schedule</h1>
-          <span>One calendar. All your activities.</span>
-        </div>
-        <button
-          className="icon-button"
-          aria-label="Time tracking settings"
-          onClick={onSettings}
-        >
-          <Settings size={18} />
-        </button>
-      </header>
-      <div
-        className="schedule-content"
-        ref={root}
-        aria-busy={pending || boards.some((board) => board.isFetching)}
-      >
-        <div className="schedule-toolbar">
-          <div className="schedule-date-navigation">
+      <div className="schedule-page">
+        <header className="channel-header schedule-header">
+          <div className="channel-heading">
             <button
-              className="icon-button"
-              aria-label={mode === "week" ? "Previous week" : "Previous day"}
-              onClick={() =>
-                mode === "week"
-                  ? showDay(addDays(visibleWeek, -7))
-                  : setDate(addDays(date, -1))
-              }
+              className="icon-button mobile-menu"
+              aria-label="Open navigation"
+              onClick={onNavigation}
             >
-              <ChevronLeft size={16} />
+              <Menu size={20} />
             </button>
-            <button
-              className="icon-button"
-              aria-label={mode === "week" ? "Next week" : "Next day"}
-              onClick={() =>
-                mode === "week"
-                  ? showDay(addDays(visibleWeek, 7))
-                  : setDate(addDays(date, 1))
-              }
-            >
-              <ChevronRight size={16} />
-            </button>
-            <DatePicker
-              label="Choose displayed date"
-              displayLabel={
-                mode === "week"
-                  ? dateRangeLabel(visibleWeek, addDays(visibleWeek, 6))
-                  : dayLabel(date, {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })
-              }
-              value={date}
-              onChange={showDay}
-            />
-            <Button
-              variant="ghost"
-              size="small"
-              onClick={() =>
-                showDay(zonedParts(Date.now(), preferences.timezone).date)
-              }
-            >
-              Today
-            </Button>
+            <CalendarDays size={19} />
+            <h1>Schedule</h1>
+            <span>One calendar. All your activities.</span>
           </div>
-          <div className="schedule-toolbar-actions">
-            <div className="schedule-view-switch" aria-label="Calendar view">
+          <button
+            className="icon-button"
+            aria-label="Time tracking settings"
+            onClick={onSettings}
+          >
+            <Settings size={18} />
+          </button>
+        </header>
+        <div
+          className={`schedule-content${planner.open && ai.data?.connected ? " calendar-ai-open" : ""}`}
+          ref={root}
+          aria-busy={boards.fetching}
+        >
+          <div className="schedule-toolbar">
+            <div className="schedule-date-navigation">
               <button
-                aria-pressed={mode === "week"}
-                onClick={() => {
-                  setMode("week");
-                  showDay(date);
-                }}
+                className="icon-button"
+                aria-label={mode === "week" ? "Previous week" : "Previous day"}
+                onClick={() =>
+                  mode === "week"
+                    ? showDay(addDays(visibleWeek, -7))
+                    : setDate(addDays(date, -1))
+                }
               >
-                Week
+                <ChevronLeft size={16} />
               </button>
               <button
-                aria-pressed={mode === "day"}
-                onClick={() => setMode("day")}
+                className="icon-button"
+                aria-label={mode === "week" ? "Next week" : "Next day"}
+                onClick={() =>
+                  mode === "week"
+                    ? showDay(addDays(visibleWeek, 7))
+                    : setDate(addDays(date, 1))
+                }
               >
-                Day
+                <ChevronRight size={16} />
+              </button>
+              <DatePicker
+                label="Choose displayed date"
+                displayLabel={
+                  mode === "week"
+                    ? dateRangeLabel(visibleWeek, addDays(visibleWeek, 6))
+                    : dayLabel(date, {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })
+                }
+                value={date}
+                onChange={showDay}
+              />
+              <Button
+                variant="ghost"
+                size="small"
+                onClick={() =>
+                  showDay(zonedParts(Date.now(), preferences.timezone).date)
+                }
+              >
+                Today
+              </Button>
+            </div>
+            <div className="schedule-toolbar-actions">
+              {ai.data?.connected && (
+                <Button
+                  variant="ghost"
+                  size="small"
+                  onClick={() =>
+                    window.dispatchEvent(new Event("noted:assistant-open"))
+                  }
+                  aria-expanded={planner.open}
+                >
+                  <Sparkles size={15} />
+                  {planner.proposals.length ? "Review plans" : "Ask AI"}
+                </Button>
+              )}
+              <SaveDayTemplate date={date} timezone={preferences.timezone} />
+              {mode === "day" && (
+                <DayTemplatePicker
+                  date={date}
+                  timezone={preferences.timezone}
+                />
+              )}
+              <div className="schedule-view-switch" aria-label="Calendar view">
+                <button
+                  aria-pressed={mode === "week"}
+                  onClick={() => {
+                    setMode("week");
+                    showDay(date);
+                  }}
+                >
+                  Week
+                </button>
+                <button
+                  aria-pressed={mode === "day"}
+                  onClick={() => setMode("day")}
+                >
+                  Day
+                </button>
+              </div>
+              <Button
+                size="small"
+                onClick={() =>
+                  create({
+                    date,
+                    ...defaultPlanTimes(preferences.timezone),
+                  })
+                }
+              >
+                <Plus size={15} />
+                Add plan
+              </Button>
+            </div>
+          </div>
+          <div className="schedule-caption">
+            <div className="schedule-legend">
+              <span>
+                <Square size={12} />
+                One-off plan
+              </span>
+              <span>
+                <Repeat2 size={13} />
+                Recurring
+              </span>
+              <span>
+                <Timer size={13} />
+                Actual
+              </span>
+              <span>
+                <Flag size={12} />
+                Reminder
+              </span>
+            </div>
+            <div className="schedule-caption-actions">
+              {Boolean(data?.reminders.length) && (
+                <Dropdown.Root modal={false}>
+                  <Dropdown.Trigger asChild>
+                    <button className="schedule-reminders-trigger">
+                      <Flag size={13} />
+                      {data!.reminders.length} upcoming
+                    </button>
+                  </Dropdown.Trigger>
+                  <Dropdown.Portal>
+                    <Dropdown.Content
+                      className="dropdown-content schedule-reminders-menu"
+                      align="end"
+                      sideOffset={6}
+                      collisionPadding={12}
+                    >
+                      {data!.reminders.map((flag) => (
+                        <Dropdown.Item
+                          className="dropdown-item"
+                          key={flag.message_id}
+                          onSelect={() => onReminder(flag)}
+                        >
+                          <Flag size={14} />
+                          <span>
+                            <strong>
+                              {dayLabel(
+                                zonedParts(flag.due_at, preferences.timezone)
+                                  .date,
+                              )}{" "}
+                              ·{" "}
+                              {minuteLabel(
+                                zonedParts(flag.due_at, preferences.timezone)
+                                  .minute,
+                              )}
+                            </strong>
+                            <span>
+                              {flag.workspace_name} / #{flag.channel_name}
+                            </span>
+                            <small>{flag.content}</small>
+                          </span>
+                        </Dropdown.Item>
+                      ))}
+                    </Dropdown.Content>
+                  </Dropdown.Portal>
+                </Dropdown.Root>
+              )}
+              <button className="schedule-hours-button" onClick={onSettings}>
+                {minuteLabel(preferences.start_minute)}–
+                {minuteLabel(preferences.end_minute)}
+                <Settings size={12} />
               </button>
             </div>
-            <Button
-              size="small"
-              onClick={() =>
-                create({
-                  date,
-                  ...defaultPlanTimes(preferences.timezone),
-                })
-              }
-            >
-              <Plus size={15} />
-              Add plan
-            </Button>
           </div>
-        </div>
-        <div className="schedule-caption">
-          <div className="schedule-legend">
-            <span>
-              <Square size={12} />
-              One-off plan
-            </span>
-            <span>
-              <Repeat2 size={13} />
-              Recurring
-            </span>
-            <span>
-              <Timer size={13} />
-              Actual
-            </span>
-            <span>
-              <Flag size={12} />
-              Reminder
-            </span>
-          </div>
-          <div className="schedule-caption-actions">
-            {Boolean(data?.reminders.length) && (
-              <Dropdown.Root modal={false}>
-                <Dropdown.Trigger asChild>
-                  <button className="schedule-reminders-trigger">
-                    <Flag size={13} />
-                    {data!.reminders.length} upcoming
-                  </button>
-                </Dropdown.Trigger>
-                <Dropdown.Portal>
-                  <Dropdown.Content
-                    className="dropdown-content schedule-reminders-menu"
-                    align="end"
-                    sideOffset={6}
-                    collisionPadding={12}
-                  >
-                    {data!.reminders.map((flag) => (
-                      <Dropdown.Item
-                        className="dropdown-item"
-                        key={flag.message_id}
-                        onSelect={() => onReminder(flag)}
-                      >
-                        <Flag size={14} />
-                        <span>
-                          <strong>
-                            {dayLabel(
-                              zonedParts(flag.due_at, preferences.timezone)
-                                .date,
-                            )}{" "}
-                            ·{" "}
-                            {minuteLabel(
-                              zonedParts(flag.due_at, preferences.timezone)
-                                .minute,
-                            )}
-                          </strong>
-                          <span>
-                            {flag.workspace_name} / #{flag.channel_name}
-                          </span>
-                          <small>{flag.content}</small>
-                        </span>
-                      </Dropdown.Item>
-                    ))}
-                  </Dropdown.Content>
-                </Dropdown.Portal>
-              </Dropdown.Root>
-            )}
-            <button className="schedule-hours-button" onClick={onSettings}>
-              {minuteLabel(preferences.start_minute)}–
-              {minuteLabel(preferences.end_minute)}
-              <Settings size={12} />
-            </button>
-          </div>
-        </div>
-        {mode === "day" && (
-          <div className="schedule-day-strip">
-            {weekDays(date).map((day) => (
-              <button
-                key={day}
-                aria-pressed={day === date}
-                onClick={() => setDate(day)}
+          {mode === "day" && (
+            <div className="schedule-day-strip">
+              {weekDays(date).map((day) => (
+                <button
+                  key={day}
+                  aria-pressed={day === date}
+                  className={
+                    isDayOff(day, preferences.work_schedule)
+                      ? "is-day-off"
+                      : undefined
+                  }
+                  onClick={() => setDate(day)}
+                >
+                  <span>{dayLabel(day, { weekday: "short" })}</span>
+                  <strong>{Number(day.slice(8))}</strong>
+                  <small className="schedule-day-kind">
+                    {isDayOff(day, preferences.work_schedule)
+                      ? "Day off"
+                      : "Workday"}
+                  </small>
+                </button>
+              ))}
+            </div>
+          )}
+          {(boardError || tracker.error || activities.error) && (
+            <Notice tone="error">
+              {(boardError ?? tracker.error ?? activities.error)?.message}
+              <Button
+                variant="ghost"
+                size="small"
+                onClick={() => {
+                  void client.invalidateQueries({ queryKey: ["schedule"] });
+                  void tracker.refetch();
+                  void activities.refetch();
+                }}
               >
-                <span>{dayLabel(day, { weekday: "short" })}</span>
-                <strong>{Number(day.slice(8))}</strong>
-              </button>
-            ))}
-          </div>
-        )}
-        {(boardError || tracker.error || activities.error) && (
-          <Notice tone="error">
-            {(boardError ?? tracker.error ?? activities.error)?.message}
-            <Button
-              variant="ghost"
-              size="small"
-              onClick={() => {
-                for (const board of boards) void board.refetch();
-                void tracker.refetch();
-                void activities.refetch();
-              }}
+                Retry
+              </Button>
+            </Notice>
+          )}
+          {!data && !boardError && (
+            <p className="schedule-loading">Loading your schedule…</p>
+          )}
+          {data && (
+            <div
+              className="schedule-timeline-scroll"
+              ref={scroller}
+              onScroll={trackVisibleWeek}
             >
-              Retry
-            </Button>
-          </Notice>
+              {mode === "week" && <div ref={topEdge} aria-hidden="true" />}
+              <CalendarGrid
+                days={days}
+                loading={loading}
+                selected={date}
+                mode={mode}
+                data={gridData!}
+                proposals={[...planner.proposals, ...sharedProposals]}
+                proposalConflicts={planner.conflicts}
+                preferences={preferences}
+                activities={activities.data ?? []}
+                now={now}
+                onPlan={onGridPlan}
+                onSession={setSession}
+                onReminder={onReminder}
+                onDay={onGridDay}
+                draft={
+                  editing?.anchor && !("id" in editing.plan) ? draft : null
+                }
+                onStart={onGridStart}
+              />
+              {mode === "week" && <div ref={bottomEdge} aria-hidden="true" />}
+            </div>
+          )}
+          <footer className="schedule-footer">
+            <span>
+              <MousePointer2 size={13} />
+              Click or right-click to plan · drag to draw or move · Ctrl-drag to
+              copy · edges to resize · 15-minute steps
+            </span>
+            <span>
+              <Info size={13} />
+              Times use {preferences.timezone}
+            </span>
+          </footer>
+          <ScheduleSyncStatus
+            writes={writes}
+            onReview={(state) => {
+              const write = state.write;
+              const current = data?.plans.find(
+                (plan) =>
+                  plan.id === write.plan.id &&
+                  (write.scope === "series" ||
+                    plan.occurrence_date === write.original?.occurrence_date),
+              );
+              setEditing({
+                plan: {
+                  ...localOccurrence(write.plan, write.plan.date)!,
+                  ...write.original,
+                  ...write.plan,
+                  revision: current?.revision ?? write.plan.revision,
+                },
+              });
+              writes.forget(state.id);
+            }}
+          />
+        </div>
+        {ai.data?.connected && (
+          <CalendarPlanner
+            planner={planner}
+            activities={activities.data ?? []}
+            onEdit={(plan, anchor) => setProposalEditor({ plan, anchor })}
+            onDay={showDay}
+          />
         )}
-        {!data && !boardError && (
-          <p className="schedule-loading">Loading your schedule…</p>
-        )}
-        {data && (
-          <div
-            className="schedule-timeline-scroll"
-            ref={scroller}
-            onScroll={trackVisibleWeek}
-          >
-            {mode === "week" && <div ref={topEdge} aria-hidden="true" />}
-            <CalendarGrid
-              days={days}
-              loading={loading}
-              selected={date}
-              mode={mode}
-              data={data}
-              preferences={preferences}
-              activities={activities.data ?? []}
-              now={now}
-              onPlan={(plan, block) =>
-                setEditing({
-                  plan,
-                  anchor: {
-                    left: block.left,
-                    right: block.right,
-                    top: block.top,
-                    bottom: block.bottom,
-                  },
-                })
-              }
-              onSession={setSession}
-              onReminder={onReminder}
-              onDay={(day) => {
-                setDate(day);
-                setMode("day");
-              }}
-              draft={editing?.anchor && !("id" in editing.plan) ? draft : null}
-              onStart={(id) =>
-                action.mutate({ action: "start", activityId: id })
-              }
-            />
-            {mode === "week" && <div ref={bottomEdge} aria-hidden="true" />}
-          </div>
-        )}
-        <footer className="schedule-footer">
-          <span>
-            <MousePointer2 size={13} />
-            Click or right-click to plan · drag to draw or move · Ctrl-drag to
-            copy · edges to resize · 15-minute steps
-          </span>
-          <span>
-            <Info size={13} />
-            Times use {preferences.timezone}
-          </span>
-        </footer>
       </div>
+      {proposalEditor && (
+        <ProposalEditor
+          key={proposalEditor.plan.id}
+          plan={proposalEditor.plan}
+          anchor={proposalEditor.anchor}
+          activities={activities.data ?? []}
+          onSave={(plan) => {
+            if (plan.id.startsWith("assistant-")) {
+              const { id, selected, ...fields } = plan;
+              void selected;
+              sharedAssistant.changePlan(Number(id.slice(10)), fields);
+            } else planner.change(plan.id, plan);
+          }}
+          onClose={() => setProposalEditor(null)}
+        />
+      )}
       {editing?.anchor && (
         <PlanCard
           key={`${editing.anchor.left}:${editing.anchor.top}`}
           initial={editing.plan}
           anchor={editing.anchor}
           activities={activities.data ?? []}
-          history={history}
+          writes={writes}
           onMore={(fields, deleting) =>
             setEditing({
               plan: { ...editing.plan, ...fields },
@@ -682,7 +873,7 @@ export function ScheduleBoard({
           anchorX={editing.anchorX}
           activities={activities.data ?? []}
           hours={preferences}
-          history={history}
+          writes={writes}
           onClose={() => setEditing(null)}
         />
       )}
