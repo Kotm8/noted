@@ -125,7 +125,7 @@ def test_a_rewrite_streams_changes_by_message_and_is_kept_in_history(
                 {"number": 3, "text": "bird - 2"},
                 {"number": 9, "text": "not selected"},
             ]
-        }
+        },
     )
     response = owner.post(
         f"{API}/ai/runs",
