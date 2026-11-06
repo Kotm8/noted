@@ -20,6 +20,17 @@ def release_version(root: Path = ROOT) -> str:
     versions["desktop"] = tomllib.loads((root / "apps/desktop/src-tauri/Cargo.toml").read_text())[
         "package"
     ]["version"]
+    for name, pattern in (
+        (
+            "backend/app/core/config.py",
+            r'VERSION\s*=\s*os\.environ\.get\("NOTED_BUILD_VERSION",\s*"([^"]+)"\)',
+        ),
+        ("backend/Dockerfile", r"^ARG NOTED_BUILD_VERSION=(\S+)$"),
+    ):
+        match = re.search(pattern, (root / name).read_text(), re.MULTILINE)
+        if match is None:
+            raise ValueError(f"Build version default is missing in {name}")
+        versions[name] = match.group(1)
     android = re.search(
         r'versionName\s*=\s*"([^"]+)"',
         (root / "apps/android/app/build.gradle.kts").read_text(),
