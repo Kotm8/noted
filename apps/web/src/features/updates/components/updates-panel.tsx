@@ -12,11 +12,16 @@ export function UpdatesPanel() {
   const query = useServerUpdates();
   const { refetch } = query;
   const client = useQueryClient();
-  const [confirmation, setConfirmation] = useState<AvailableRelease | null>(null);
-  const [pendingCheck, setPendingCheck] = useState<{ previous: string | null } | null>(null);
+  const [confirmation, setConfirmation] = useState<AvailableRelease | null>(
+    null,
+  );
+  const [pendingCheck, setPendingCheck] = useState<{
+    previous: string | null;
+  } | null>(null);
   const check = useMutation({
     mutationFn: updatesApi.check,
-    onSuccess: () => setPendingCheck({ previous: query.data?.last_checked ?? null }),
+    onSuccess: () =>
+      setPendingCheck({ previous: query.data?.last_checked ?? null }),
   });
   const apply = useMutation({
     mutationFn: updatesApi.apply,
@@ -28,7 +33,8 @@ export function UpdatesPanel() {
     },
   });
   const data = query.data;
-  const busy = data?.job?.status === "queued" || data?.job?.status === "running";
+  const busy =
+    data?.job?.status === "queued" || data?.job?.status === "running";
   const checking =
     !!pendingCheck &&
     data?.worker_online !== false &&
@@ -45,7 +51,9 @@ export function UpdatesPanel() {
       <div className="settings-section">
         <h3>Updates</h3>
         <Notice>
-          {query.isError ? "Reconnecting to the update status..." : "Loading update status..."}
+          {query.isError
+            ? "Reconnecting to the update status..."
+            : "Loading update status..."}
         </Notice>
       </div>
     );
@@ -54,7 +62,10 @@ export function UpdatesPanel() {
     return (
       <div className="settings-section">
         <h3>Updates</h3>
-        <p>Connect the server update worker to your GitHub repository during VPS setup.</p>
+        <p>
+          Connect the server update worker to your GitHub repository during VPS
+          setup.
+        </p>
         {data.check_error && <Notice tone="error">{data.check_error}</Notice>}
       </div>
     );
@@ -69,11 +80,13 @@ export function UpdatesPanel() {
         <span className="settings-hint">{data.installed?.version}</span>
       </div>
       <p>
-        This server checks daily and downloads updates in the background. Install whenever you’re
-        ready.
+        This server checks daily and downloads updates in the background.
+        Install whenever you’re ready.
       </p>
       {!data.worker_online && (
-        <Notice tone="warning">The update worker is offline. Check the VPS service.</Notice>
+        <Notice tone="warning">
+          The update worker is offline. Check the VPS service.
+        </Notice>
       )}
       {data.available && data.latest ? (
         <Notice>
@@ -86,20 +99,30 @@ export function UpdatesPanel() {
                   ? "Downloading in the background..."
                   : "The download will finish before installation"}
             </span>
-            {data.latest.notes && <p className="update-notes">{data.latest.notes}</p>}
+            {data.latest.notes && (
+              <p className="update-notes">{data.latest.notes}</p>
+            )}
           </div>
         </Notice>
       ) : data.last_checked && !data.check_error ? (
-        <p>{data.latest ? "You’re up to date." : "No updates have been published yet."}</p>
+        <p>
+          {data.latest
+            ? "You’re up to date."
+            : "No updates have been published yet."}
+        </p>
       ) : null}
       {data.job && (
         <Notice tone={data.job.status === "needs_recovery" ? "error" : "info"}>
           {data.job.detail}
-          {busy && query.isError && " Reconnecting while the server restarts..."}
+          {busy &&
+            query.isError &&
+            " Reconnecting while the server restarts..."}
         </Notice>
       )}
       {(data.check_error || data.download_error || error) && (
-        <Notice tone="error">{error?.message ?? data.check_error ?? data.download_error}</Notice>
+        <Notice tone="error">
+          {error?.message ?? data.check_error ?? data.download_error}
+        </Notice>
       )}
       <div className="updates-actions">
         <Button
@@ -112,7 +135,11 @@ export function UpdatesPanel() {
         </Button>
         {data.available && data.latest && (
           <Button
-            disabled={!data.worker_online || busy || data.job?.status === "needs_recovery"}
+            disabled={
+              !data.worker_online ||
+              busy ||
+              data.job?.status === "needs_recovery"
+            }
             onClick={() => {
               apply.reset();
               setConfirmation(data.latest);

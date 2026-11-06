@@ -175,12 +175,17 @@ class MessageService:
         self.db.commit()
 
     def responses(self, messages: list[Message]) -> list[MessageResponse]:
-        counts = (
-            self.repository.reply_counts([message.id for message in messages]) if messages else {}
+        summaries = (
+            self.repository.reply_summaries([message.id for message in messages])
+            if messages
+            else {}
         )
-        return [
-            MessageResponse.model_validate(message).model_copy(
-                update={"reply_count": counts.get(message.id, 0)}
+        responses = []
+        for message in messages:
+            count, latest = summaries.get(message.id, (0, None))
+            responses.append(
+                MessageResponse.model_validate(message).model_copy(
+                    update={"reply_count": count, "last_reply_at": latest}
+                )
             )
-            for message in messages
-        ]
+        return responses

@@ -80,21 +80,26 @@ test("picture-only messages expose Ask AI and calendar sources open the right jo
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   }, chat.id);
-  await page.route("**/api/v1/ai/runs", async (route) => {
-    expect(route.request().postDataJSON().message_ids).toEqual([image.id]);
+  await page.route("**/api/v1/ai/assistant", async (route) => {
+    expect(route.request().postDataJSON().context.message_ids).toEqual([
+      image.id,
+    ]);
     await route.fulfill({
       contentType: "application/x-ndjson",
       body:
         [
+          { type: "chat", chat_id: crypto.randomUUID() },
+          { type: "explanation", text: "A red" },
           {
-            type: "start",
-            run_id: null,
-            kind: "answer",
-            prompt_name: "Picture",
-            model: "gpt-6.1-sol",
+            type: "done",
+            output: {
+              explanation: "A red rectangle.",
+              habits: [],
+              plans: [],
+              meals: [],
+            },
+            sources: [],
           },
-          { type: "text", text: "A red rectangle." },
-          { type: "done", output: "A red rectangle." },
         ]
           .map((event) => JSON.stringify(event))
           .join("\n") + "\n",
@@ -104,19 +109,15 @@ test("picture-only messages expose Ask AI and calendar sources open the right jo
   const message = page.locator(`#note-${image.id}`);
   await message.hover();
   await message.getByRole("button", { name: "Ask AI", exact: true }).click();
-  const popup = page.getByRole("dialog", { name: "Ask AI", exact: true });
-  await expect(popup).toContainText("1 picture");
-  await expect(
-    popup.getByRole("radio", { name: "Answer", exact: true }),
-  ).toHaveAttribute("aria-checked", "true");
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .fill("What is this picture?");
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .press("Enter");
-  await expect(popup.locator(".ask-ai-answer")).toHaveText("A red rectangle.");
-  await popup.getByRole("button", { name: "Close", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "AI assistant" });
+  await expect(panel.locator(".shared-ai-context")).toContainText("Picture");
+  const input = panel.getByRole("textbox", { name: "Message assistant" });
+  await input.fill("What is this picture?");
+  await input.press("Enter");
+  await expect(panel.locator(".shared-ai-turn.assistant")).toHaveText(
+    "A red rectangle.",
+  );
+  await panel.getByRole("button", { name: "Close assistant" }).click();
   const source = {
     title: "Picture context / #daily / Quiet Tuesday",
     url: `/w/${project.id}/c/${journal.id}?entry=${entry.id}`,

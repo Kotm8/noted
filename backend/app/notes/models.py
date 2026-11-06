@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
     text,
 )
@@ -94,6 +95,8 @@ class Message(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Chosen by the sending device, so a retry after a lost connection can't post twice.
     client_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
+    # Written by the assistant into a thread, so it can be told apart from the owner's own.
+    ai_generated: Mapped[bool] = mapped_column(default=False, server_default=false())
     reminder: Mapped[Reminder | None] = relationship(
         lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )

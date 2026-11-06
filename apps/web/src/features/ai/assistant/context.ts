@@ -9,3 +9,7 @@ export function useAssistant() {
   if (!value) throw new Error("Assistant provider is missing");
   return value;
 }
+/** For places that also render outside the workspace, such as tests. */
+export function useOptionalAssistant() {
+  return useContext(AssistantContext);
+}

@@ -7,9 +7,16 @@ export default tseslint.config(
   { ignores: ["dist", "playwright-report", "test-results", "node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  { files: ["**/*.{ts,tsx}"], plugins: { "react-hooks": hooks, "react-refresh": refresh }, rules: {
-    "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn",
-    "react-refresh/only-export-components": ["warn", { allowConstantExport: true, allowExportNames: ["cn"] }],
-  } },
+  {
+    files: ["**/*.{ts,tsx}"],
+    plugins: { "react-hooks": hooks, "react-refresh": refresh },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true, allowExportNames: ["cn"] },
+      ],
+    },
+  },
 );

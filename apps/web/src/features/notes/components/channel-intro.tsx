@@ -11,7 +11,10 @@ export function ChannelIntro({ channel, isEmpty }: ChannelIntroProps) {
   return (
     <div className="channel-intro">
       <h2>No notes yet</h2>
-      <p>Write the first note in #{channel.name}. You can use Markdown, links, and code.</p>
+      <p>
+        Write the first note in #{channel.name}. You can use Markdown, links,
+        and code.
+      </p>
     </div>
   );
 }

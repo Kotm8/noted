@@ -129,7 +129,9 @@ a {
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner,
+::-webkit-resizer {
   background: transparent;
 }
 

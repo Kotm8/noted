@@ -45,7 +45,9 @@ export function WatchPairing() {
           {pair.isPending ? "Preparing..." : "Pair watch"}
         </Button>
       ) : (
-        <Notice>Open Settings › Devices in the Noted Android app to pair.</Notice>
+        <Notice>
+          Open Settings › Devices in the Noted Android app to pair.
+        </Notice>
       )}
       {pair.error && <Notice tone="error">{pair.error.message}</Notice>}
       {message && <p className="settings-hint">{message}</p>}
@@ -104,14 +106,12 @@ export function WatchAppearancePanel() {
       <h2>Watch appearance</h2>
       <p>
         How the Noted watch face and app look. Saved to your account, and the
-        watch picks changes up on its next sync. Time is always shown in
-        24-hour format.
+        watch picks changes up on its next sync. Time is always shown in 24-hour
+        format.
       </p>
       {settings.isPending && <p role="status">Loading watch preferences...</p>}
       {(settings.error || save.error) && (
-        <Notice tone="error">
-          {(settings.error || save.error)?.message}
-        </Notice>
+        <Notice tone="error">{(settings.error || save.error)?.message}</Notice>
       )}
       {value && (
         <>

@@ -283,35 +283,38 @@
 .home-day-side .home-section-heading > button {
   font-size: var(--font-xs);
 }
-.home-pinned {
-  margin-bottom: 26px;
-}
-.home-pinned button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 8px;
-  margin-inline: -8px;
-  border-radius: 4px;
+.home-project-navigation > .sidebar-pinned {
+  gap: 9px;
+  padding: 7px 10px;
   color: var(--text-secondary);
-  font-size: var(--font-sm);
-  text-align: left;
 }
-.home-pinned button:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+.sidebar-pinned svg {
+  flex: none;
+  color: var(--text-faint);
 }
-.home-pinned span {
+.sidebar-pinned span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.home-pinned small {
+.sidebar-pinned small {
   margin-left: auto;
+  padding-left: 6px;
   color: var(--text-faint);
   font-size: var(--font-xs);
   white-space: nowrap;
+}
+.sidebar-count {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  text-align: center;
 }
 .home-section-caption {
   font-size: var(--font-xs);

@@ -153,8 +153,8 @@ export function useScheduleWrites(history: ScheduleHistory) {
             next.kind === "delete" ||
             Boolean(
               next.original &&
-              (next.scope === "occurrence" ||
-                next.original.frequency === "none"),
+                (next.scope === "occurrence" ||
+                  next.original.frequency === "none"),
             );
           receipts(client).set(next.plan.id, plan);
           receipts(client).set(plan.id, plan);

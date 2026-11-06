@@ -10,6 +10,17 @@ export function useAiStatus() {
   });
 }
 
+/** Nutrition needs AI, and the owner can also turn it off; logged meals stay either way. */
+export function useNutritionEnabled() {
+  const connected = useAiStatus().data?.connected ?? false;
+  const preferences = useQuery({
+    queryKey: ["ai-preferences"],
+    queryFn: aiApi.preferences,
+    enabled: connected,
+  });
+  return connected && preferences.data?.nutrition !== false;
+}
+
 export function useAiPreferences() {
   const client = useQueryClient();
   const query = useQuery({

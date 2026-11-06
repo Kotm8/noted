@@ -20,7 +20,8 @@ export function useVideoPlayback() {
     }
 
     function pauseOther(event: Event) {
-      if ((event as CustomEvent<HTMLVideoElement>).detail !== video) video?.pause();
+      if ((event as CustomEvent<HTMLVideoElement>).detail !== video)
+        video?.pause();
     }
 
     function onVisibilityChange() {
@@ -60,7 +61,9 @@ export function useVideoPlayback() {
 
   function onPlay() {
     setStarted(true);
-    window.dispatchEvent(new CustomEvent(VIDEO_PLAY_EVENT, { detail: videoRef.current }));
+    window.dispatchEvent(
+      new CustomEvent(VIDEO_PLAY_EVENT, { detail: videoRef.current }),
+    );
   }
 
   async function play(retry = false) {

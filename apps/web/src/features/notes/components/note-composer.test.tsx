@@ -1,4 +1,9 @@
-import { fireEvent, render as renderInPage, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render as renderInPage,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -18,7 +23,11 @@ const channel = {
 /** The composer reads the URL (writing nudges focus it) and queries note templates. */
 const render = (ui: ReactElement) =>
   renderInPage(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
       <MemoryRouter>{ui}</MemoryRouter>
     </QueryClientProvider>,
   );
@@ -29,12 +38,19 @@ describe("NoteComposer", () => {
   it("sends on Enter and clears the draft", async () => {
     const onSend = vi.fn().mockResolvedValue(undefined);
     render(
-      <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
+      <NoteComposer
+        channel={channel}
+        isSending={false}
+        onSend={onSend}
+        onEditLast={vi.fn()}
+      />,
     );
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "A thought worth keeping" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith("A thought worth keeping", []));
+    await waitFor(() =>
+      expect(onSend).toHaveBeenCalledWith("A thought worth keeping", []),
+    );
     expect(input).toHaveValue("");
   });
 
@@ -42,10 +58,17 @@ describe("NoteComposer", () => {
     let finish = () => {};
     const onSend = vi
       .fn()
-      .mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)))
+      .mockImplementationOnce(
+        () => new Promise<void>((resolve) => (finish = resolve)),
+      )
       .mockResolvedValue(undefined);
     render(
-      <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
+      <NoteComposer
+        channel={channel}
+        isSending={false}
+        onSend={onSend}
+        onEditLast={vi.fn()}
+      />,
     );
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "First" } });
@@ -62,20 +85,32 @@ describe("NoteComposer", () => {
   it("preserves a failed note as a draft", async () => {
     const onSend = vi.fn().mockRejectedValue(new Error("Unavailable"));
     render(
-      <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
+      <NoteComposer
+        channel={channel}
+        isSending={false}
+        onSend={onSend}
+        onEditLast={vi.fn()}
+      />,
     );
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "Do not lose this" } });
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(onSend).toHaveBeenCalled());
     expect(input).toHaveValue("Do not lose this");
-    expect(window.localStorage.getItem("noted.draft.channel-1")).toBe("Do not lose this");
+    expect(window.localStorage.getItem("noted.draft.channel-1")).toBe(
+      "Do not lose this",
+    );
   });
 
   it("keeps Shift+Enter and IME composition from sending", () => {
     const onSend = vi.fn();
     render(
-      <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
+      <NoteComposer
+        channel={channel}
+        isSending={false}
+        onSend={onSend}
+        onEditLast={vi.fn()}
+      />,
     );
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "A multiline note" } });
@@ -90,13 +125,24 @@ describe("NoteComposer", () => {
       .mockRejectedValueOnce(new Error("Unavailable"))
       .mockResolvedValue(undefined);
     render(
-      <NoteComposer channel={channel} isSending={false} onSend={onSend} onEditLast={vi.fn()} />,
+      <NoteComposer
+        channel={channel}
+        isSending={false}
+        onSend={onSend}
+        onEditLast={vi.fn()}
+      />,
     );
-    const file = new File(["reference"], "reference.txt", { type: "text/plain" });
-    fireEvent.change(screen.getByLabelText("Attach files"), { target: { files: [file] } });
+    const file = new File(["reference"], "reference.txt", {
+      type: "text/plain",
+    });
+    fireEvent.change(screen.getByLabelText("Attach files"), {
+      target: { files: [file] },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Send note" }));
     await waitFor(() => expect(onSend).toHaveBeenCalledWith("", [file]));
-    expect(screen.getByRole("button", { name: "Remove reference.txt" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove reference.txt" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send note" }));
     await waitFor(() =>
       expect(

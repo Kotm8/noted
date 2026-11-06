@@ -64,34 +64,55 @@ test("server updates require an explicit install and reconnect to the existing j
   });
   await page.goto("/");
   await page.getByLabel("Username", { exact: true }).fill("ilya");
-  await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("browser-test-password-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByLabel("Update available")).toBeVisible();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Server", exact: true }).click();
   await expect(page.getByText("Downloaded and ready to install")).toBeVisible();
-  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check for updates", exact: true })
+    .click();
   await expect.poll(() => checks).toBe(1);
-  await expect(page.getByRole("button", { name: "Check for updates", exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Check for updates", exact: true }),
+  ).toBeEnabled();
   expect(installs).toBe(0);
-  await page.getByRole("button", { name: "Update server", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Update server", exact: true })
+    .click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   expect(installs).toBe(0);
-  await page.screenshot({ path: "../../.local/screenshots/server-updates.png", fullPage: true });
-  await page.getByRole("button", { name: "Update server", exact: true }).click();
-  await page.getByRole("button", { name: "Install update", exact: true }).click();
-  await expect(page.getByText("Waiting for the server update worker.")).toBeVisible();
+  await page.screenshot({
+    path: "../../.local/screenshots/server-updates.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Update server", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Install update", exact: true })
+    .click();
+  await expect(
+    page.getByText("Waiting for the server update worker."),
+  ).toBeVisible();
   expect(installs).toBe(1);
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Server", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Update server", exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Update server", exact: true }),
+  ).toBeDisabled();
   state.job = {
     ...state.job,
     status: "succeeded",
     phase: "complete",
     detail: "Update installed. Reload the app to use the new version.",
   };
-  await expect(page.getByRole("button", { name: "Reload app", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Reload app", exact: true }),
+  ).toBeVisible();
   expect(installs).toBe(1);
 });

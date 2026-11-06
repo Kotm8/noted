@@ -98,7 +98,9 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
     name: "Remind me",
     exact: true,
   });
-  await dialog.getByRole("button", { name: "Other date…", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Other date…", exact: true })
+    .click();
   await dialog
     .getByRole("button", { name: "Choose reminder date", exact: true })
     .click();

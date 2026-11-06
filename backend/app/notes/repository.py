@@ -71,13 +71,18 @@ class MessageRepository:
         )
         return self.db.scalar(statement) is not None
 
-    def reply_counts(self, identifiers: list[UUID]) -> dict[UUID, int]:
+    def reply_summaries(self, identifiers: list[UUID]) -> dict[UUID, tuple[int, datetime]]:
+        """How many replies each thread has, and when the latest was written."""
         statement = (
-            select(Message.thread_root_id, func.count())
+            select(Message.thread_root_id, func.count(), func.max(Message.created_at))
             .where(Message.thread_root_id.in_(identifiers), Message.deleted_at.is_(None))
             .group_by(Message.thread_root_id)
         )
-        return {root: count for root, count in self.db.execute(statement) if root is not None}
+        return {
+            root: (count, latest)
+            for root, count, latest in self.db.execute(statement)
+            if root is not None
+        }
 
     def sent(self, author_id: UUID, client_id: UUID | None) -> Message | None:
         """The message a device already sent under this id, so its retry isn't a duplicate."""

@@ -1,14 +1,17 @@
 package com.noted.android.watch
 
-import android.app.AlertDialog
 import android.os.Bundle
-import android.widget.ProgressBar
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
+import androidx.compose.material3.Text
+import com.google.android.gms.wearable.Node
+import com.noted.android.NotedApplication
+import com.noted.android.ui.*
 import androidx.activity.ComponentActivity
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
-import com.noted.android.connection.AppAssociation
 import com.noted.android.connection.ConnectionStore
 import com.noted.android.connection.ServerAddress
 import java.util.concurrent.Executors
@@ -19,10 +22,25 @@ class WatchPairingActivity : ComponentActivity(), MessageClient.OnMessageReceive
     private val network = Executors.newSingleThreadExecutor()
     private var selectedNode = ""
     private var selectedOrigin = ""
+    private var devices by mutableStateOf(emptyList<Node>())
+    private var resultMessage by mutableStateOf<String?>(null)
+    private var connecting by mutableStateOf(false)
+    private var pairTicket = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(ProgressBar(this))
+        setContent {
+            AccountTheme((application as NotedApplication).repository) {
+                ConnectionScreen("Noted watch", resultMessage ?: if (connecting) "Connecting to your watch." else "Choose a connected watch.",
+                    busy = resultMessage == null && (devices.isEmpty() || connecting)) {
+                    if (resultMessage != null) NotedButton({ finish() }) { Text("Done") }
+                    else if (!connecting) devices.forEach { node ->
+                        NotedOutlinedButton({ connect(node) }) { Text(node.displayName) }
+                    }
+                    if (resultMessage == null) NotedTextButton({ finish() }) { Text("Cancel") }
+                }
+            }
+        }
         Wearable.getMessageClient(this).addListener(this)
         val origin = intent.data?.getQueryParameter("origin")
         val ticket = intent.data?.getQueryParameter("ticket")
@@ -40,7 +58,6 @@ class WatchPairingActivity : ComponentActivity(), MessageClient.OnMessageReceive
         }
         network.execute {
             val result = runCatching {
-                AppAssociation.verify(this, origin)
                 Tasks.await(Wearable.getNodeClient(this).connectedNodes, 15, TimeUnit.SECONDS)
             }
             runOnUiThread {
@@ -56,44 +73,28 @@ class WatchPairingActivity : ComponentActivity(), MessageClient.OnMessageReceive
                             )
                             return@onSuccess
                         }
-                        AlertDialog.Builder(this)
-                            .setTitle("Pair Noted watch")
-                            .setItems(nodes.map { it.displayName }.toTypedArray()) { _, index ->
-                                selectedNode = nodes[index].id
-                                selectedOrigin = origin
-                                val payload =
-                                    JSONObject()
-                                        .put("origin", origin)
-                                        .put("ticket", ticket)
-                                        .toString()
-                                        .toByteArray(Charsets.UTF_8)
-                                Wearable.getMessageClient(this)
-                                    .sendMessage(nodes[index].id, "/noted/watch/pair", payload)
-                                    .addOnSuccessListener {
-                                        android.os
-                                            .Handler(mainLooper)
-                                            .postDelayed(
-                                                {
-                                                    if (!isFinishing && selectedNode.isNotEmpty())
-                                                        fail(
-                                                            "Pairing is still running. Check Noted on the watch; if it is not connected, pair again."
-                                                        )
-                                                },
-                                                45000,
-                                            )
-                                    }
-                                    .addOnFailureListener {
-                                        fail(
-                                            "Pairing could not reach the watch. Install the matching Noted watch APK and retry."
-                                        )
-                                    }
-                            }
-                            .setNegativeButton("Cancel") { _, _ -> finish() }
-                            .setOnCancelListener { finish() }
-                            .show()
+                        selectedOrigin = origin
+                        pairTicket = ticket
+                        devices = nodes
                     }
             }
         }
+    }
+
+    private fun connect(node: Node) {
+        selectedNode = node.id
+        connecting = true
+        val payload = JSONObject().put("origin", selectedOrigin).put("ticket", pairTicket).toString().toByteArray(Charsets.UTF_8)
+        Wearable.getMessageClient(this).sendMessage(node.id, "/noted/watch/pair", payload)
+            .addOnSuccessListener {
+                android.os.Handler(mainLooper).postDelayed({
+                    if (!isFinishing && !isDestroyed && selectedNode.isNotEmpty()) {
+                        fail("Pairing is still running. Check Noted on the watch; if it is not connected, pair again.")
+                    }
+                }, 45000)
+            }.addOnFailureListener {
+                fail("Pairing could not reach the watch. Install the matching Noted watch APK and retry.")
+            }
     }
 
     override fun onMessageReceived(event: MessageEvent) {
@@ -118,12 +119,8 @@ class WatchPairingActivity : ComponentActivity(), MessageClient.OnMessageReceive
 
     private fun fail(message: String) {
         if (isFinishing || isDestroyed) return
-        AlertDialog.Builder(this)
-            .setTitle("Noted watch")
-            .setMessage(message)
-            .setPositiveButton("Done") { _, _ -> finish() }
-            .setOnCancelListener { finish() }
-            .show()
+        connecting = false
+        resultMessage = message
     }
 
     override fun onDestroy() {

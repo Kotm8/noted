@@ -33,7 +33,11 @@ export function VideoAttachment({ file }: { file: Attachment }) {
           </button>
         )}
         {playback.buffering && playback.started && !playback.failed && (
-          <div className="video-buffering" role="status" aria-label="Buffering video">
+          <div
+            className="video-buffering"
+            role="status"
+            aria-label="Buffering video"
+          >
             <LoaderCircle className="spin" size={27} />
           </div>
         )}
@@ -50,7 +54,9 @@ export function VideoAttachment({ file }: { file: Attachment }) {
       </div>
       <div className="video-caption">
         <span>
-          <strong title={file.original_filename}>{file.original_filename}</strong>
+          <strong title={file.original_filename}>
+            {file.original_filename}
+          </strong>
           <small>{formatFileSize(file.size)}</small>
         </span>
         <a

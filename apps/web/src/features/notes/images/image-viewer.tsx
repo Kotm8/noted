@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  Copy,
   Download,
   Expand,
   ImageOff,
@@ -11,7 +12,9 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAndroidBackLayer } from "../../../lib/android-navigation";
+import { copyImage } from "../../../lib/copy-image";
 import { formatFileSize } from "../../../lib/format";
 import type { Attachment } from "../types";
 import { useImageTransform } from "./use-image-transform";
@@ -126,6 +129,19 @@ function ViewerImage({
             {count > 1 && ` · ${index + 1} of ${count}`}
           </small>
         </div>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Copy image"
+          title="Copy image"
+          onClick={() =>
+            copyImage(original)
+              .then(() => toast.success("Image copied"))
+              .catch((error: Error) => toast.error(error.message))
+          }
+        >
+          <Copy size={18} />
+        </button>
         <a
           className="icon-button"
           href={file.download_url}

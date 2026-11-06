@@ -14,6 +14,25 @@
 .app-shell.assistant-open .main-panel {
   margin-right: 360px;
 }
+/* With a thread or journal open too, the whole layout makes room for the assistant, so the
+   thread stays beside it instead of underneath. */
+.app-shell.assistant-open.writing-open {
+  padding-right: 360px;
+  grid-template-columns: 64px 244px minmax(240px, 1fr) clamp(
+      320px,
+      var(--writing-width, 420px),
+      calc(100vw / var(--ui-zoom, 1) - 908px)
+    );
+}
+.app-shell.assistant-open.writing-open .main-panel {
+  margin-right: 0;
+}
+.app-shell.assistant-open.writing-open[data-writing-overlay="true"] {
+  grid-template-columns: 64px 244px minmax(0, 1fr);
+}
+.app-shell.assistant-open[data-writing-overlay="true"] .writing-sidebar {
+  right: 360px;
+}
 .shared-ai-panel > header {
   display: flex;
   align-items: center;
@@ -45,7 +64,6 @@
   margin: 10px 0 24px;
 }
 .shared-ai-turn {
-  white-space: pre-wrap;
   margin-bottom: 20px;
   overflow-wrap: anywhere;
 }
@@ -54,6 +72,80 @@
   background: var(--surface-input);
   padding: 10px 12px;
   border-radius: 5px;
+  white-space: pre-wrap;
+}
+.shared-ai-turn.assistant {
+  display: grid;
+  gap: 8px;
+}
+/* Replies are Markdown; keep their spacing tight for a narrow panel. */
+.shared-ai-turn .markdown {
+  font-size: var(--font-sm);
+  line-height: 1.65;
+}
+.shared-ai-turn .markdown > :first-child {
+  margin-top: 0;
+}
+.shared-ai-turn .markdown > :last-child {
+  margin-bottom: 0;
+}
+.shared-ai-turn .markdown p,
+.shared-ai-turn .markdown ul,
+.shared-ai-turn .markdown ol {
+  margin: 0 0 8px;
+}
+.shared-ai-turn .markdown ul,
+.shared-ai-turn .markdown ol {
+  padding-left: 20px;
+}
+.shared-ai-turn .markdown h1,
+.shared-ai-turn .markdown h2,
+.shared-ai-turn .markdown h3 {
+  margin: 12px 0 6px;
+  font-size: var(--font-md);
+}
+.shared-ai-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+.shared-ai-note svg {
+  flex: none;
+  color: var(--accent);
+}
+.shared-ai-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.shared-ai-pictures img,
+.shared-ai-change-picture {
+  width: 72px;
+  height: 72px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+.shared-ai-chat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 260px;
+  max-width: 70vw;
+}
+.shared-ai-chat-item > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shared-ai-chat-item small {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
 }
 .shared-ai-change {
   display: flex;
@@ -89,12 +181,54 @@
 }
 .shared-ai-bottom form {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: flex-end;
   background: var(--surface-input);
   border: 1px solid var(--border-default);
   border-radius: 5px;
-  padding: 10px;
+  padding: 8px;
+}
+.shared-ai-composer .icon-button {
+  width: 29px;
+  height: 29px;
+}
+.shared-ai-attached {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: 6px;
+  padding: 2px 2px 4px;
+}
+.shared-ai-attached > span {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+}
+.shared-ai-attached img {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  object-fit: cover;
+}
+.shared-ai-attached svg.spin {
+  position: absolute;
+  color: var(--text-primary);
+}
+.shared-ai-attached button {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  background: var(--surface-floating);
 }
 .shared-ai-bottom form:focus-within {
   border-color: var(--accent);
@@ -111,6 +245,10 @@
   font: inherit;
   font-size: var(--font-sm);
   line-height: 1.7;
+  min-height: 29px;
+  max-height: 180px;
+  padding: 2px 0;
+  field-sizing: content;
 }
 .shared-ai-send {
   display: grid;
@@ -194,6 +332,12 @@
   .app-shell.assistant-open .main-panel {
     margin-right: 0;
   }
+  .app-shell.assistant-open.writing-open {
+    padding-right: 0;
+  }
+  .app-shell.assistant-open[data-writing-overlay="true"] .writing-sidebar {
+    right: 0;
+  }
   .shared-ai-panel {
     box-shadow: -15px 0 30px #0004;
   }
@@ -252,4 +396,124 @@
   display: block;
   padding: 5px 0;
   text-decoration: underline;
+}
+
+/* What a question is about: the attached messages, above the input and on the question. */
+.shared-ai-context {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  padding: 7px 6px 7px 10px;
+  border: 1px solid var(--border-default);
+  border-left: 2px solid var(--accent);
+  border-radius: 5px;
+  background: var(--surface-floating);
+}
+.shared-ai-context > svg {
+  flex: none;
+  color: var(--accent);
+}
+.shared-ai-context > span {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+.shared-ai-context strong {
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+.shared-ai-context small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.shared-ai-about {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  white-space: normal;
+}
+.shared-ai-about svg {
+  flex: none;
+  color: var(--accent);
+}
+/* Saved prompts as one-tap actions while messages are attached. */
+.shared-ai-quick {
+  display: flex;
+  gap: 5px;
+  margin: 0 -12px 8px;
+  padding: 0 12px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.shared-ai-quick::-webkit-scrollbar {
+  display: none;
+}
+.shared-ai-quick button {
+  flex: none;
+}
+.shared-ai-quick button {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+}
+.shared-ai-quick button:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+.shared-ai-stage {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+.shared-ai-streaming .markdown > :last-child::after {
+  content: "▍";
+  margin-left: 1px;
+  color: var(--accent);
+  animation: ai-caret 0.9s steps(1) infinite;
+}
+.shared-ai-draft {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  background: var(--surface-input);
+}
+.shared-ai-draft > small {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.shared-ai-rewrite {
+  font-weight: 400;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.shared-ai-rewrite del {
+  color: var(--text-faint);
+}
+.shared-ai-rewrite ins {
+  color: color-mix(in srgb, var(--success) 85%, var(--text-primary));
+  text-decoration: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shared-ai-streaming .markdown > :last-child::after {
+    animation: none;
+  }
 }

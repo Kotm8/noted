@@ -91,7 +91,7 @@
   border-radius: 4px;
   color: var(--text-primary);
   background: var(--surface-input);
-  resize: vertical;
+  resize: none;
   font-size: var(--font-base);
   line-height: 1.6;
 }
@@ -292,11 +292,30 @@
   accent-color: var(--accent);
 }
 
-.markdown .contains-task-list { list-style: none; padding-left: 2px; }
-.markdown .task-list-item { padding-left: 20px; position: relative; }
+.markdown .contains-task-list {
+  list-style: none;
+  padding-left: 2px;
+}
+.markdown .task-list-item {
+  padding-left: 20px;
+  position: relative;
+}
+/* Centred on the first line of text, however large the text is. */
 .markdown .task-list-item > input[type="checkbox"],
-.markdown .task-list-item > p > input[type="checkbox"] { margin-left: -20px; }
-.markdown input[type="checkbox"]:not(:disabled) { cursor: pointer; }
+.markdown .task-list-item > p > input[type="checkbox"] {
+  position: absolute;
+  top: calc((1lh - 13px) / 2);
+  left: 0;
+  margin: 0;
+}
+.markdown .task-list-item:has(> input:checked, > p > input:checked) {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 70%, transparent);
+}
+.markdown input[type="checkbox"]:not(:disabled) {
+  cursor: pointer;
+}
 
 .external-image {
   color: var(--text-muted);
@@ -438,15 +457,29 @@
   opacity: 0.8;
 }
 
+/* Sits just above the input, over the end of the timeline, so it adds no height. */
 .composer-footer {
+  position: absolute;
+  right: 21px;
+  bottom: calc(100% - 8px);
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  min-height: 15px;
-  margin: 6px 1px 0;
+  max-width: calc(100% - 40px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-main);
   color: var(--text-faint);
   font-size: var(--font-xs);
+  pointer-events: none;
+}
+.composer-footer:empty {
+  display: none;
+}
+.composer-footer button {
+  pointer-events: auto;
 }
 
 .draft-status {
@@ -546,17 +579,7 @@
   }
 }
 
-/* The "edited" label and the edit history it opens. */
-.edit-history-trigger {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.edit-history-trigger:hover {
-  color: var(--text-primary);
-  text-decoration: underline;
-}
+/* The edit history a message's History button opens. */
 .edit-history {
   z-index: 110;
   width: min(420px, calc(100vw - 24px));
@@ -677,4 +700,23 @@
 }
 .outgoing-files small {
   color: var(--text-faint);
+}
+/* Replies the assistant posted, so they can be told apart from the owner's own. */
+.note-ai-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  margin: 2px 0 3px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.thread-ask-ai {
+  margin-top: 8px;
+  margin-left: -10px;
 }

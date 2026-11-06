@@ -32,6 +32,7 @@
     "0027_ai_calendar",
     "0028_work_schedule",
     "0029_habits",
-    "0030_nutrition"
+    "0030_nutrition",
+    "0031_assistant_chats"
   ]
 }

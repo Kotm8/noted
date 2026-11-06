@@ -1,16 +1,12 @@
 import {
+  ChevronRight,
   Download,
-  FileText,
-  Files,
   MessageSquare,
-  MoreHorizontal,
   Pencil,
   Share2,
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useRef } from "react";
-import { Menu, MenuItem } from "../../../components/ui/menu";
 import { NoteAttachments } from "./note-attachments";
 import type { Note } from "../types";
 import { MessageMarkdown } from "./message-markdown";
@@ -19,6 +15,22 @@ import { EditHistory } from "./edit-history";
 import { ReminderMessage } from "../../reminders/components/reminder-message";
 import { CopyNoteButton } from "./copy-note-button";
 import { canShare, downloadAttachments, shareNote } from "../share";
+
+function replyTime(value: string) {
+  const date = new Date(value);
+  const time = date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const days = Math.round(
+    (new Date().setHours(0, 0, 0, 0) - new Date(value).setHours(0, 0, 0, 0)) /
+      86400000,
+  );
+  if (days === 0) return `today at ${time}`;
+  if (days === 1) return `yesterday at ${time}`;
+  return date.toLocaleDateString([], { day: "numeric", month: "short" });
+}
 
 interface NoteCardProps {
   channelName: string;
@@ -43,18 +55,15 @@ export function NoteCard({
   onAskAi,
   preview,
 }: NoteCardProps) {
-  const aiButton = useRef<HTMLButtonElement>(null);
-  const openingAi = useRef(false);
   const createdAt = new Date(note.created_at);
   const hasText = Boolean(note.content.trim());
   const hasFiles = note.attachments.length > 0;
-  const hasAiInput =
-    hasText ||
-    note.attachments.some((file) =>
-      ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
-        file.content_type,
-      ),
-    );
+  const image = note.attachments.find((file) =>
+    ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+      file.content_type,
+    ),
+  );
+  const hasAiInput = hasText || Boolean(image);
   const sharing = canShare();
   const wasEdited = note.updated_at !== note.created_at;
   const content = (
@@ -72,15 +81,20 @@ export function NoteCard({
         <MessageMarkdown note={note} />
       )}
       <NoteAttachments attachments={note.attachments} />
-      {wasEdited && !editing && <EditHistory note={note} />}
       {!!note.reply_count && onOpenThread && (
         <button
           className="note-thread-link"
           type="button"
           onClick={onOpenThread}
         >
-          <MessageSquare size={13} />
-          {note.reply_count} {note.reply_count === 1 ? "reply" : "replies"}
+          <MessageSquare size={14} />
+          <strong>
+            {note.reply_count} {note.reply_count === 1 ? "reply" : "replies"}
+          </strong>
+          {note.last_reply_at && (
+            <span>Last reply {replyTime(note.last_reply_at)}</span>
+          )}
+          <ChevronRight size={15} className="note-thread-arrow" />
         </button>
       )}
     </>
@@ -105,6 +119,12 @@ export function NoteCard({
         })}
       </time>
       <div className="note-main">
+        {note.ai_generated && (
+          <span className="note-ai-tag" title="Written by the assistant">
+            <Sparkles size={11} />
+            AI reply
+          </span>
+        )}
         {note.reminder ? (
           <ReminderMessage note={note} channelName={channelName}>
             {content}
@@ -123,14 +143,21 @@ export function NoteCard({
           >
             <Pencil size={14} />
           </button>
-          <CopyNoteButton content={note.content} />
+          <CopyNoteButton
+            content={note.content}
+            imageUrl={
+              image
+                ? (image.original_url ??
+                  `/api/v1/attachments/${image.id}/original`)
+                : undefined
+            }
+          />
           {onAskAi && hasAiInput && (
             <button
               type="button"
               className="icon-button"
               aria-label="Ask AI"
               title="Ask AI"
-              ref={aiButton}
               onClick={(event) => onAskAi(event.currentTarget)}
             >
               <Sparkles size={14} />
@@ -146,68 +173,42 @@ export function NoteCard({
               <MessageSquare size={14} />
             </button>
           )}
-          <Menu
-            onCloseAutoFocus={(event) => {
-              if (openingAi.current) {
-                event.preventDefault();
-                openingAi.current = false;
-              }
-            }}
-            trigger={
-              <button className="icon-button" aria-label="Note options">
-                <MoreHorizontal size={17} />
-              </button>
-            }
-          >
-            {onAskAi && hasAiInput && (
-              <MenuItem
-                onSelect={() => {
-                  const anchor = aiButton.current;
-                  if (anchor) {
-                    openingAi.current = true;
-                    requestAnimationFrame(() => onAskAi(anchor));
-                  }
-                }}
-              >
-                <Sparkles size={14} />
-                Ask AI
-              </MenuItem>
-            )}
-            <MenuItem onSelect={onEdit}>
-              <Pencil size={14} />
-              Edit note
-            </MenuItem>
-            {sharing && (
-              <MenuItem onSelect={() => void shareNote(note, "all")}>
-                <Share2 size={14} />
-                Share
-              </MenuItem>
-            )}
-            {sharing && hasText && hasFiles && (
-              <MenuItem onSelect={() => void shareNote(note, "text")}>
-                <FileText size={14} />
-                Share text only
-              </MenuItem>
-            )}
-            {sharing && hasText && hasFiles && (
-              <MenuItem onSelect={() => void shareNote(note, "files")}>
-                <Files size={14} />
-                Share files only
-              </MenuItem>
-            )}
-            {hasFiles && (
-              <MenuItem onSelect={() => downloadAttachments(note.attachments)}>
-                <Download size={14} />
-                {note.attachments.length === 1
+          {sharing && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Share note"
+              title="Share"
+              onClick={() => void shareNote(note, "all")}
+            >
+              <Share2 size={14} />
+            </button>
+          )}
+          {hasFiles && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={
+                note.attachments.length === 1
                   ? "Download file"
-                  : `Download ${note.attachments.length} files`}
-              </MenuItem>
-            )}
-            <MenuItem danger onSelect={onDelete}>
-              <Trash2 size={14} />
-              Delete note
-            </MenuItem>
-          </Menu>
+                  : `Download ${note.attachments.length} files`
+              }
+              title="Download"
+              onClick={() => downloadAttachments(note.attachments)}
+            >
+              <Download size={14} />
+            </button>
+          )}
+          {wasEdited && <EditHistory note={note} />}
+          <button
+            type="button"
+            className="icon-button note-delete"
+            aria-label="Delete note"
+            title="Delete"
+            onClick={onDelete}
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       )}
     </article>

@@ -7,7 +7,10 @@ import { HistorySettings } from "./history-settings";
 import { DayTemplatesPanel } from "../../templates/components/day-templates-panel";
 
 export type TrackingSection =
-  "schedule" | "activities" | "history" | "templates";
+  | "schedule"
+  | "activities"
+  | "history"
+  | "templates";
 
 export function TrackingSettings({
   initialSection,

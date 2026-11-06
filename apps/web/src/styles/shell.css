@@ -382,10 +382,13 @@
   text-overflow: ellipsis;
 }
 
+/* Page actions stay together at the right of the header. */
 .header-actions {
   display: flex;
   flex-shrink: 0;
   align-items: center;
+  gap: 4px;
+  margin-left: auto;
 }
 
 .empty-main {

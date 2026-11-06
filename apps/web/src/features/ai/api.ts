@@ -25,6 +25,8 @@ export interface AiPreferences {
   calendar_note: string;
   web_search: boolean;
   keep_history: boolean;
+  nutrition: boolean;
+  memory: boolean;
 }
 
 export interface AiModel {
@@ -131,9 +133,22 @@ export type AiEvent =
       thought_seconds?: number;
       searched?: boolean;
     }
-  | { type: "error"; code: string; message: string };
+  | { type: "error"; code: string; message: string }
+  | { type: "chat"; chat_id: string }
+  | { type: "explanation"; text: string; thought_seconds?: number }
+  | { type: "turn"; turn_id: string }
+  | { type: "memory"; action: "remember" | "forget"; text: string };
+
+export interface AiMemory {
+  id: string;
+  text: string;
+  created_at: string;
+}
 
 export const aiApi = {
+  memories: () => request<AiMemory[]>("/ai/memories"),
+  forgetMemory: (id: string) => request<void>(`/ai/memories/${id}`, "DELETE"),
+  forgetAll: () => request<void>("/ai/memories", "DELETE"),
   status: () => request<AiStatus>("/ai/status"),
   connect: (auth_json: string) =>
     request<AiStatus>("/ai/connection", "POST", { auth_json }),

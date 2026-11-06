@@ -186,6 +186,13 @@ class MealEstimate(BaseModel):
     """The meal as items, with one optional question when the answer changes the total a lot."""
 
     name: str = Field(max_length=80, description="A short name for the whole meal")
+    slot: Slot | None = Field(
+        default=None,
+        description=(
+            "Which meal this was, from what the owner said or what the food is: porridge logged"
+            " at 14:00 is still Breakfast. Null when nothing says, so the time of day decides."
+        ),
+    )
     items: list[MealItem] = Field(default_factory=list, max_length=40)
     saved_meal: str | None = Field(
         default=None, description="Exact name of a saved meal this matches, if it is one"

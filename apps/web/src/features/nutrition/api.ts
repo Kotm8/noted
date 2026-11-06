@@ -1,4 +1,5 @@
 import { request } from "../../lib/http";
+import { shrinkImage } from "../../lib/shrink-image";
 import { runAi } from "../ai/api";
 import type {
   DaySummary,
@@ -49,9 +50,9 @@ export const nutritionApi = {
     request<WeighIn>("/nutrition/weigh-ins", "PUT", { day, weight_kg }),
   makePicture: (mealId: string) =>
     request<{ id: string }>(`/ai/nutrition/meals/${mealId}/picture`, "POST"),
-  uploadPhoto: (file: File) => {
+  uploadPhoto: async (file: File) => {
     const body = new FormData();
-    body.append("file", file);
+    body.append("file", await shrinkImage(file));
     return request<{ id: string; width: number; height: number }>(
       "/nutrition/photos",
       "POST",

@@ -6,6 +6,9 @@ export function BackupSummary({ counts }: { counts: BackupCounts }) {
       {Object.entries({
         ...(counts.habits ? { Habits: counts.habits } : {}),
         ...(counts.meals ? { Meals: counts.meals } : {}),
+        ...(counts.assistant_chats
+          ? { "Assistant chats": counts.assistant_chats }
+          : {}),
         ...(counts.day_templates
           ? { "Day templates": counts.day_templates }
           : {}),

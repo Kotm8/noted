@@ -409,16 +409,18 @@
 }
 .nutrition-composer .composer-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 4px;
   padding: 6px;
 }
 .nutrition-composer textarea {
   flex: 1;
   min-width: 0;
-  max-height: 140px;
+  min-height: 32px;
+  max-height: 160px;
   padding: 6px;
   border: 0;
+  field-sizing: content;
   resize: none;
   background: transparent;
   font-size: var(--font-md);
@@ -482,8 +484,8 @@
 /* The estimate and meal editor. */
 .nutrition-estimate {
   display: grid;
-  gap: 10px;
-  padding: 14px 14px 10px;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--surface-floating);
@@ -1066,14 +1068,23 @@
   .setup-training li {
     grid-template-columns: 100px minmax(0, 1fr);
   }
-  .estimate-items li {
-    grid-template-columns: minmax(0, 1fr) auto 48px;
+  .nutrition-estimate {
+    padding: 14px;
   }
-  .estimate-items .remove {
-    display: none;
+  /* The name gets its own line; amount and calories sit under it. */
+  .estimate-items li {
+    grid-template-columns: minmax(0, 1fr) 56px 24px;
+    row-gap: 4px;
+    padding: 8px 0;
+  }
+  .estimate-items li > .item-name {
+    grid-column: 1 / -1;
+  }
+  .estimate-items.readonly li {
+    grid-template-columns: minmax(0, 1fr) 56px;
   }
   .amount > span {
-    max-width: 90px;
+    max-width: 160px;
   }
   .nutrition-estimate > footer {
     flex-wrap: wrap;
@@ -1166,29 +1177,45 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 8px;
+}
+.saved-meals-heading h2 {
+  margin: 0;
 }
 .saved-meals-layout {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 .saved-meals-list {
   display: grid;
   gap: 2px;
 }
-.saved-meals-search {
+.saved-meals .saved-meals-search {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 6px;
+  height: 34px;
+  min-height: 0;
   margin-bottom: 6px;
+  padding: 0 10px;
   color: var(--text-faint);
 }
-.saved-meals-search input {
+.saved-meals-search:focus-within {
+  border-color: var(--accent);
+}
+.saved-meals .saved-meals-search input {
   flex: 1;
   min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
   border: 0;
   background: transparent;
+  font-size: var(--font-md);
+  font-weight: 400;
 }
 .saved-meals-search input:focus-visible {
   outline: 0;
@@ -1228,30 +1255,53 @@
 }
 .saved-meal-editor {
   display: grid;
-  gap: 12px;
-  padding-left: 18px;
+  gap: 14px;
+  min-width: 0;
+  padding-left: 20px;
   border-left: 1px solid var(--border-subtle);
+}
+.saved-meal-editor input {
+  font-weight: 400;
 }
 .saved-meal-items {
   display: grid;
-  gap: 4px;
+  gap: 10px;
   justify-items: start;
 }
+/* One item per block: the name gets its own line, amounts and macros sit under it. */
 .saved-meal-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) repeat(4, 58px) 26px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)) 28px;
+  grid-template-areas: "name name name name name remove" "amount kcal protein carbs fat .";
+  gap: 8px;
   width: 100%;
-  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
 }
-.saved-meal-row.heading {
+.saved-meal-row .saved-meal-name {
+  grid-area: name;
+}
+.saved-meal-row .saved-meal-amount {
+  grid-area: amount;
+}
+.saved-meal-row > .icon-button {
+  grid-area: remove;
+  align-self: center;
+}
+.saved-meal-row > label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
   color: var(--text-faint);
   font-size: var(--font-xs);
+  font-weight: 400;
 }
 .saved-meal-row input {
   width: 100%;
-  min-height: 30px;
-  padding: 4px 6px;
+  min-width: 0;
+  height: 32px;
+  min-height: 0;
+  padding: 0 8px;
 }
 @media (max-width: 760px) {
   .nutrition-profile-form,
@@ -1263,12 +1313,8 @@
     border-left: 0;
   }
   .saved-meal-row {
-    grid-template-columns: minmax(0, 1fr) repeat(2, 54px) 26px;
-  }
-  .saved-meal-row > :nth-child(2),
-  .saved-meal-row > :nth-child(5),
-  .saved-meal-row > :nth-child(6) {
-    display: none;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) 28px;
+    grid-template-areas: "name name name name remove" "amount amount amount amount ." "kcal protein carbs fat .";
   }
 }
 
@@ -1315,4 +1361,29 @@
 .remember,
 .nutrition-profile-form label.check {
   font-weight: 400;
+}
+.estimate-own-answer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nutrition-estimate .estimate-own-answer input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border-default));
+  border-radius: 5px;
+  background: var(--surface-input);
+  font-size: var(--font-sm);
+}
+.nutrition-estimate .estimate-own-answer input:focus {
+  border-color: var(--accent);
+}
+.nutrition-enable {
+  margin-bottom: 22px;
+}
+.nutrition-enable .ai-switch {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
 }

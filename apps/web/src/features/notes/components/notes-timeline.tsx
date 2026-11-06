@@ -1,10 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
   Copy,
   LoaderCircle,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -23,8 +24,9 @@ import { DeleteNoteDialog } from "./delete-note-dialog";
 import { NoteComposer } from "./note-composer";
 import { NoteList } from "./note-list";
 import { OutgoingNotes } from "./outgoing-notes";
-import { AskAi, type AiPreview } from "../../ai/components/ask-ai";
-import { useMessageAi } from "../../ai/use-message-ai";
+import { useOptionalAssistant } from "../../ai/assistant/context";
+import { askAboutMessages } from "../../ai/assistant/use-assistant";
+import { useAiStatus } from "../../ai/queries";
 
 interface NotesTimelineProps {
   channel: Channel;
@@ -52,13 +54,27 @@ export function NotesTimeline({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [deletingSelected, setDeletingSelected] = useState(false);
-  const [aiPreview, setAiPreview] = useState<AiPreview | null>(null);
   const [insert, setInsert] = useState<{ key: number; text: string } | null>(
     null,
   );
-  const messageAi = useMessageAi(channel, (text) =>
-    setInsert({ key: Date.now(), text }),
-  );
+  const assistant = useOptionalAssistant();
+  const aiConnected = useAiStatus().data?.connected ?? false;
+  const ask = (chosen: Note[]) =>
+    askAboutMessages({
+      channelId: channel.id,
+      channelName: channel.name,
+      workspaceId: channel.workspace_id,
+      notes: chosen.map((note) => ({ id: note.id, content: note.content })),
+    });
+  useEffect(() => {
+    const draft = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail.channelId === channel.id && !detail.threadRootId)
+        setInsert({ key: Date.now(), text: detail.text });
+    };
+    window.addEventListener("noted:assistant-draft", draft);
+    return () => window.removeEventListener("noted:assistant-draft", draft);
+  }, [channel.id]);
   const [removing, setRemoving] = useState(false);
   const client = useQueryClient();
   const ids = useMemo(() => notes.map((note) => note.id), [notes]);
@@ -198,15 +214,15 @@ export function NotesTimeline({
                 onDelete={setNoteToDelete}
                 onOpenThread={onOpenThread}
                 onAskAi={
-                  messageAi.ask
-                    ? (note, anchor) => {
+                  aiConnected
+                    ? (note) => {
                         selection.clear();
-                        messageAi.ask?.(note, anchor);
+                        ask([note]);
                       }
                     : undefined
                 }
                 selection={selection}
-                preview={messageAi.preview ?? aiPreview}
+                preview={assistant?.preview}
                 selectionTools={
                   <div
                     className="selection-tools"
@@ -214,14 +230,23 @@ export function NotesTimeline({
                     aria-label="Selected messages"
                   >
                     <strong>{plural}</strong>
-                    <AskAi
-                      channel={channel}
-                      notes={notes}
-                      selected={selection.selected}
-                      onPreview={setAiPreview}
-                      onDraft={(text) => setInsert({ key: Date.now(), text })}
-                      onDone={selection.clear}
-                    />
+                    {aiConnected && (
+                      <button
+                        type="button"
+                        className="ask-ai-button"
+                        onClick={() => {
+                          ask(
+                            notes.filter((note) =>
+                              selection.selected.has(note.id),
+                            ),
+                          );
+                          selection.clear();
+                        }}
+                      >
+                        <Sparkles size={14} />
+                        Ask AI
+                      </button>
+                    )}
                     <button
                       className="icon-button"
                       aria-label="Copy selected messages"
@@ -267,7 +292,6 @@ export function NotesTimeline({
         </div>
       </div>
 
-      {messageAi.popover}
       <NoteComposer
         insert={insert}
         above={

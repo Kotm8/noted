@@ -10,8 +10,8 @@ export function AuthScreen({ setup }: { setup: boolean }) {
       <section className="auth-form-section">
         {setup && (
           <Notice>
-            Server setup is unfinished. Create the owner account through the installer before
-            signing in.
+            Server setup is unfinished. Create the owner account through the
+            installer before signing in.
           </Notice>
         )}
         <AuthForm />

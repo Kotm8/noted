@@ -90,9 +90,7 @@ test("skipped Android setup can be completed in settings and unlocks phone contr
   await expect(
     android.getByRole("heading", { name: "Set up Firebase" }),
   ).toHaveCount(0);
-  await expect(
-    android.locator(".android-project-status"),
-  ).toBeVisible();
+  await expect(android.locator(".android-project-status")).toBeVisible();
   const delivery = android.getByRole("checkbox", {
     name: "Send notifications to Android",
   });
@@ -107,9 +105,7 @@ test("skipped Android setup can be completed in settings and unlocks phone contr
     path: "../../.local/screenshots/android-settings-ready.png",
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(
-    android.locator(".android-project-status"),
-  ).toBeVisible();
+  await expect(android.locator(".android-project-status")).toBeVisible();
   await page.screenshot({
     path: "../../.local/screenshots/android-settings-mobile.png",
   });

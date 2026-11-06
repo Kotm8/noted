@@ -1,6 +1,10 @@
 import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownWideNarrow, ChevronDown, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ChevronDown,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { Notice } from "../../../components/ui/notice";
 import { channelApi } from "../../workspaces/api";
@@ -13,7 +17,11 @@ interface SearchControlsProps {
   onChange: (filters: SearchFilters) => void;
 }
 
-export function SearchControls({ filters, workspaces, onChange }: SearchControlsProps) {
+export function SearchControls({
+  filters,
+  workspaces,
+  onChange,
+}: SearchControlsProps) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
   const active = Boolean(filters.workspaceId || filters.channelId);
@@ -33,8 +41,14 @@ export function SearchControls({ filters, workspaces, onChange }: SearchControls
           onClick={() => setExpanded(!expanded)}
         >
           <SlidersHorizontal size={14} />
-          Filters{active && <span className="search-filter-dot" aria-label="Active filters" />}
-          <ChevronDown size={12} className={expanded ? "chevron-expanded" : ""} />
+          Filters
+          {active && (
+            <span className="search-filter-dot" aria-label="Active filters" />
+          )}
+          <ChevronDown
+            size={12}
+            className={expanded ? "chevron-expanded" : ""}
+          />
         </button>
         <Menu
           trigger={
@@ -61,7 +75,11 @@ export function SearchControls({ filters, workspaces, onChange }: SearchControls
               aria-label="Workspace"
               value={filters.workspaceId}
               onChange={(event) =>
-                onChange({ ...filters, workspaceId: event.target.value, channelId: "" })
+                onChange({
+                  ...filters,
+                  workspaceId: event.target.value,
+                  channelId: "",
+                })
               }
             >
               <option value="">All workspaces</option>
@@ -78,7 +96,9 @@ export function SearchControls({ filters, workspaces, onChange }: SearchControls
               aria-label="Channel"
               value={filters.channelId}
               disabled={!filters.workspaceId}
-              onChange={(event) => onChange({ ...filters, channelId: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...filters, channelId: event.target.value })
+              }
             >
               <option value="">All channels</option>
               {channels.data?.map((channel) => (
@@ -91,12 +111,16 @@ export function SearchControls({ filters, workspaces, onChange }: SearchControls
           {active && (
             <button
               className="search-clear-filters"
-              onClick={() => onChange({ ...filters, workspaceId: "", channelId: "" })}
+              onClick={() =>
+                onChange({ ...filters, workspaceId: "", channelId: "" })
+              }
             >
               Clear filters
             </button>
           )}
-          {channels.isError && <Notice tone="error">{channels.error.message}</Notice>}
+          {channels.isError && (
+            <Notice tone="error">{channels.error.message}</Notice>
+          )}
         </div>
       )}
     </div>

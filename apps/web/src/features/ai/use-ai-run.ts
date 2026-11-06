@@ -134,6 +134,11 @@ export function aiTransition(
         code: event.code,
         error: event.message,
       };
+    case "explanation":
+    case "chat":
+    case "turn":
+    case "memory":
+      return current;
   }
 }
 

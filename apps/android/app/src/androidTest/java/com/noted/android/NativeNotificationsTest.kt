@@ -10,7 +10,6 @@ import android.os.Bundle
 import androidx.core.app.NotificationManagerCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.noted.android.connection.AppAssociation
 import com.noted.android.connection.ConnectionStore
 import com.noted.android.notifications.PushNotifications
 import com.noted.android.notifications.PushRegistration
@@ -69,8 +68,7 @@ class NativeNotificationsTest {
             )
             .use { it.readBytes() }
         ConnectionStore(context).origin = origin
-        AppAssociation.verify(context, origin!!)
-        PushRegistration.pair(context, origin, ticket!!)
+        PushRegistration.pair(context, origin!!, ticket!!)
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
         waitFor("No real Firebase diagnostic arrived on the emulator.") {
             manager.activeNotifications.any {

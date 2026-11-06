@@ -17,6 +17,8 @@ class AiPreferences(BaseModel):
     calendar_note: str = Field(default="", max_length=2000)
     web_search: bool = False
     keep_history: bool = True
+    nutrition: bool = True
+    memory: bool = False
 
 
 def _messages_only() -> list[Place]:

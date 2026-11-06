@@ -2,7 +2,14 @@ import type { TextEdit } from "./list-editing";
 
 export type InlineFormat = "bold" | "italic" | "strike" | "code";
 export type LineFormat =
-  "normal" | "h1" | "h2" | "h3" | "bullet" | "numbered" | "task" | "quote";
+  | "normal"
+  | "h1"
+  | "h2"
+  | "h3"
+  | "bullet"
+  | "numbered"
+  | "task"
+  | "quote";
 
 export interface Formatted {
   edit: TextEdit;

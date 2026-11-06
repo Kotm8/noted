@@ -29,10 +29,6 @@
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
-.edited-label {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-}
 .note[data-highlighted="true"] {
   border-left-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 7%, transparent);
@@ -215,4 +211,12 @@
 }
 .markdown {
   color: var(--text-primary);
+}
+.pending-file-preview {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  margin: -6px 0;
+  border-radius: 4px;
+  object-fit: cover;
 }

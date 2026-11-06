@@ -83,15 +83,16 @@ def apply_meals(
             raise ValidationError("Meals can't be logged for days that haven't happened yet.")
         values = {**fields.model_dump(), "source": "ai"}
         if change.id is None:
-            meal = service.add_meal(owner_id, MealFields(**values))
+            meal = service.add_meal(owner_id, MealFields(**values, photo_ids=change.photo_ids))
         else:
             current = service.response(service._meal(owner_id, change.id))
+            kept = list(dict.fromkeys([*current.photo_ids, *change.photo_ids]))[:4]
             meal = service.edit_meal(
                 owner_id,
                 change.id,
                 MealUpdate(
                     **values,
-                    photo_ids=current.photo_ids,
+                    photo_ids=kept,
                     saved_meal_id=current.saved_meal_id,
                     revision=change.revision,
                 ),

@@ -1,13 +1,15 @@
 {
   "name": "@noted/web",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
@@ -40,6 +42,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",
     "jsdom": "29.1.1",
+    "prettier": "3.6.2",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",

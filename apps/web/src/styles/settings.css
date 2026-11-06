@@ -26,7 +26,7 @@
   padding-right: 16px;
 }
 .settings-navigation .settings-nested {
-  padding-left: 22px;
+  padding-left: 27px;
   font-size: var(--font-sm);
 }
 .settings-navigation-end {
@@ -39,7 +39,7 @@
 .settings-content {
   min-height: 0;
   overflow-y: auto;
-  padding-right: 6px;
+  padding: 0 6px 28px 0;
 }
 .settings-navigation button {
   display: flex;
@@ -60,6 +60,12 @@
 }
 .settings-panel {
   min-width: 0;
+}
+/* Labels are medium weight; what's typed into their fields is not. */
+.settings-content input,
+.settings-content select,
+.settings-content textarea {
+  font-weight: 400;
 }
 .settings-panel h2 {
   margin: 0 0 8px;
@@ -550,8 +556,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
-
-
 
 .server-address-panel {
   display: grid;

@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { readStoredValue, removeStoredValue, writeStoredValue } from "../../../lib/storage";
+import {
+  readStoredValue,
+  removeStoredValue,
+  writeStoredValue,
+} from "../../../lib/storage";
 
 export function useDraft(channelId: string) {
   const storageKey = `noted.draft.${channelId}`;

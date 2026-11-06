@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from app.ai.assistant.chats import remembered
 from app.ai.calendar.models import CalendarApplicationRecord
 from app.ai.calendar.schemas import (
     CalendarApplication,
@@ -69,7 +70,7 @@ def prepare_calendar(db: Session, owner_id: UUID, data: CalendarRequest) -> Prep
     instructions = data.instructions.strip()
     if not instructions:
         raise ValidationError("Write what you want to plan.")
-    standing = settings.standing_note
+    standing = settings.standing_note + remembered(db, owner_id, settings.memory)
     if settings.calendar_note.strip():
         standing += "\n\nCalendar preferences:\n" + settings.calendar_note.strip()
     check_budget(instructions, standing, [], text, [], turns)

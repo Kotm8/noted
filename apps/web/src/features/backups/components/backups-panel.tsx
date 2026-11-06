@@ -15,7 +15,10 @@ export function BackupsPanel() {
   const [confirmation, setConfirmation] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
   const exported = useMutation({ mutationFn: backupsApi.export });
-  const uploaded = useMutation({ mutationFn: backupsApi.preview, onSuccess: setPreview });
+  const uploaded = useMutation({
+    mutationFn: backupsApi.preview,
+    onSuccess: setPreview,
+  });
   const restored = useMutation({
     mutationFn: backupsApi.import,
     onSuccess: () => {
@@ -31,18 +34,18 @@ export function BackupsPanel() {
     <section className="settings-panel backups-panel">
       <h2>Backups</h2>
       <p>
-        Take your notes with you. ZIP backups include projects, categories, channels, messages,
-        attachments, and project images.
+        Take your notes with you. ZIP backups include projects, categories,
+        channels, messages, attachments, and project images.
       </p>
       <p className="settings-hint">
-        Login details, passwords, sessions, and server configuration are excluded. The owner signed
-        in during import receives the content.
+        Login details, passwords, sessions, and server configuration are
+        excluded. The owner signed in during import receives the content.
       </p>
       <div className="settings-section">
         <h3>Export your content</h3>
         <p>
-          Generate a ZIP, then save it somewhere you trust. Backups contain your private notes and
-          files and are not encrypted.
+          Generate a ZIP, then save it somewhere you trust. Backups contain your
+          private notes and files and are not encrypted.
         </p>
         <Button
           disabled={busy}
@@ -60,7 +63,8 @@ export function BackupsPanel() {
           <div className="backup-preview" role="status">
             <BackupSummary counts={exported.data.counts} />
             <p>
-              {(exported.data.size / 1024 / 1024).toFixed(1)} MB. Download available for one hour.
+              {(exported.data.size / 1024 / 1024).toFixed(1)} MB. Download
+              available for one hour.
             </p>
             <Button asChild variant="secondary">
               <a href={exported.data.download_url ?? undefined} download>
@@ -72,7 +76,10 @@ export function BackupsPanel() {
       </div>
       <div className="settings-section">
         <h3>Import a backup</h3>
-        <p>Choose a Noted ZIP to verify and preview it before importing. Maximum ZIP size: 1 GB.</p>
+        <p>
+          Choose a Noted ZIP to verify and preview it before importing. Maximum
+          ZIP size: 1 GB.
+        </p>
         <Button disabled={busy} onClick={() => fileInput.current?.click()}>
           <Upload size={15} />
           Choose backup ZIP
@@ -102,7 +109,9 @@ export function BackupsPanel() {
             uploaded.mutate(file);
           }}
         />
-        {uploaded.isPending && <Notice>Uploading and verifying the backup...</Notice>}
+        {uploaded.isPending && (
+          <Notice>Uploading and verifying the backup...</Notice>
+        )}
         {preview && (
           <div className="backup-preview">
             <p>Backup from {new Date(preview.created_at).toLocaleString()}</p>
@@ -143,8 +152,13 @@ export function BackupsPanel() {
             )}
             <Button
               variant={mode === "replace" ? "danger" : "default"}
-              disabled={busy || (mode === "replace" && confirmation !== "REPLACE MY NOTES")}
-              onClick={() => restored.mutate({ token: preview.token, mode, confirmation })}
+              disabled={
+                busy ||
+                (mode === "replace" && confirmation !== "REPLACE MY NOTES")
+              }
+              onClick={() =>
+                restored.mutate({ token: preview.token, mode, confirmation })
+              }
             >
               {restored.isPending ? "Importing..." : "Import backup"}
             </Button>
@@ -152,7 +166,9 @@ export function BackupsPanel() {
         )}
         {restored.isSuccess && (
           <div>
-            <Notice>Backup imported. Your sign-in credentials are unchanged.</Notice>
+            <Notice>
+              Backup imported. Your sign-in credentials are unchanged.
+            </Notice>
             <BackupSummary counts={restored.data.counts} />
           </div>
         )}

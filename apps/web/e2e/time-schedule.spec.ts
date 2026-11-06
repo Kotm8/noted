@@ -188,14 +188,18 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await expect(
     page.getByRole("dialog", { name: "New plan", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".plan-card-length")).toHaveText(/^(\d+h( \d+m)?|[1-5]\dm)$/);
+  await expect(page.locator(".plan-card-length")).toHaveText(
+    /^(\d+h( \d+m)?|[1-5]\dm)$/,
+  );
   await page.getByLabel("Title", { exact: true }).fill("Drawn plan");
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Add", exact: true })
     .click();
   await expect(
-    page.locator(".planned-block:not(.plan-draft)").filter({ hasText: "Drawn plan" }),
+    page
+      .locator(".planned-block:not(.plan-draft)")
+      .filter({ hasText: "Drawn plan" }),
   ).toBeVisible();
   const drawn = page
     .locator(".planned-block:not(.plan-draft)")
@@ -228,17 +232,28 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await page.mouse.up();
   await expect(drawn).toHaveAttribute("data-end", String(originalEnd + 15));
   await drawn.click();
-  const planEditor = page.getByRole("dialog", { name: "Edit plan", exact: true });
-  await planEditor.getByRole("button", { name: "Delete plan", exact: true }).click();
+  const planEditor = page.getByRole("dialog", {
+    name: "Edit plan",
+    exact: true,
+  });
+  await planEditor
+    .getByRole("button", { name: "Delete plan", exact: true })
+    .click();
   const confirmation = page.getByRole("dialog", {
     name: "Delete this plan?",
     exact: true,
   });
-  await confirmation.getByRole("button", { name: "Keep plan", exact: true }).click();
+  await confirmation
+    .getByRole("button", { name: "Keep plan", exact: true })
+    .click();
   await expect(confirmation).toBeHidden();
   await expect(planEditor).toBeVisible();
-  await planEditor.getByRole("button", { name: "Delete plan", exact: true }).click();
-  await confirmation.getByRole("button", { name: "Delete plan", exact: true }).click();
+  await planEditor
+    .getByRole("button", { name: "Delete plan", exact: true })
+    .click();
+  await confirmation
+    .getByRole("button", { name: "Delete plan", exact: true })
+    .click();
   await expect(drawn).toHaveCount(0);
   await page.keyboard.press("Control+z");
   await expect(drawn).toHaveCount(1);

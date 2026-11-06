@@ -17,8 +17,10 @@ from pydantic_ai.messages import (
     TextPartDelta,
     ThinkingPart,
     ThinkingPartDelta,
+    ToolCallPart,
+    ToolCallPartDelta,
 )
-from pydantic_core import to_jsonable_python
+from pydantic_core import from_json, to_jsonable_python
 
 
 def event(name: str, **values: Any) -> str:
@@ -104,6 +106,18 @@ class StreamState:
                     "query": str(tool_args.get("query") or tool_args.get("identifier") or ""),
                 }
             )
+        elif isinstance(item, FunctionToolCallEvent) and item.part.tool_name in (
+            "remember",
+            "forget",
+        ):
+            tool_args = item.part.args_as_dict()
+            events.append(
+                {
+                    "type": "memory",
+                    "action": item.part.tool_name,
+                    "text": str(tool_args.get("fact") or ""),
+                }
+            )
         elif isinstance(item, FunctionToolResultEvent):
             metadata = item.part.metadata
             if isinstance(metadata, dict):
@@ -167,3 +181,42 @@ class StreamState:
             "noted_searched": self.noted_searched,
             "thought_seconds": self.thought_seconds or round(monotonic() - self.started, 2),
         }
+
+
+class ExplanationStream:
+    """The assistant answers through an output tool, so its explanation arrives as tool
+    arguments. They're read as partial JSON while they stream, so the answer appears as
+    it's written instead of all at once."""
+
+    def __init__(self, output_tools: set[str]) -> None:
+        self.output_tools = output_tools
+        self.args: dict[int, str] = {}
+        self.text = ""
+
+    def consume(self, item: Any) -> str | None:
+        if isinstance(item, PartStartEvent) and isinstance(item.part, ToolCallPart):
+            if item.part.tool_name not in self.output_tools:
+                return None
+            args = item.part.args
+            self.args[item.index] = args if isinstance(args, str) else json.dumps(args or {})
+        elif (
+            isinstance(item, PartDeltaEvent)
+            and isinstance(item.delta, ToolCallPartDelta)
+            and item.index in self.args
+        ):
+            delta = item.delta.args_delta
+            if isinstance(delta, str):
+                self.args[item.index] += delta
+            elif isinstance(delta, dict):
+                self.args[item.index] = json.dumps(delta)
+        else:
+            return None
+        try:
+            partial = from_json(self.args[item.index] or "{}", allow_partial="trailing-strings")
+        except ValueError:
+            return None
+        text = partial.get("explanation") if isinstance(partial, dict) else None
+        if not isinstance(text, str) or text == self.text:
+            return None
+        self.text = text
+        return text

@@ -23,7 +23,7 @@ async function api(page: Page, path: string, body: unknown) {
 const lines = (events: unknown[]) =>
   events.map((event) => JSON.stringify(event)).join("\n") + "\n";
 
-test("Ask AI previews a rewrite on the messages and applies it", async ({
+test("Ask AI attaches messages to the assistant, previews a rewrite on them and applies it", async ({
   page,
 }) => {
   await page.route("**/api/v1/ai/status", (route) =>
@@ -52,31 +52,33 @@ test("Ask AI previews a rewrite on the messages and applies it", async ({
   const answerReady = new Promise<void>((resolve) => {
     releaseAnswer = resolve;
   });
-  await page.route("**/api/v1/ai/runs", async (route) => {
-    if (route.request().method() !== "POST") return route.fallback();
+  await page.route("**/api/v1/ai/assistant", async (route) => {
     sent = route.request().postDataJSON();
     await answerReady;
-    const changes = [
-      { id: notes[0].id, text: "dog - 4" },
-      { id: notes[1].id, text: "cat - 4" },
-      { id: notes[2].id, text: "bird - 2" },
-    ];
+    const output = {
+      explanation: "Added the number of **legs**.",
+      habits: [],
+      plans: [],
+      meals: [],
+      rewrites: [
+        { id: notes[0].id, text: "dog - 4" },
+        { id: notes[1].id, text: "cat - 4" },
+        { id: notes[2].id, text: "bird - 2" },
+      ],
+    };
     await route.fulfill({
       contentType: "application/x-ndjson",
       body: lines([
-        {
-          type: "start",
-          run_id: null,
-          kind: "rewrite",
-          prompt_name: "Custom prompt",
-          model: "gpt-6.1-sol",
-        },
-        { type: "changes", changes: changes.slice(0, 1) },
-        { type: "changes", changes },
-        { type: "done", output: changes },
+        { type: "chat", chat_id: crypto.randomUUID() },
+        { type: "explanation", text: "Added the number" },
+        { type: "turn", turn_id: crypto.randomUUID() },
+        { type: "done", output, sources: [] },
       ]),
     });
   });
+  await page.route("**/api/v1/ai/assistant/apply", (route) =>
+    route.fulfill({ json: { habits: [], plans: [], meals: [], pictures: [] } }),
+  );
   await page.goto(`/w/${project.id}/c/${channel.id}`);
   const entries = page.locator(".note-entry");
   await entries.nth(0).locator(".note-gutter").click();
@@ -88,40 +90,41 @@ test("Ask AI previews a rewrite on the messages and applies it", async ({
     .getByRole("toolbar", { name: "Selected messages" })
     .getByRole("button", { name: "Ask AI", exact: true })
     .click();
-  const popover = page.getByRole("dialog", { name: "Ask AI" });
-  await expect(popover.getByText("Saved prompts")).toBeVisible();
+  const panel = page.getByRole("complementary", { name: "AI assistant" });
+  await expect(panel.getByText("3 messages in #pets")).toBeVisible();
   await expect(
-    popover.getByRole("button", { name: /Fix spelling/ }),
+    panel.getByRole("button", { name: "Fix spelling", exact: true }),
   ).toBeVisible();
-  await popover.getByRole("textbox", { name: "Prompt" }).fill("how many legs?");
-  await popover.getByRole("textbox", { name: "Prompt" }).press("Enter");
-  await expect(popover.getByText("Thinking", { exact: true })).toBeVisible();
+  const input = panel.getByRole("textbox", { name: "Message assistant" });
+  await expect(input).toBeFocused();
+  await input.fill("how many legs?");
+  await input.press("Enter");
+  await expect(panel.getByRole("status")).toContainText("Thinking");
   releaseAnswer();
   await expect(page.locator(".ai-preview")).toHaveCount(3);
   await expect(page.locator(".ai-preview .ai-after").first()).toHaveText(
     "dog - 4",
   );
-  await page.screenshot({ path: "../../.local/ai-rewrite-preview.png" });
+  await expect(panel.locator(".shared-ai-turn.assistant strong")).toHaveText(
+    "legs",
+  );
   expect(sent).toMatchObject({
-    place: "messages",
     instructions: "how many legs?",
-    kind: "rewrite",
-    message_ids: notes.map((note) => note.id),
+    context: {
+      channel_id: channel.id,
+      message_ids: notes.map((note) => note.id),
+    },
   });
-  await popover.getByRole("button", { name: "Apply", exact: true }).click();
-  await expect(popover).toBeHidden();
+  await panel.getByLabel("Include rewrite 2").uncheck();
+  await expect(page.locator(".ai-preview")).toHaveCount(2);
+  await panel.getByRole("button", { name: "Apply changes" }).click();
   await expect(page.locator(".ai-preview")).toHaveCount(0);
   await expect(
     page.locator(".note").filter({ hasText: "bird - 2" }),
   ).toBeVisible();
-  await page
-    .locator(".note")
-    .filter({ hasText: "dog - 4" })
-    .getByRole("button", { name: "edited" })
-    .click();
   await expect(
-    page.getByRole("dialog", { name: "Edit history" }),
-  ).toContainText("dog");
+    page.locator(".note .markdown").filter({ hasText: /^cat$/ }),
+  ).toHaveCount(1);
 });
 
 test("Settings › AI connects with a pasted auth.json and edits saved prompts", async ({
@@ -184,7 +187,7 @@ test("Settings › AI connects with a pasted auth.json and edits saved prompts",
   ).toBeVisible();
 });
 
-test("Ask AI targets one message without selection and replies from the mobile menu", async ({
+test("Ask AI on one message drafts, and asking in a thread posts the reply there", async ({
   page,
 }) => {
   await page.route("**/api/v1/ai/status", (route) =>
@@ -202,103 +205,95 @@ test("Ask AI targets one message without selection and replies from the mobile m
     name: "thoughts",
   });
   const first = await api(page, `/channels/${channel.id}/messages`, {
-    content: "Leave this alone",
+    content: "Ideas for the weekend?",
   });
   const second = await api(page, `/channels/${channel.id}/messages`, {
     content: "hello wrld",
   });
-  const requests: Record<string, unknown>[] = [];
-  await page.route("**/api/v1/ai/runs", (route) => {
+  interface Sent {
+    context: {
+      message_ids: string[];
+      thread_root_id?: string | null;
+      prompt_id?: string | null;
+    };
+  }
+  const requests: Sent[] = [];
+  await page.route("**/api/v1/ai/assistant", async (route) => {
     const input = route.request().postDataJSON();
     requests.push(input);
-    const output =
-      input.kind === "rewrite"
-        ? [{ id: input.message_ids[0], text: "Hello world" }]
-        : "A thoughtful reply";
-    return route.fulfill({
+    const inThread = Boolean(input.context?.thread_root_id);
+    let posted = null;
+    if (inThread) {
+      // The server posts the reply itself; the stand-in does the same through the API.
+      const reply = await api(
+        page,
+        `/messages/${input.context.thread_root_id}/thread`,
+        { content: "Hike, then the market." },
+      );
+      posted = {
+        message_id: reply.id,
+        thread_root_id: input.context.thread_root_id,
+        channel_id: channel.id,
+      };
+    }
+    const output = {
+      explanation: inThread ? "Replied with two ideas." : "Here's a draft.",
+      habits: [],
+      plans: [],
+      meals: [],
+      rewrites: [],
+      draft: inThread ? null : "Hello world, friends",
+      reply: inThread ? "Hike, then the market." : null,
+      posted,
+    };
+    await route.fulfill({
       contentType: "application/x-ndjson",
       body: lines([
-        {
-          type: "start",
-          run_id: null,
-          kind: input.kind,
-          prompt_name: "Custom prompt",
-          model: "gpt-6.1-sol",
-        },
-        input.kind === "rewrite"
-          ? { type: "changes", changes: output }
-          : { type: "text", text: output },
-        { type: "done", output },
+        { type: "chat", chat_id: crypto.randomUUID() },
+        { type: "turn", turn_id: crypto.randomUUID() },
+        { type: "done", output, sources: [] },
       ]),
     });
   });
   await page.goto(`/w/${project.id}/c/${channel.id}`);
-  const original = page.locator(`#note-${first.id}`);
   const message = page.locator(`#note-${second.id}`);
   await message.hover();
   await message.getByRole("button", { name: "Ask AI", exact: true }).click();
-  const popup = page.getByRole("dialog", { name: "Ask AI", exact: true });
-  await expect(popup).toContainText("1 message");
+  const panel = page.getByRole("complementary", { name: "AI assistant" });
+  await expect(panel.getByText("Message in #thoughts")).toBeVisible();
   await expect(
     page.getByRole("toolbar", { name: "Selected messages" }),
   ).toHaveCount(0);
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .fill("Fix spelling");
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .press("Enter");
-  await expect(message.locator(".ai-preview .ai-after")).toHaveText(
-    "Hello world",
+  const input = panel.getByRole("textbox", { name: "Message assistant" });
+  await input.fill("Write this as a proper message");
+  await input.press("Enter");
+  await expect(panel.locator(".shared-ai-draft")).toContainText(
+    "Hello world, friends",
   );
-  await expect(original.locator(".ai-preview")).toHaveCount(0);
-  expect(requests[0].message_ids).toEqual([second.id]);
-  await popup.getByRole("button", { name: "Apply", exact: true }).click();
-  await expect(popup).toBeHidden();
-  await expect(message.locator(".markdown")).toHaveText("Hello world");
-  await expect(original.locator(".markdown")).toHaveText("Leave this alone");
+  expect(requests[0].context.message_ids).toEqual([second.id]);
+  await panel.getByRole("button", { name: "Put in message box" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Message thoughts" }),
+  ).toHaveValue("Hello world, friends");
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await original
-    .getByRole("button", { name: "Note options", exact: true })
-    .click();
-  await page.getByRole("menuitem", { name: "Ask AI", exact: true }).click();
-  await expect(popup).toBeVisible();
-  await popup.getByRole("radio", { name: "Reply", exact: true }).click();
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .fill("Reply to this");
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .press("Enter");
-  await expect(popup.locator(".ask-ai-answer")).toHaveText(
-    "A thoughtful reply",
-  );
-  expect(requests[1].message_ids).toEqual([first.id]);
-  await popup.getByRole("button", { name: "Add reply", exact: true }).click();
-  await expect(popup).toBeHidden();
-  await original
-    .getByRole("button", { name: "Open thread", exact: true })
-    .click();
+  const root = page.locator(`#note-${first.id}`);
+  await root.hover();
+  await root.getByRole("button", { name: "Open thread", exact: true }).click();
   const thread = page.locator(".writing-sidebar");
-  const reply = thread
-    .locator(".note")
-    .filter({ hasText: "A thoughtful reply" });
-  await expect(reply).toBeVisible();
-  await reply.getByRole("button", { name: "Ask AI", exact: true }).click();
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .fill("Rewrite this reply");
-  await popup
-    .getByRole("textbox", { name: "Prompt", exact: true })
-    .press("Enter");
-  await expect(reply.locator(".ai-preview .ai-after")).toHaveText(
-    "Hello world",
-  );
-  await popup.getByRole("button", { name: "Apply", exact: true }).click();
-  await expect(thread.locator(".note .markdown")).toHaveText("Hello world");
+  await thread
+    .getByRole("button", { name: "Ask AI in this thread", exact: true })
+    .click();
+  await expect(panel.getByText("Thread in #thoughts")).toBeVisible();
+  await panel
+    .getByRole("button", { name: "Ideas for this", exact: true })
+    .click();
+  expect(requests[1].context).toMatchObject({
+    thread_root_id: first.id,
+    message_ids: [first.id],
+  });
+  expect(requests[1].context.prompt_id).toBeTruthy();
+  await expect(panel.getByText("Replied in the thread")).toBeVisible();
   await expect(
-    page.getByRole("toolbar", { name: "Selected messages" }),
-  ).toHaveCount(0);
+    thread.locator(".note").filter({ hasText: "Hike, then the market." }),
+  ).toBeVisible();
 });

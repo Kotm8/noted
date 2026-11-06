@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Note } from "../types";
 import type { NoteSelection } from "../hooks/use-note-selection";
-import type { AiPreview } from "../../ai/components/ask-ai";
+import type { AiPreview } from "../../ai/assistant/types";
 import { useAppearance } from "../../settings/appearance-context";
 import { noteGrouping } from "../grouping";
 import { NoteCard } from "./note-card";

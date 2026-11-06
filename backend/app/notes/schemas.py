@@ -63,6 +63,8 @@ class MessageResponse(BaseModel):
     content: str
     thread_root_id: UUID | None = None
     reply_count: int = 0
+    last_reply_at: datetime | None = None
+    ai_generated: bool = False
     id: uuid.UUID
     channel_id: uuid.UUID
     author_id: uuid.UUID

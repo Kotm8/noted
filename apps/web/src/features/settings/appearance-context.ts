@@ -9,10 +9,13 @@ interface AppearanceContextValue {
   saveError: string | null;
 }
 
-export const AppearanceContext = createContext<AppearanceContextValue | null>(null);
+export const AppearanceContext = createContext<AppearanceContextValue | null>(
+  null,
+);
 
 export function useAppearance() {
   const context = useContext(AppearanceContext);
-  if (!context) throw new Error("Appearance settings require AppearanceProvider.");
+  if (!context)
+    throw new Error("Appearance settings require AppearanceProvider.");
   return context;
 }

@@ -1,23 +1,26 @@
 package com.noted.android.notifications
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.ProgressBar
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
+import androidx.compose.material3.Text
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.noted.android.MainActivity
-import com.noted.android.connection.AppAssociation
+import com.noted.android.NotedApplication
+import com.noted.android.ui.*
 import com.noted.android.connection.ConnectionStore
 import com.noted.android.connection.ServerAddress
 import java.util.concurrent.Executors
 
 class NotificationSetupActivity : ComponentActivity() {
+    private var failure by mutableStateOf<String?>(null)
     private val network = Executors.newSingleThreadExecutor()
     private val permission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -30,7 +33,13 @@ class NotificationSetupActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(ProgressBar(this))
+        setContent {
+            AccountTheme((application as NotedApplication).repository) {
+                ConnectionScreen("Phone notifications", failure ?: "Connecting this phone to your server.", busy = failure == null, error = failure != null) {
+                    if (failure != null) NotedButton({ returnToApp() }) { Text("Back to Noted") }
+                }
+            }
+        }
         if (intent.data?.host != "notifications" || intent.data?.path != "/connect") {
             finish()
             return
@@ -63,7 +72,6 @@ class NotificationSetupActivity : ComponentActivity() {
         }
         network.execute {
             val result = runCatching {
-                AppAssociation.verify(this, origin)
                 PushRegistration.pair(this, origin, ticket)
             }
             runOnUiThread {
@@ -81,12 +89,7 @@ class NotificationSetupActivity : ComponentActivity() {
     }
 
     private fun fail(message: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Phone notifications")
-            .setMessage(message)
-            .setPositiveButton("Back to Noted") { _, _ -> returnToApp() }
-            .setOnCancelListener { returnToApp() }
-            .show()
+        failure = message
     }
 
     private fun returnToApp() {

@@ -8,7 +8,9 @@ import {
   House,
   Menu,
   Search,
+  Sparkles,
 } from "lucide-react";
+import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { scheduleApi } from "../schedule/api";
 import {
@@ -19,9 +21,7 @@ import {
   zonedParts,
 } from "../schedule/dates";
 import { useTracking } from "../time-tracking/use-tracking";
-import type { Channel } from "../workspaces/types";
 import { MissedActivity } from "./missed-activity";
-import { PinnedChannels } from "./pinned-channels";
 import { HomeReminderActions } from "./reminder-actions";
 import type { HomeActivity } from "./types";
 
@@ -31,7 +31,6 @@ interface HomePageProps {
   onSearch: () => void;
   onActivity: () => void;
   onOpen: (item: HomeActivity) => void;
-  onChannel: (channel: Channel) => void;
 }
 
 export function HomePage({
@@ -40,7 +39,6 @@ export function HomePage({
   onSearch,
   onActivity,
   onOpen,
-  onChannel,
 }: HomePageProps) {
   const tracking = useTracking();
   const [now, setNow] = useState(Date.now);
@@ -104,21 +102,25 @@ export function HomePage({
           <House size={17} />
           <h1>Home</h1>
         </div>
-        <button
-          className="button ghost"
-          onClick={() =>
-            window.dispatchEvent(new Event("noted:assistant-open"))
-          }
-        >
-          Ask AI
-        </button>
-        <button
-          className="icon-button"
-          aria-label="Open search"
-          onClick={onSearch}
-        >
-          <Search size={18} />
-        </button>
+        <div className="header-actions">
+          <Button
+            variant="ghost"
+            size="small"
+            onClick={() =>
+              window.dispatchEvent(new Event("noted:assistant-open"))
+            }
+          >
+            <Sparkles size={15} />
+            Ask AI
+          </Button>
+          <button
+            className="icon-button"
+            aria-label="Open search"
+            onClick={onSearch}
+          >
+            <Search size={18} />
+          </button>
+        </div>
       </header>
       <div className="home-scroll">
         <div className="home-daybook">
@@ -284,7 +286,6 @@ export function HomePage({
               </span>
             </section>
             <aside className="home-day-side">
-              <PinnedChannels onOpen={onChannel} />
               <MissedActivity timezone={timezone} onOpen={onOpen} />
               <button className="home-plan-button" onClick={onCalendar}>
                 <CalendarDays size={15} />

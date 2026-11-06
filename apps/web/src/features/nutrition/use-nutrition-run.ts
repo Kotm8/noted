@@ -3,7 +3,12 @@ import type { AiSource } from "../ai/api";
 import type { MealItem, NutritionEvent } from "./types";
 
 export type RunStage =
-  "idle" | "thinking" | "searching" | "writing" | "done" | "error";
+  | "idle"
+  | "thinking"
+  | "searching"
+  | "writing"
+  | "done"
+  | "error";
 
 export interface RunState<T> {
   stage: RunStage;

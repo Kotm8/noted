@@ -12,7 +12,13 @@ export function useNoteSearch(query: string, filters: SearchFilters) {
   }, [query]);
 
   const search = useInfiniteQuery({
-    queryKey: ["search", debounced, filters.workspaceId, filters.channelId, filters.sort],
+    queryKey: [
+      "search",
+      debounced,
+      filters.workspaceId,
+      filters.channelId,
+      filters.sort,
+    ],
     queryFn: ({ pageParam }) => searchNotes(debounced, filters, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {

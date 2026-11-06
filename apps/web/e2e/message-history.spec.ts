@@ -20,7 +20,7 @@ async function api(page: Page, path: string, body: unknown) {
   );
 }
 
-test("edits keep a history and messages written offline send later", async ({
+test("edits keep a history behind the toolbar and messages written offline send later", async ({
   page,
   context,
 }) => {
@@ -49,7 +49,9 @@ test("edits keep a history and messages written offline send later", async ({
     .fill("Second wording");
   await page.getByRole("button", { name: "Save changes" }).click();
   const edited = page.locator(".note").filter({ hasText: "Second wording" });
-  await edited.getByRole("button", { name: "edited" }).click();
+  await expect(edited).not.toContainText("edited");
+  await edited.hover();
+  await edited.getByRole("button", { name: "Edit history" }).click();
   const history = page.getByRole("dialog", { name: "Edit history" });
   await expect(history).toContainText("Current");
   await expect(history).toContainText("First wording");
@@ -79,7 +81,9 @@ test("edits keep a history and messages written offline send later", async ({
 
   const firstNote = page.locator(".main-panel .note").first();
   await firstNote.hover();
-  await firstNote.getByRole("button", { name: "Open thread", exact: true }).click();
+  await firstNote
+    .getByRole("button", { name: "Open thread", exact: true })
+    .click();
   const pane = page.getByRole("complementary", { name: "Thread · #drafts" });
   const reply = pane.getByRole("textbox", { name: "Thread reply" });
   await expect(reply).toBeVisible();
@@ -101,7 +105,9 @@ test("edits keep a history and messages written offline send later", async ({
   await expect(page.locator(".outgoing-note")).toHaveCount(0, {
     timeout: 20000,
   });
-  await expect(pane.getByText("Replied offline", { exact: true })).toBeVisible();
+  await expect(
+    pane.getByText("Replied offline", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.locator(".main-panel .note").filter({ hasText: "With a file" }),
   ).toContainText("receipt.txt");

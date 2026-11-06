@@ -14,7 +14,8 @@ export function useLogout() {
       queryClient.setQueryData(["session"], null);
       await queryClient.invalidateQueries({ queryKey: ["auth-status"] });
       queryClient.removeQueries({
-        predicate: (query) => !["session", "auth-status"].includes(String(query.queryKey[0])),
+        predicate: (query) =>
+          !["session", "auth-status"].includes(String(query.queryKey[0])),
       });
       navigate("/", { replace: true });
     },

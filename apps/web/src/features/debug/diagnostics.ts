@@ -14,7 +14,10 @@ export interface DiagnosticReport {
   checks: DiagnosticCheck[];
 }
 
-async function serverCheck(path: string, label: string): Promise<DiagnosticCheck> {
+async function serverCheck(
+  path: string,
+  label: string,
+): Promise<DiagnosticCheck> {
   const start = performance.now();
   try {
     const response = await fetch(`/api/v1${path}`, {
@@ -23,10 +26,12 @@ async function serverCheck(path: string, label: string): Promise<DiagnosticCheck
       signal: AbortSignal.timeout(8000),
     });
     const data = await response.json();
-    if (!response.ok) return { label, value: `HTTP ${response.status}`, state: "error" };
-    const detail = path === "/version"
-      ? `v${String(data.version).slice(0, 40)} / API ${String(data.api_version).slice(0, 8)}`
-      : `${String(data.status).slice(0, 40)} (${Math.round(performance.now() - start)} ms)`;
+    if (!response.ok)
+      return { label, value: `HTTP ${response.status}`, state: "error" };
+    const detail =
+      path === "/version"
+        ? `v${String(data.version).slice(0, 40)} / API ${String(data.api_version).slice(0, 8)}`
+        : `${String(data.status).slice(0, 40)} (${Math.round(performance.now() - start)} ms)`;
     return { label, value: detail, state: "ok" };
   } catch {
     return { label, value: "Unreachable or timed out", state: "error" };
@@ -34,7 +39,8 @@ async function serverCheck(path: string, label: string): Promise<DiagnosticCheck
 }
 
 async function notificationChecks(): Promise<DiagnosticCheck[]> {
-  const permission = "Notification" in window ? Notification.permission : "unavailable";
+  const permission =
+    "Notification" in window ? Notification.permission : "unavailable";
   const checks: DiagnosticCheck[] = [
     {
       label: "Web Push",
@@ -48,14 +54,22 @@ async function notificationChecks(): Promise<DiagnosticCheck[]> {
     },
     {
       label: "Device notifications",
-      value: localStorage.getItem("noted.push-disabled") === "yes" ? "Disabled in Noted" : "Not disabled",
-      state: localStorage.getItem("noted.push-disabled") === "yes" ? "warning" : "ok",
+      value:
+        localStorage.getItem("noted.push-disabled") === "yes"
+          ? "Disabled in Noted"
+          : "Not disabled",
+      state:
+        localStorage.getItem("noted.push-disabled") === "yes"
+          ? "warning"
+          : "ok",
     },
   ];
   if (!("serviceWorker" in navigator)) return checks;
   try {
     const registration = await navigator.serviceWorker.getRegistration("/");
-    const subscribed = Boolean(await registration?.pushManager?.getSubscription());
+    const subscribed = Boolean(
+      await registration?.pushManager?.getSubscription(),
+    );
     checks.push(
       {
         label: "Notification service worker",
@@ -69,7 +83,11 @@ async function notificationChecks(): Promise<DiagnosticCheck[]> {
       },
     );
   } catch {
-    checks.push({ label: "Push subscription", value: "Could not inspect", state: "error" });
+    checks.push({
+      label: "Push subscription",
+      value: "Could not inspect",
+      state: "error",
+    });
   }
   return checks;
 }
@@ -83,11 +101,26 @@ export async function collectDiagnostics(): Promise<DiagnosticReport> {
   ]);
   return {
     capturedAt: new Date().toISOString(),
-    client: import.meta.env.MODE === "desktop" ? "Desktop" : isAndroidApp() ? "Android" : "Web",
+    client:
+      import.meta.env.MODE === "desktop"
+        ? "Desktop"
+        : isAndroidApp()
+          ? "Android"
+          : "Web",
     checks: [
-      live, ready, version,
-      { label: "Network", value: navigator.onLine ? "Online" : "Offline", state: navigator.onLine ? "ok" : "warning" },
-      { label: "Secure context", value: window.isSecureContext ? "Yes" : "No", state: window.isSecureContext ? "ok" : "warning" },
+      live,
+      ready,
+      version,
+      {
+        label: "Network",
+        value: navigator.onLine ? "Online" : "Offline",
+        state: navigator.onLine ? "ok" : "warning",
+      },
+      {
+        label: "Secure context",
+        value: window.isSecureContext ? "Yes" : "No",
+        state: window.isSecureContext ? "ok" : "warning",
+      },
       ...notifications,
     ],
   };
@@ -98,7 +131,10 @@ export async function testDeviceNotification() {
     throw new Error("Enable notifications in Settings first.");
   }
   const registration = await navigator.serviceWorker.getRegistration("/");
-  if (!registration?.active) throw new Error("Enable notifications in Settings to register this device.");
+  if (!registration?.active)
+    throw new Error(
+      "Enable notifications in Settings to register this device.",
+    );
   await registration.showNotification("Noted diagnostic test", {
     body: "Notifications can display on this device. This is a local test, not a server delivery test.",
     icon: "/noted-icon.svg",
@@ -107,13 +143,21 @@ export async function testDeviceNotification() {
 }
 
 export async function testPhoneNotification(): Promise<string> {
-  const result = await request<{ accepted: number; expired: number; failed: number }>("/notifications/test", "POST");
+  const result = await request<{
+    accepted: number;
+    expired: number;
+    failed: number;
+  }>("/notifications/test", "POST");
   if (!result.accepted) {
-    throw new Error(result.failed
-      ? "The push service did not accept the test. Check the server connection and try again."
-      : "Phone subscriptions expired. Enable notifications on your phone again.");
+    throw new Error(
+      result.failed
+        ? "The push service did not accept the test. Check the server connection and try again."
+        : "Phone subscriptions expired. Enable notifications on your phone again.",
+    );
   }
-  const issues = result.expired || result.failed
-    ? ` ${result.expired} expired, ${result.failed} failed.` : "";
+  const issues =
+    result.expired || result.failed
+      ? ` ${result.expired} expired, ${result.failed} failed.`
+      : "";
   return `Push service accepted the test for ${result.accepted} phone${result.accepted === 1 ? "" : "s"}. Check your phone.${issues}`;
 }

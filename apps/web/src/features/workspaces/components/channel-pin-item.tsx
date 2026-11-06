@@ -13,7 +13,7 @@ export function ChannelPinItem({ channel }: { channel: Channel }) {
       client.setQueriesData<Channel[]>({ queryKey: ["channels"] }, (channels) =>
         channels?.map((item) => (item.id === updated.id ? updated : item)),
       );
-      toast.success(updated.pinned_at ? "Pinned to Home" : "Unpinned");
+      toast.success(updated.pinned_at ? "Pinned to the sidebar" : "Unpinned");
       return client.invalidateQueries({ queryKey: ["channels"] });
     },
     onError: (error) => toast.error(error.message),

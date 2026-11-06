@@ -8,6 +8,7 @@ from starlette.datastructures import UploadFile
 
 from app.core.errors import ContentTooLargeError, ValidationError
 from app.core.security import utc_now
+from app.core.storage_limits import MAX_PHOTO_SIZE
 from app.notes.images.encoding import MAX_PREVIEW_BYTES, encode_preview
 from app.notes.images.service import preview_bytes
 from app.nutrition.models import MealPhoto
@@ -15,7 +16,6 @@ from app.nutrition.service import NutritionService
 from app.storage.base import FileStorage
 from app.storage.media import inspect_image
 
-MAX_PHOTO_UPLOAD = 25 * 1024 * 1024
 MAX_UNSAVED_PHOTOS = 20
 
 
@@ -23,7 +23,7 @@ async def store_photo(
     db: Session, storage: FileStorage, owner_id: UUID, upload: UploadFile
 ) -> MealPhoto:
     """Keeps only a 1280px WebP of the photo: enough to show the meal and to estimate it."""
-    if upload.size is not None and upload.size > MAX_PHOTO_UPLOAD:
+    if upload.size is not None and upload.size > MAX_PHOTO_SIZE:
         raise ContentTooLargeError("Photos must be no larger than 25 MB.")
     unsaved = db.scalar(
         select(func.count()).where(MealPhoto.owner_id == owner_id, MealPhoto.meal_id.is_(None))

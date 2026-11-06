@@ -1,4 +1,4 @@
-from app.ai.assistant.models import AssistantApplication
+from app.ai.assistant.models import AiMemory, AssistantApplication, AssistantChat, AssistantTurn
 from app.ai.calendar.models import CalendarApplicationRecord
 from app.ai.models import AiPrompt, AiRun
 from app.auth.models import AuthThrottle, Installation, LoginSession, User
@@ -36,10 +36,13 @@ from app.writing_nudges.models import NudgeDelivery, WritingNudge, WritingNudgeR
 
 __all__ = [
     "Activity",
+    "AiMemory",
     "AiPrompt",
     "AiRun",
     "AndroidPairing",
     "AssistantApplication",
+    "AssistantChat",
+    "AssistantTurn",
     "Attachment",
     "AuthThrottle",
     "Base",

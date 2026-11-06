@@ -16,9 +16,13 @@ test("250 MB files upload and download, and larger files are rejected", async ({
 
   await page.goto("/");
   await page.getByLabel("Username", { exact: true }).fill("ilya");
-  await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("browser-test-password-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Settings", exact: true }),
+  ).toBeVisible();
   const fixture = await page.evaluate(async () => {
     const csrf = document.cookie
       .split("; ")
@@ -34,7 +38,9 @@ test("250 MB files upload and download, and larger files are rejected", async ({
       return response.json();
     };
     const workspace = await create("/workspaces", { name: "Large uploads" });
-    const channel = await create(`/workspaces/${workspace.id}/channels`, { name: "files" });
+    const channel = await create(`/workspaces/${workspace.id}/channels`, {
+      name: "files",
+    });
     return { workspace: workspace.id, channel: channel.id };
   });
 
@@ -43,7 +49,9 @@ test("250 MB files upload and download, and larger files are rejected", async ({
     await page.getByLabel("Attach files", { exact: true }).setInputFiles(path);
     await expect(page.locator(".pending-file")).toHaveCount(1);
     const uploaded = page.waitForResponse(
-      (response) => response.url().endsWith("/messages/with-files") && response.status() === 201,
+      (response) =>
+        response.url().endsWith("/messages/with-files") &&
+        response.status() === 201,
     );
     await page.getByRole("button", { name: "Send note", exact: true }).click();
     const message = await (await uploaded).json();

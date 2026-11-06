@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.2
+
+- **One assistant.** ✨ on a message, or Ask AI on a selection, opens the sidebar assistant with those messages attached. You don't choose Rewrite, Reply or Draft anymore: ask in your own words. Rewrites preview in place and are applied with Undo. Drafts go into the message box with one tap. Saved prompts appear as quick chips.
+- **AI replies in threads.** *Ask AI in this thread* posts the answer straight into the thread, marked **AI reply**. It stays until you delete it.
+- The assistant's answers appear as they're written, render as Markdown with readable source links, and accept pictures. Meals logged from a picture keep it.
+- Assistant chats are saved on your server. New chat and Earlier chats work on every device, and the assistant can look back through earlier chats.
+- **Memory**, off by default in Settings › AI: the assistant remembers lasting facts you tell it, every AI feature uses them, and you can remove any of them.
+- Backups include assistant chats and memories.
+- **Messages:** Edit, Copy, Ask AI, Thread, Share, Download, History (for edited messages) and Delete sit in the hover toolbar instead of a ⋯ menu. Pictures preview before sending, Copy copies pictures too, and the composer is shorter. Threads show a wide "4 replies · Last reply today at 10:05" bar.
+- **Notes:** ticked checklist items are crossed out, checkboxes line up with their text, the edit box fits the text, and the "edited" label is gone.
+- **Nutrition:** a switch in Settings › Nutrition turns it off. Meal photos up to 25 MB upload, where before most phone photos failed. The meal type comes from the estimate, follow-up questions take a typed answer, and the meal editor has even spacing.
+- Pinned channels moved to the sidebar under Projects. Home shows how many items are waiting. Settings has even spacing and icons throughout.
+- Notifications reach your phone when Noted stays focused on a desktop you're not using (3 minutes without input).
+- **Android is now mainly a time tracker and notes viewer:**
+  - A tracking notification shows a live timer with Pause and Stop.
+  - A Quick Settings tile starts and stops tracking.
+  - Home shows today's tracked time, and you can fix a session's times from there.
+  - The calendar is view-only, with Edit on the web.
+  - Settings for the calendar, templates, AI, backups and devices open on the web.
+
 ## 0.4.1
 
 - Add Nutrition below Habits while AI is connected. Set it up in four steps (about you, how you move from your tracked time and habits, your goal, your target): Noted works out maintenance with the Mifflin–St Jeor formula and the AI proposes a target and macros inside safety limits, with its reasons and sources, which you can adjust before using it.

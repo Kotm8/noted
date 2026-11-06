@@ -15,7 +15,11 @@ export interface Category {
 }
 
 export type ChannelKind =
-  "note" | "reminder" | "journal" | "document" | "tasks";
+  | "note"
+  | "reminder"
+  | "journal"
+  | "document"
+  | "tasks";
 
 export interface Channel {
   kind?: ChannelKind;

@@ -17,13 +17,26 @@ export const settingsApi = {
   getAppearance(): Promise<AppearancePreferences | null> {
     return request<AppearancePreferences | null>("/settings/appearance");
   },
-  saveAppearance(changes: Partial<AppearancePreferences>, initialize = false): Promise<AppearancePreferences> {
-    return request<AppearancePreferences>(`/settings/appearance?initialize=${initialize}`, "PUT", changes);
+  saveAppearance(
+    changes: Partial<AppearancePreferences>,
+    initialize = false,
+  ): Promise<AppearancePreferences> {
+    return request<AppearancePreferences>(
+      `/settings/appearance?initialize=${initialize}`,
+      "PUT",
+      changes,
+    );
   },
   getServer(): Promise<ServerSettings> {
     return request<ServerSettings>("/settings/server");
   },
-  changePassword(current_password: string, new_password: string): Promise<User> {
-    return request<User>("/settings/password", "PUT", { current_password, new_password });
+  changePassword(
+    current_password: string,
+    new_password: string,
+  ): Promise<User> {
+    return request<User>("/settings/password", "PUT", {
+      current_password,
+      new_password,
+    });
   },
 };

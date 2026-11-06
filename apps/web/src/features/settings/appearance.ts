@@ -41,7 +41,8 @@ export function paletteColors(preset: AppearancePreset) {
 export const messageLayouts = {
   minute: {
     label: "Minute markers",
-    description: "Tight stacks with a small time label at the start of each group.",
+    description:
+      "Tight stacks with a small time label at the start of each group.",
   },
   connected: {
     label: "Connected thoughts",
@@ -53,7 +54,8 @@ export const messageLayouts = {
   },
   rows: {
     label: "Compact rows",
-    description: "Every note has a timestamp on the right; pauses add a divider.",
+    description:
+      "Every note has a timestamp on the right; pauses add a divider.",
   },
 };
 
@@ -84,9 +86,9 @@ export const APPEARANCE_KEY = "noted.appearance.v1";
 
 export function readAppearance(): AppearancePreferences {
   try {
-    const value = JSON.parse(
-      readStoredValue(APPEARANCE_KEY) ?? "null",
-    ) as (Partial<AppearancePreferences> & { version?: number }) | null;
+    const value = JSON.parse(readStoredValue(APPEARANCE_KEY) ?? "null") as
+      | (Partial<AppearancePreferences> & { version?: number })
+      | null;
     if (!value || typeof value !== "object") return defaultAppearance;
     const result = { ...defaultAppearance };
     for (const key of ["background", "sidebar", "text", "accent"] as const) {
@@ -108,10 +110,19 @@ export function readAppearance(): AppearancePreferences {
       result.textSize = Math.min(20, Math.max(12, value.textSize));
     if (typeof value.zoom === "number" && Number.isFinite(value.zoom))
       result.zoom = Math.min(150, Math.max(75, value.zoom));
-    if (value.messageLayout && Object.hasOwn(messageLayouts, value.messageLayout))
+    if (
+      value.messageLayout &&
+      Object.hasOwn(messageLayouts, value.messageLayout)
+    )
       result.messageLayout = value.messageLayout;
-    if (typeof value.messageGroupMinutes === "number" && Number.isInteger(value.messageGroupMinutes))
-      result.messageGroupMinutes = Math.min(30, Math.max(1, value.messageGroupMinutes));
+    if (
+      typeof value.messageGroupMinutes === "number" &&
+      Number.isInteger(value.messageGroupMinutes)
+    )
+      result.messageGroupMinutes = Math.min(
+        30,
+        Math.max(1, value.messageGroupMinutes),
+      );
     return result;
   } catch {
     return defaultAppearance;
@@ -119,7 +130,9 @@ export function readAppearance(): AppearancePreferences {
 }
 
 function luminance(color: string): number {
-  const channels = [1, 3, 5].map((start) => parseInt(color.slice(start, start + 2), 16) / 255);
+  const channels = [1, 3, 5].map(
+    (start) => parseInt(color.slice(start, start + 2), 16) / 255,
+  );
   const linear = channels.map((channel) =>
     channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
   );

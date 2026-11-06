@@ -132,21 +132,17 @@
   }
 }
 
+/* Touch screens have no hover, so a message shows its actions once it's tapped. */
 @media (hover: none) {
   .note-actions {
-    opacity: 1;
+    pointer-events: none;
   }
-
-  .note-actions {
-    position: static;
-    align-self: flex-start;
-    border: none;
-    background: transparent;
-    box-shadow: none;
+  .note:focus-within .note-actions {
+    pointer-events: auto;
   }
-
-  .note-actions > .icon-button:first-child {
-    display: none;
+  .note-actions .icon-button {
+    width: 34px;
+    height: 34px;
   }
 }
 

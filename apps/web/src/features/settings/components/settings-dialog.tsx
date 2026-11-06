@@ -12,6 +12,9 @@ import {
   Layers,
   Sparkles,
   Apple,
+  Bookmark,
+  History,
+  MessageSquareText,
 } from "lucide-react";
 import { isDesktop } from "../../desktop/connection-context";
 import { Modal } from "../../../components/ui/dialog";
@@ -29,13 +32,13 @@ import { NoteTemplatesPanel } from "../../templates/components/note-templates-pa
 import { AiSettingsPanel } from "../../ai/components/ai-settings-panel";
 import { AiPromptsPanel } from "../../ai/components/ai-prompts-panel";
 import { AiHistoryPanel } from "../../ai/components/ai-history-panel";
-import { useAiStatus } from "../../ai/queries";
+import { useAiStatus, useNutritionEnabled } from "../../ai/queries";
 import {
   NutritionSettingsPanel,
   SavedMealsPanel,
 } from "../../nutrition/settings-panels";
 
-type Section =
+export type Section =
   | "templates"
   | "ai"
   | "ai-prompts"
@@ -57,12 +60,13 @@ export function SettingsDialog({
   trackingSection,
 }: {
   onClose: () => void;
-  initialTab?: "appearance" | "tracking" | "templates" | "ai";
+  initialTab?: Section;
   trackingSection?: TrackingSection;
 }) {
   const [section, setSection] = useState<Section>(initialTab);
   const logout = useLogout();
   const aiConnected = useAiStatus().data?.connected ?? false;
+  const nutritionEnabled = useNutritionEnabled();
 
   function item(
     value: Section,
@@ -99,18 +103,29 @@ export function SettingsDialog({
           {item("tracking", <Timer size={16} />, "Time tracking")}
           {item("templates", <Layers size={16} />, "Note templates")}
           {item("ai", <Sparkles size={16} />, "AI")}
-          {item("ai-prompts", null, "Saved prompts", true)}
-          {item("ai-history", null, "History", true)}
+          {item(
+            "ai-prompts",
+            <MessageSquareText size={15} />,
+            "Saved prompts",
+            true,
+          )}
+          {item("ai-history", <History size={15} />, "History", true)}
           {aiConnected && (
             <>
               {item("nutrition", <Apple size={16} />, "Nutrition")}
-              {item("saved-meals", null, "Saved meals", true)}
+              {nutritionEnabled &&
+                item(
+                  "saved-meals",
+                  <Bookmark size={15} />,
+                  "Saved meals",
+                  true,
+                )}
             </>
           )}
           {item("server", <Server size={16} />, "Server")}
           {item("backups", <Archive size={16} />, "Backups")}
           {item("devices", <Smartphone size={16} />, "Devices")}
-          {item("watch", <Watch size={16} />, "Watch appearance", true)}
+          {item("watch", <Watch size={15} />, "Watch appearance", true)}
           {isDesktop && item("desktop", <AppWindow size={16} />, "Desktop app")}
           <div className="settings-navigation-end">
             <button

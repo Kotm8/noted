@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../../components/ui/button";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
@@ -361,6 +361,13 @@ function Connected() {
             checked={preferences.keep_history}
             onChange={(keep_history) => change({ keep_history })}
           />
+          <Switch
+            label="Memory"
+            hint="The assistant remembers lasting things you tell it, like preferences and routines. Every AI request reads them, from rewrites to meal estimates. Everything it remembers is listed here."
+            checked={preferences.memory}
+            onChange={(memory) => change({ memory })}
+          />
+          <Memories enabled={preferences.memory} />
         </div>
       )}
       <ConfirmDialog
@@ -374,6 +381,64 @@ function Connected() {
         onConfirm={() => disconnect.mutate()}
       />
     </>
+  );
+}
+
+function Memories({ enabled }: { enabled: boolean }) {
+  const client = useQueryClient();
+  const memories = useQuery({
+    queryKey: ["ai-memories"],
+    queryFn: aiApi.memories,
+  });
+  const refresh = () => client.invalidateQueries({ queryKey: ["ai-memories"] });
+  const forget = useMutation({
+    mutationFn: aiApi.forgetMemory,
+    onSuccess: refresh,
+    onError: (error) => toast.error(error.message),
+  });
+  const forgetAll = useMutation({
+    mutationFn: aiApi.forgetAll,
+    onSuccess: refresh,
+    onError: (error) => toast.error(error.message),
+  });
+  const items = memories.data ?? [];
+  if (!items.length)
+    return enabled ? (
+      <p className="settings-hint ai-memory-empty">
+        Nothing remembered yet. Tell the assistant something like “remember that
+        I train on Mondays”.
+      </p>
+    ) : null;
+  return (
+    <div className="ai-memories">
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>
+            <span>{item.text}</span>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={`Forget ${item.text}`}
+              disabled={forget.isPending}
+              onClick={() => forget.mutate(item.id)}
+            >
+              <X size={14} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Button
+        size="small"
+        variant="ghost"
+        disabled={forgetAll.isPending}
+        onClick={() => forgetAll.mutate()}
+      >
+        Forget everything
+      </Button>
+      {!enabled && (
+        <small>Memory is off, so these aren't used until you turn it on.</small>
+      )}
+    </div>
   );
 }
 

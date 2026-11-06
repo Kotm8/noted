@@ -49,7 +49,9 @@ export function StillImage({
       />
       <canvas
         ref={canvas}
-        {...(alt ? { role: "img", "aria-label": alt } : { "aria-hidden": true })}
+        {...(alt
+          ? { role: "img", "aria-label": alt }
+          : { "aria-hidden": true })}
         hidden={!still}
       />
     </>

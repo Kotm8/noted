@@ -32,6 +32,20 @@ import type {
   WritingPanel,
 } from "./shell-context";
 import type { Channel, ManagementAction, Workspace } from "./types";
+import type { Section as SettingsSection } from "../settings/components/settings-dialog";
+
+/** Sections the phone app sends people to with `?settings=`, since it leaves them to the web. */
+const LINKED_SETTINGS: readonly SettingsSection[] = [
+  "templates",
+  "ai",
+  "ai-prompts",
+  "ai-history",
+  "nutrition",
+  "saved-meals",
+  "backups",
+  "devices",
+  "tracking",
+];
 
 const SettingsDialog = lazy(() =>
   import("../settings/components/settings-dialog").then((module) => ({
@@ -96,6 +110,24 @@ export function WorkspaceShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [templateSettings, setTemplateSettings] = useState(false);
   const [aiSettings, setAiSettings] = useState(false);
+  const [linkedSettings, setLinkedSettings] = useState<SettingsSection | null>(
+    null,
+  );
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get("settings");
+    if (!requested) return;
+    params.delete("settings");
+    navigate(
+      { pathname: location.pathname, search: params.toString() },
+      { replace: true },
+    );
+    const section = LINKED_SETTINGS.find((value) => value === requested);
+    if (!section) return;
+    setLinkedSettings(section);
+    setTrackingSection(section === "tracking" ? "schedule" : null);
+    setSettingsOpen(true);
+  }, [location.pathname, location.search, navigate]);
   useEffect(() => {
     const openAi = () => {
       setAiSettings(true);
@@ -351,7 +383,6 @@ export function WorkspaceShell() {
           onHome={() => openPage("/")}
           workspaces={navigation.workspaces}
           onWorkspace={selectWorkspace}
-          onMissed={() => openPage("/#missed")}
           onSchedule={() => openPage("/schedule")}
           onTrackingSettings={() => openTracking("activities")}
           trackerRequest={trackerRequest}
@@ -419,18 +450,20 @@ export function WorkspaceShell() {
           {settingsOpen && (
             <SettingsDialog
               initialTab={
-                aiSettings
+                linkedSettings ??
+                (aiSettings
                   ? "ai"
                   : templateSettings
                     ? "templates"
                     : trackingSection
                       ? "tracking"
-                      : "appearance"
+                      : "appearance")
               }
               trackingSection={trackingSection ?? undefined}
               onClose={() => {
                 setSettingsOpen(false);
                 setAiSettings(false);
+                setLinkedSettings(null);
               }}
             />
           )}

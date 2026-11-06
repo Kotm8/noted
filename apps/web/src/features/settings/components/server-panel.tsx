@@ -26,10 +26,7 @@ function ServerContent() {
     queryFn: settingsApi.getServer,
   });
 
-  if (query.isPending)
-    return (
-      <p role="status">Loading instance details...</p>
-    );
+  if (query.isPending) return <p role="status">Loading instance details...</p>;
   if (query.isError)
     return (
       <>

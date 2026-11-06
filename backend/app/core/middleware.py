@@ -2,7 +2,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.core.storage_limits import MAX_ARCHIVE, MAX_BATCH_SIZE, MAX_ICON_SIZE
+from app.core.storage_limits import MAX_ARCHIVE, MAX_BATCH_SIZE, MAX_ICON_SIZE, MAX_PHOTO_SIZE
 
 
 class RequestSizeMiddleware:
@@ -23,6 +23,8 @@ class RequestSizeMiddleware:
             maximum = MAX_BATCH_SIZE + 2 * 1024 * 1024
         elif path.endswith(("/icon", "/banner")):
             maximum = MAX_ICON_SIZE + 1024 * 1024
+        elif path == "/api/v1/nutrition/photos":
+            maximum = MAX_PHOTO_SIZE + 1024 * 1024
 
         content_length = request.headers.get("content-length")
         if content_length:

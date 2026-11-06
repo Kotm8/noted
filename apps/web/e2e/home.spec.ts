@@ -260,9 +260,16 @@ test("Android Back closes panels before returning from channels and Calendar to 
     page.getByRole("heading", { name: "Home", exact: true }),
   ).toBeVisible();
   expect(one.id).not.toBe(two.id);
-  await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-  await page.locator(".home-project-navigation").getByRole("button", { name: "Android Home", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Message second" })).toHaveValue("Keep this draft when I go Home");
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
+  await page
+    .locator(".home-project-navigation")
+    .getByRole("button", { name: "Android Home", exact: true })
+    .click();
+  await expect(
+    page.getByRole("textbox", { name: "Message second" }),
+  ).toHaveValue("Keep this draft when I go Home");
 });
 
 test("startup offers recovery when the application bundle cannot load", async ({

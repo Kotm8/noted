@@ -3,6 +3,8 @@ import type { Reminder } from "../reminders/types";
 export interface Note {
   thread_root_id?: string | null;
   reply_count?: number;
+  last_reply_at?: string | null;
+  ai_generated?: boolean;
   reminder?: Reminder | null;
   id: string;
   channel_id: string;

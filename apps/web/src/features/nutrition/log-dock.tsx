@@ -60,13 +60,19 @@ export function LogDock({
     }
   }
 
-  function send() {
+  function send(said = text.trim()) {
     const ids = photos.flatMap((photo) => (photo.id ? [photo.id] : []));
-    if ((!text.trim() && !ids.length) || uploading) return;
+    if ((!said && !ids.length) || uploading) return;
     setSentPhotos(ids);
     void run.start((onEvent, signal) =>
-      streamEstimate({ text: text.trim(), photo_ids: ids }, onEvent, signal),
+      streamEstimate({ text: said, photo_ids: ids }, onEvent, signal),
     );
+  }
+
+  function answer(question: string, reply: string) {
+    const said = `${text.trim()}\n${question} ${reply}`.trim();
+    setText(said);
+    send(said);
   }
 
   function reset() {
@@ -126,7 +132,7 @@ export function LogDock({
           key={output.name + output.items.length}
           initial={{
             name: output.name || "Meal",
-            slot: slotFor(minute),
+            slot: output.slot ?? slotFor(minute),
             minute,
             items: output.items,
             photo_ids: sentPhotos,
@@ -146,6 +152,11 @@ export function LogDock({
           }
           onSave={(draft, remember) => save.mutate({ draft, remember })}
           onDiscard={reset}
+          onAnswer={
+            output.question
+              ? (reply) => answer(output.question!.text, reply)
+              : undefined
+          }
         />
       </div>
     );

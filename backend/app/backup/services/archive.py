@@ -12,6 +12,7 @@ from starlette.datastructures import Headers, UploadFile
 
 from app.backup.repository import MAX_RECORDS
 from app.backup.schemas import BackupBlob, BackupContent, BackupCounts
+from app.backup.services.assistant import validate_assistant
 from app.backup.services.habits import validate_habits
 from app.backup.services.nutrition import validate_nutrition
 from app.backup.services.templates import validate_templates
@@ -26,6 +27,7 @@ MAX_METADATA = 16 * 1024 * 1024
 
 def counts(data: BackupContent) -> BackupCounts:
     return BackupCounts(
+        assistant_chats=len(data.assistant_chats),
         meals=len(data.meals),
         habits=len(data.habits),
         day_templates=len(data.day_templates),
@@ -85,6 +87,8 @@ def validate_graph(data: BackupContent) -> None:
         + len(data.saved_meals)
         + len(data.nutrition_targets)
         + len(data.weigh_ins)
+        + sum(len(chat.turns) + 1 for chat in data.assistant_chats)
+        + len(data.ai_memories)
         > MAX_RECORDS
     ):
         raise ContentTooLargeError("The backup exceeds the 50,000 record limit.")
@@ -95,6 +99,7 @@ def validate_graph(data: BackupContent) -> None:
     validate_templates(data)
     validate_habits(data)
     validate_nutrition(data)
+    validate_assistant(data)
     if len({item.channel_id for item in data.writing_prompts}) != len(data.writing_prompts):
         raise ValidationError("The backup contains duplicate channel writing prompts.")
     projects = {item.id for item in data.workspaces}

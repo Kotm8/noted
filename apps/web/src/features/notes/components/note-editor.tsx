@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,13 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
   const mentions = useMentionPicker(inputRef, content, editable.refs);
   const formatting = useFormatting(inputRef);
   const [formattingVisible] = useFormattingVisible();
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    const border = input.offsetHeight - input.clientHeight;
+    input.style.height = `${Math.min(input.scrollHeight + border, 360)}px`;
+  }, [content]);
   const update = useMutation({
     mutationFn: () =>
       notesApi.update(
@@ -76,7 +83,7 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
         onChange={(event) => setContent(event.target.value)}
         onSelect={mentions.onSelect}
         maxLength={40000}
-        rows={Math.min(12, content.split("\n").length + 1)}
+        rows={1}
         onKeyDown={(event) => {
           if (mentions.onKeyDown(event) || formatting.onKeyDown(event)) return;
           if (event.key === "Escape") {

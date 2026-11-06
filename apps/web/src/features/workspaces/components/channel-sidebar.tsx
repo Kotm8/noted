@@ -3,12 +3,14 @@ import {
   Apple,
   CalendarDays,
   House,
-  Inbox,
   Settings,
   CheckSquare,
 } from "lucide-react";
+import { useHomeActivity } from "../../home/use-home-activity";
+import { useAllChannels } from "../hooks/use-all-channels";
+import { ChannelIcon } from "./channel-icon";
 import { StillImage } from "../../../components/ui/still-image";
-import { useAiStatus } from "../../ai/queries";
+import { useNutritionEnabled } from "../../ai/queries";
 import { TimeTracker } from "../../time-tracking/components/tracker";
 import { Button } from "../../../components/ui/button";
 import { useCategoryCollapse } from "../hooks/use-category-collapse";
@@ -42,7 +44,6 @@ interface ChannelSidebarProps {
   onHome: () => void;
   workspaces: Workspace[];
   onWorkspace: (workspace: Workspace) => void;
-  onMissed: () => void;
   trackerRequest: number;
 }
 
@@ -69,7 +70,6 @@ export function ChannelSidebar({
   onHome,
   workspaces,
   onWorkspace,
-  onMissed,
   trackerRequest,
 }: ChannelSidebarProps) {
   const { collapsed, toggleCategory } = useCategoryCollapse();
@@ -79,9 +79,15 @@ export function ChannelSidebar({
     (channel) => channel.category_id === null,
   );
   const isEmpty = !channels.length && !categories.length;
-  // Nutrition only exists while AI is connected; its data stays when disconnected.
-  const aiConnected = useAiStatus().data?.connected ?? false;
+  const nutritionEnabled = useNutritionEnabled();
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
+  const waiting = (useHomeActivity(50).query.data?.items ?? []).filter(
+    (item) => !item.read,
+  ).length;
+  const allChannels = useAllChannels();
+  const pinned = (allChannels ?? [])
+    .filter((channel) => channel.pinned_at)
+    .sort((a, b) => a.pinned_at!.localeCompare(b.pinned_at!));
 
   return (
     <aside className="channel-sidebar" aria-label="Channels">
@@ -97,6 +103,15 @@ export function ChannelSidebar({
         <button aria-current={homeActive ? "page" : undefined} onClick={onHome}>
           <House size={17} />
           Home
+          {waiting > 0 && (
+            <span
+              className="sidebar-count"
+              aria-label={`${waiting} waiting on Home`}
+              title="Waiting on Home"
+            >
+              {waiting}
+            </span>
+          )}
         </button>
         <button
           aria-current={scheduleActive ? "page" : undefined}
@@ -112,19 +127,13 @@ export function ChannelSidebar({
           <CheckSquare size={17} />
           Habits
         </button>
-        {(aiConnected || nutritionActive) && (
+        {(nutritionEnabled || nutritionActive) && (
           <button
             aria-current={nutritionActive ? "page" : undefined}
             onClick={onNutrition}
           >
             <Apple size={17} />
             Nutrition
-          </button>
-        )}
-        {(homeActive || scheduleActive || habitsActive || nutritionActive) && (
-          <button onClick={onMissed}>
-            <Inbox size={17} />
-            Missed activity
           </button>
         )}
       </div>
@@ -170,6 +179,26 @@ export function ChannelSidebar({
               >
                 Create a project
               </Button>
+            )}
+            {pinned.length > 0 && (
+              <>
+                <span className="home-project-label">Pinned</span>
+                {pinned.map((channel) => (
+                  <button
+                    key={channel.id}
+                    className="sidebar-pinned"
+                    onClick={() => onSelect(channel)}
+                  >
+                    <ChannelIcon kind={channel.kind} size={15} />
+                    <span>{channel.name}</span>
+                    <small>
+                      {workspaces.find(
+                        (item) => item.id === channel.workspace_id,
+                      )?.name ?? ""}
+                    </small>
+                  </button>
+                ))}
+              </>
             )}
           </div>
         ) : isLoading ? (

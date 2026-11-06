@@ -4,7 +4,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <queries>
         <intent>
-            <action android:name="android.support.customtabs.action.CustomTabsService" />
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_BROWSER" />
         </intent>
     </queries>
     <application
@@ -39,6 +40,12 @@
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
         <receiver android:name=".notifications.PushActionReceiver" android:exported="false" />
+        <receiver android:name=".features.tracker.TrackerActionReceiver" android:exported="false" />
+        <service android:name=".features.tracker.TrackerTileService" android:exported="true" android:label="Track time"
+            android:icon="@drawable/noted_timer" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+            <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true" />
+        </service>
         <activity android:name=".notifications.PlanPromptActivity" android:exported="false" android:excludeFromRecents="true" android:configChanges="orientation|screenSize" android:theme="@style/Theme.Noted.Permission" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
@@ -63,25 +70,5 @@
                 <data android:scheme="noted" android:host="connection" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:theme="@style/Theme.Noted.Permission" />
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.splash"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/splash_paths" />
-        </provider>
-        <service android:name=".notifications.NotedDelegationService" android:exported="true" android:enabled="true">
-            <intent-filter>
-                <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <meta-data android:name="android.support.customtabs.trusted.SMALL_ICON" android:resource="@drawable/ic_notification" />
-            <meta-data android:name="androidx.browser.trusted.USE_HIGH_PRI_NOTIFICATIONS" android:value="true" />
-        </service>
     </application>
 </manifest>

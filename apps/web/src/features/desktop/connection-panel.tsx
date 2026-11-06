@@ -12,9 +12,14 @@ export function ConnectionPanel() {
   async function disconnect() {
     setBusy(true);
     setError(null);
-    try { await connection!.switchServer(); }
-    catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Could not switch servers.");
+    try {
+      await connection!.switchServer();
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not switch servers.",
+      );
       setBusy(false);
     }
   }
@@ -24,9 +29,18 @@ export function ConnectionPanel() {
       <h3>Connection</h3>
       <p>This app connects to this Noted server.</p>
       <p className="desktop-server-address">{connection.serverUrl}</p>
-      <p className="settings-hint">The server address is remembered. Sign in again after restarting the app.</p>
+      <p className="settings-hint">
+        The server address is remembered. Sign in again after restarting the
+        app.
+      </p>
       {error && <Notice tone="error">{error}</Notice>}
-      <Button variant="secondary" disabled={busy} onClick={() => { void disconnect(); }}>
+      <Button
+        variant="secondary"
+        disabled={busy}
+        onClick={() => {
+          void disconnect();
+        }}
+      >
         Switch server
       </Button>
     </section>

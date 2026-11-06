@@ -71,5 +71,6 @@ router.include_router(wear.router)
 router.include_router(habits.router)
 
 router.include_router(assistant.router)
+router.include_router(assistant.memory_router)
 router.include_router(nutrition.router)
 router.include_router(nutrition.ai_router)

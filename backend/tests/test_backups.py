@@ -62,6 +62,7 @@ def test_backup_roundtrip_preserves_content_files_and_login(
     ).json()
     ready, raw = export(owner)
     assert ready["counts"] == {
+        "assistant_chats": 0,
         "habits": 0,
         "meals": 0,
         "day_templates": 0,

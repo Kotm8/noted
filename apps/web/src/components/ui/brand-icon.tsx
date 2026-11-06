@@ -3,7 +3,10 @@ interface BrandIconProps {
   decorative?: boolean;
 }
 
-export function BrandIcon({ className = "brand-symbol", decorative = false }: BrandIconProps) {
+export function BrandIcon({
+  className = "brand-symbol",
+  decorative = false,
+}: BrandIconProps) {
   return (
     <img
       className={className}

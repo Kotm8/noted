@@ -222,6 +222,12 @@ class BackupExporter:
             if nutrition:
                 document["version"] = NUTRITION_VERSION
                 document.update(nutrition)
+            from app.backup.services.assistant import ASSISTANT_VERSION, assistant_document
+
+            assistant = assistant_document(rows)
+            if assistant:
+                document["version"] = ASSISTANT_VERSION
+                document.update(assistant)
             raw = json.dumps(document, default=str, ensure_ascii=False).encode()
             if len(raw) > MAX_METADATA:
                 raise ContentTooLargeError("The content metadata exceeds the 16 MB backup limit.")

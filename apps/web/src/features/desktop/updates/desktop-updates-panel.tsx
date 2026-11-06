@@ -19,8 +19,8 @@ export function DesktopUpdatesPanel() {
     <section className="settings-section desktop-updates-panel">
       <h3>Updates</h3>
       <p>
-        Noted checks for updates when it starts and every few hours while open. You
-        choose when to download and install.
+        Noted checks for updates when it starts and every few hours while open.
+        You choose when to download and install.
       </p>
       {data && (
         <p className="settings-hint">

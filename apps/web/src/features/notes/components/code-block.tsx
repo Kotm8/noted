@@ -1,12 +1,16 @@
 import { useState, type ComponentPropsWithoutRef } from "react";
 import { Check, Copy } from "lucide-react";
 
-export function CodeBlock({ children, ...props }: ComponentPropsWithoutRef<"pre">) {
+export function CodeBlock({
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"pre">) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
 
   async function copyCode(button: HTMLButtonElement) {
-    const content = button.parentElement?.querySelector("code")?.textContent ?? "";
+    const content =
+      button.parentElement?.querySelector("code")?.textContent ?? "";
 
     try {
       await navigator.clipboard.writeText(content);

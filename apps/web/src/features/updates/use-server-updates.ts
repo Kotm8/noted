@@ -9,7 +9,8 @@ export function useServerUpdates() {
     queryFn: updatesApi.status,
     refetchInterval: (query) => {
       const data = query.state.data;
-      const busy = data?.job?.status === "queued" || data?.job?.status === "running";
+      const busy =
+        data?.job?.status === "queued" || data?.job?.status === "running";
       return busy || data?.download_status === "downloading" ? 2000 : 60_000;
     },
     retry: false,

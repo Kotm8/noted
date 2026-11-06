@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { useDesktopConnection } from "./connection-context";
-import { androidConnectionUrl, disconnectAndroid, isAndroidApp } from "../notifications/android";
+import {
+  androidConnectionUrl,
+  disconnectAndroid,
+  isAndroidApp,
+} from "../notifications/android";
 
 export function SwitchServerButton() {
   const connection = useDesktopConnection();
@@ -16,12 +20,14 @@ export function SwitchServerButton() {
       if (isAndroidApp()) {
         await disconnectAndroid();
         window.location.assign(androidConnectionUrl);
-      }
-      else await connection!.switchServer();
+      } else await connection!.switchServer();
       setBusy(false);
-    }
-    catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Could not switch servers.");
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not switch servers.",
+      );
       setBusy(false);
     }
   }
@@ -29,7 +35,14 @@ export function SwitchServerButton() {
   return (
     <div className="desktop-switch-server">
       {error && <Notice tone="error">{error}</Notice>}
-      <Button variant="ghost" size="small" disabled={busy} onClick={() => { void disconnect(); }}>
+      <Button
+        variant="ghost"
+        size="small"
+        disabled={busy}
+        onClick={() => {
+          void disconnect();
+        }}
+      >
         Switch server
       </Button>
     </div>

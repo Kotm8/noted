@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.backup.repository import BackupRepository
 from app.backup.schemas import BackupContent
 from app.backup.services.archive import blobs
+from app.backup.services.assistant import restore_assistant
 from app.backup.services.habits import restore_habits
 from app.backup.services.nutrition import restore_nutrition
 from app.backup.services.templates import restore_templates
@@ -207,6 +208,7 @@ class BackupImporter:
             restore_templates(self.db, owner_id, data, identifiers, replace)
             restore_habits(self.db, owner_id, data, identifiers)
             restore_nutrition(self.db, owner_id, data, keys, replace)
+            restore_assistant(self.db, owner_id, data, replace)
             self.db.commit()
         except BaseException:
             self.db.rollback()

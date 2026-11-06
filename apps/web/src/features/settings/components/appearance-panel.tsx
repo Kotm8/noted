@@ -20,7 +20,10 @@ export function AppearancePanel() {
   return (
     <section className="settings-panel">
       <h2>Appearance</h2>
-      <p>Saved to your account and shared across devices. Changes apply immediately.</p>
+      <p>
+        Saved to your account and shared across devices. Changes apply
+        immediately.
+      </p>
       <p className="appearance-save-status" role="status">
         {isSaving ? "Saving appearance..." : ""}
       </p>
@@ -33,28 +36,31 @@ export function AppearancePanel() {
       <fieldset className="settings-fieldset">
         <legend>Palette</legend>
         <div className="palette-options">
-          {(Object.keys(appearancePresets) as AppearancePreset[]).map((preset) => (
-            <button
-              key={preset}
-              className="palette-option"
-              aria-pressed={
-                preferences.preset === preset &&
-                (["background", "sidebar", "text", "accent"] as const).every(
-                  (key) => preferences[key] === appearancePresets[preset][key],
-                )
-              }
-              onClick={() => choosePreset(preset)}
-            >
-              <span
-                className="palette-swatch"
-                style={{
-                  background: appearancePresets[preset].background,
-                  borderColor: appearancePresets[preset].accent,
-                }}
-              />
-              {appearancePresets[preset].label}
-            </button>
-          ))}
+          {(Object.keys(appearancePresets) as AppearancePreset[]).map(
+            (preset) => (
+              <button
+                key={preset}
+                className="palette-option"
+                aria-pressed={
+                  preferences.preset === preset &&
+                  (["background", "sidebar", "text", "accent"] as const).every(
+                    (key) =>
+                      preferences[key] === appearancePresets[preset][key],
+                  )
+                }
+                onClick={() => choosePreset(preset)}
+              >
+                <span
+                  className="palette-swatch"
+                  style={{
+                    background: appearancePresets[preset].background,
+                    borderColor: appearancePresets[preset].accent,
+                  }}
+                />
+                {appearancePresets[preset].label}
+              </button>
+            ),
+          )}
         </div>
       </fieldset>
 
@@ -82,8 +88,8 @@ export function AppearancePanel() {
         </div>
         {contrast < 4.5 && (
           <p className="settings-hint" role="status">
-            Text contrast is low ({contrast.toFixed(1)}:1). A lighter text color or darker
-            background will be easier to read.
+            Text contrast is low ({contrast.toFixed(1)}:1). A lighter text color
+            or darker background will be easier to read.
           </p>
         )}
       </fieldset>

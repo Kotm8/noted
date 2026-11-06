@@ -23,7 +23,12 @@ export interface UpdateStatus {
   configured: boolean;
   worker_online: boolean;
   repository: string | null;
-  installed: { commit: string; version: string; sequence: number; schema: string } | null;
+  installed: {
+    commit: string;
+    version: string;
+    sequence: number;
+    schema: string;
+  } | null;
   latest: AvailableRelease | null;
   available: boolean;
   last_checked: string | null;

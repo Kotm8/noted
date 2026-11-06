@@ -31,6 +31,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from app.ai.assistant.chats import remembered
 from app.ai.assistant.schemas import AssistantProposal
 from app.ai.calendar.schemas import CalendarProposal, CalendarScope
 from app.ai.calendar.validation import validate_output
@@ -41,7 +42,7 @@ from app.ai.knowledge.tools import INSTRUCTIONS, NotedKnowledge
 from app.ai.models import AiRun
 from app.ai.prompts import PromptService, preferences
 from app.ai.schemas import RunInput, Thinking
-from app.ai.streaming import StreamState, event
+from app.ai.streaming import ExplanationStream, StreamState, event
 from app.auth.models import User
 from app.core.errors import NotFoundError, ValidationError
 from app.core.security import utc_now
@@ -51,6 +52,7 @@ from app.time_tracking.models import TrackerState
 from app.workspaces.services.channels import ChannelService
 
 HISTORY_LIMIT = 500
+ASSISTANT_OUTPUT = "final_result"
 CONTEXT_LIMIT = 200
 
 # What each kind of result is for, told to the model before the owner's own instructions.
@@ -104,6 +106,13 @@ class Prepared(BaseModel):
     extended_settings: bool = True
     calendar: CalendarScope | None = None
     activity_ids: list[UUID] = Field(default_factory=list)
+    chat_id: UUID | None = None
+    memory: bool = False
+    # Pictures attached in the assistant chat, as (photo id, storage key).
+    photo_keys: list[tuple[UUID, str]] = Field(default_factory=list)
+    extra_instructions: list[str] = Field(default_factory=list)
+    # The thread an assistant reply is posted in.
+    reply_to: UUID | None = None
 
 
 def _error(error: BaseException) -> tuple[str, str]:
@@ -244,7 +253,7 @@ class RunService:
                 model=model,
                 thinking=settings.thinking,
                 web_search=settings.web_search,
-                standing_note=settings.standing_note,
+                standing_note=settings.standing_note + remembered(db, owner_id, settings.memory),
                 numbered=numbered,
                 items=items,
                 context=context,
@@ -330,7 +339,7 @@ class RunService:
         if prepared.place == "assistant":
             from app.ai.assistant.service import INSTRUCTIONS as ASSISTANT_INSTRUCTIONS
 
-            instructions = [ASSISTANT_INSTRUCTIONS]
+            instructions = [ASSISTANT_INSTRUCTIONS, *prepared.extra_instructions]
         if prepared.standing_note.strip():
             instructions.append(
                 f"The user's standing note, which always applies:\n{prepared.standing_note.strip()}"
@@ -347,6 +356,12 @@ class RunService:
             )
             knowledge.images.update(image.id for image in prepared.images)
             tools = knowledge.tools()
+            if prepared.place == "assistant":
+                from app.ai.assistant.chats import AssistantTools
+
+                tools += AssistantTools(
+                    self.engine, prepared.owner_id, prepared.chat_id, prepared.memory
+                ).tools()
         return Agent(
             self.model(prepared),
             output_type=output,
@@ -384,7 +399,9 @@ class RunService:
             )
         return "\n\n".join(parts)
 
-    async def stream(self, prepared: Prepared) -> AsyncIterator[str]:
+    async def stream(
+        self, prepared: Prepared, pictures: list[UserContent] | None = None
+    ) -> AsyncIterator[str]:
         state = StreamState()
         structured = prepared.kind == "rewrite" and bool(prepared.numbered)
         output: Any = None
@@ -411,10 +428,16 @@ class RunService:
                     if viewed.content and not isinstance(viewed.content, str):
                         content.extend(viewed.content)
                 prompt = content
+            if pictures:
+                ids = [str(photo_id) for photo_id, _ in prepared.photo_keys]
+                labelled: list[UserContent] = []
+                for photo_id, picture in zip(ids, pictures, strict=False):
+                    labelled += [f"Picture the owner attached, ID {photo_id}:", picture]
+                prompt = [*([prompt] if isinstance(prompt, str) else prompt), *labelled]
             for attempt in range(2):
                 try:
                     output_type = (
-                        ToolOutput(AssistantProposal)
+                        ToolOutput(AssistantProposal, name=ASSISTANT_OUTPUT)
                         if prepared.place == "assistant"
                         else ToolOutput(CalendarProposal)
                         if prepared.calendar
@@ -424,10 +447,20 @@ class RunService:
                     )
                     agent = self._agent(prepared, output_type)
                     if prepared.calendar:
+                        explanation = ExplanationStream({ASSISTANT_OUTPUT})
                         async with agent.run_stream_events(
                             prompt, usage_limits=UsageLimits(request_limit=12, tool_calls_limit=20)
                         ) as events:
                             async for item in events:
+                                if prepared.place == "assistant" and (
+                                    written := explanation.consume(item)
+                                ):
+                                    state.writing()
+                                    yield event(
+                                        "explanation",
+                                        text=written,
+                                        thought_seconds=state.thought_seconds,
+                                    )
                                 if isinstance(item, AgentRunResultEvent):
                                     output = (
                                         item.result.output.model_dump(mode="json")

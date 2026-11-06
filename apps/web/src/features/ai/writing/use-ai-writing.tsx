@@ -68,8 +68,8 @@ export function useAiWriting(options: WritingOptions) {
   } | null>(null);
   const previewing = Boolean(
     snapshot &&
-    run.result?.kind === "rewrite" &&
-    run.result.stage !== "applied",
+      run.result?.kind === "rewrite" &&
+      run.result.stage !== "applied",
   );
   const connected = Boolean(status.data?.connected);
   const stop = useRef(run.cancel);

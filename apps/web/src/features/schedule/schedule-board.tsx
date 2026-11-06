@@ -278,7 +278,20 @@ export function ScheduleBoard({
     window.addEventListener("noted:assistant-edit-plan", edit);
     return () => window.removeEventListener("noted:assistant-edit-plan", edit);
   }, [sharedProposals, sharedAssistant.busy, sharedAssistant.applying]);
-  const sharedEditingChanges = useMemo(() => sharedAssistant.applied ? [] : (sharedAssistant.proposal?.plans ?? []).filter((change,index)=>change.id && sharedAssistant.selected.has(`plan-${index}`)),[sharedAssistant.applied,sharedAssistant.proposal,sharedAssistant.selected]);
+  const sharedEditingChanges = useMemo(
+    () =>
+      sharedAssistant.applied
+        ? []
+        : (sharedAssistant.proposal?.plans ?? []).filter(
+            (change, index) =>
+              change.id && sharedAssistant.selected.has(`plan-${index}`),
+          ),
+    [
+      sharedAssistant.applied,
+      sharedAssistant.proposal,
+      sharedAssistant.selected,
+    ],
+  );
   const planner = useCalendarPlanner(
     date,
     preferences,
@@ -310,7 +323,15 @@ export function ScheduleBoard({
       localData && {
         ...localData,
         plans: [
-          ...localData.plans.filter((plan) => !sharedEditingChanges.some((change) => change.id === plan.id && (change.scope !== "occurrence" || change.occurrence_date === plan.occurrence_date))),
+          ...localData.plans.filter(
+            (plan) =>
+              !sharedEditingChanges.some(
+                (change) =>
+                  change.id === plan.id &&
+                  (change.scope !== "occurrence" ||
+                    change.occurrence_date === plan.occurrence_date),
+              ),
+          ),
           ...previewPlans,
         ],
       },

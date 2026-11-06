@@ -330,9 +330,15 @@ test("The shared assistant can log a meal for review", async ({ page }) => {
   ).toBeVisible();
   await expect(page.locator(".ring-label")).toContainText("1,804");
   await page.screenshot({ path: "../../.local/nutrition-assistant.png" });
-  await panel.getByRole("button", { name: "Close assistant" }).click().catch(() => undefined);
+  await panel
+    .getByRole("button", { name: "Close assistant" })
+    .click()
+    .catch(() => undefined);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
-  await page.screenshot({ path: "../../.local/nutrition-phone.png", fullPage: true });
+  await page.screenshot({
+    path: "../../.local/nutrition-phone.png",
+    fullPage: true,
+  });
 });

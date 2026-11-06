@@ -43,6 +43,7 @@ export function MealEditor({
   error,
   onSave,
   onDiscard,
+  onAnswer,
   status,
 }: {
   initial: MealDraft;
@@ -54,8 +55,11 @@ export function MealEditor({
   error?: string | null;
   onSave: (draft: MealDraft, remember: boolean) => void;
   onDiscard: () => void;
+  /** Re-estimates with the owner's own answer when none of the offered ones fit. */
+  onAnswer?: (answer: string) => void;
   status?: React.ReactNode;
 }) {
+  const [ownAnswer, setOwnAnswer] = useState("");
   const [name, setName] = useState(initial.name);
   const [slot, setSlot] = useState<Slot>(initial.slot);
   const [minute, setMinute] = useState(initial.minute);
@@ -254,6 +258,31 @@ export function MealEditor({
                 </button>
               ))}
             </div>
+            {onAnswer && (
+              <form
+                className="estimate-own-answer"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (ownAnswer.trim()) onAnswer(ownAnswer.trim());
+                }}
+              >
+                <input
+                  aria-label={`Your answer: ${question.text}`}
+                  placeholder="Or type your own answer"
+                  maxLength={200}
+                  value={ownAnswer}
+                  onChange={(event) => setOwnAnswer(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="small"
+                  disabled={!ownAnswer.trim()}
+                >
+                  Update
+                </Button>
+              </form>
+            )}
           </div>
         )}
       {note && <p className="estimate-note">{note}</p>}

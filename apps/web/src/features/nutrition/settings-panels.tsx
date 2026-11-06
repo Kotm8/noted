@@ -7,6 +7,8 @@ import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Notice } from "../../components/ui/notice";
 import { AiSources } from "../ai/components/ai-feedback";
+import { Switch } from "../ai/components/ai-settings-panel";
+import { useAiPreferences } from "../ai/queries";
 import { dayLabel } from "../schedule/dates";
 import { nutritionApi } from "./api";
 import {
@@ -40,186 +42,217 @@ export function NutritionSettingsPanel() {
   const target = state.data?.target;
   const change = (values: Partial<ProfileFields>) =>
     profile && setDraft({ ...profile, ...values });
+  const ai = useAiPreferences();
+  const enabled = ai.query.data?.nutrition !== false;
   return (
     <section className="settings-panel nutrition-settings">
       <h2>Nutrition</h2>
-      <p>
-        What your daily target is worked out from. Changing these doesn't change
-        the target until you recalculate it.
-      </p>
-      <p className="settings-hint">
-        ChatGPT sees your profile and training summary only while working out a
-        target, and a meal's photos and description only while estimating it.
-        Everything else stays on your server.
-      </p>
-      {state.isError && <Notice tone="error">{state.error.message}</Notice>}
-      {state.data && !profile && (
-        <div className="nutrition-settings-empty">
-          <p>Nutrition isn't set up yet.</p>
-          <Button onClick={recalculate}>Set up Nutrition</Button>
-        </div>
-      )}
-      {profile && (
-        <form
-          className="nutrition-profile-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate(profile);
-          }}
-        >
-          <label>
-            Age
-            <input
-              type="number"
-              min={13}
-              max={110}
-              value={profile.age}
-              onChange={(event) => change({ age: Number(event.target.value) })}
-            />
-          </label>
-          <label>
-            Sex, for the formula
-            <select
-              value={profile.sex}
-              onChange={(event) =>
-                change({ sex: event.target.value as ProfileFields["sex"] })
-              }
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="unspecified">Prefer not to say</option>
-            </select>
-          </label>
-          <label>
-            Height (cm)
-            <input
-              type="number"
-              min={100}
-              max={250}
-              value={profile.height_cm}
-              onChange={(event) =>
-                change({ height_cm: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Weight (kg)
-            <input
-              type="number"
-              min={30}
-              max={300}
-              step={0.1}
-              value={profile.weight_kg}
-              onChange={(event) =>
-                change({ weight_kg: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Activity
-            <select
-              value={profile.activity}
-              onChange={(event) =>
-                change({
-                  activity: event.target.value as ProfileFields["activity"],
-                })
-              }
-            >
-              {ACTIVITIES.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Pace
-            <select
-              value={profile.pace}
-              onChange={(event) =>
-                change({ pace: event.target.value as ProfileFields["pace"] })
-              }
-            >
-              <option value="gentle">Gentle</option>
-              <option value="standard">Standard</option>
-            </select>
-          </label>
-          <label className="wide">
-            Your goal
-            <textarea
-              rows={2}
-              maxLength={300}
-              value={profile.goal}
-              onChange={(event) => change({ goal: event.target.value })}
-            />
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={profile.read_training}
-              onChange={(event) =>
-                change({ read_training: event.target.checked })
-              }
-            />
-            Look at my tracked time and habits to see how I train
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={profile.pregnant}
-              onChange={(event) => change({ pregnant: event.target.checked })}
-            />
-            Pregnant or breastfeeding
-          </label>
-          {save.error && <Notice tone="error">{save.error.message}</Notice>}
-          <div className="nutrition-settings-actions">
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={!draft || save.isPending}
-            >
-              {save.isPending ? "Saving…" : "Save"}
-            </Button>
-            {draft && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setDraft(null)}
-              >
-                Undo changes
-              </Button>
-            )}
-          </div>
-        </form>
-      )}
-      {target && (
-        <section className="nutrition-settings-target">
-          <h3>Your target</h3>
+      {!enabled ? null : (
+        <>
           <p>
-            <strong>{kcal(target.kcal)} kcal</strong> · {target.protein} g
-            protein · {target.carbs} g carbs · {target.fat} g fat
+            What your daily target is worked out from. Changing these doesn't
+            change the target until you recalculate it.
           </p>
-          <small>
-            Maintenance {kcal(target.maintenance)} kcal ({kcal(target.resting)}{" "}
-            resting) · in force since{" "}
-            {dayLabel(target.starts_on, {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </small>
-          {target.explanation && (
-            <p className="settings-hint">{target.explanation}</p>
+          <p className="settings-hint">
+            ChatGPT sees your profile and training summary only while working
+            out a target, and a meal's photos and description only while
+            estimating it. Everything else stays on your server.
+          </p>
+          {ai.query.data && (
+            <div className="nutrition-enable">
+              <Switch
+                label="Use Nutrition"
+                hint="Shows Nutrition in the sidebar and lets the assistant see and log meals. Turning it off keeps everything you logged."
+                checked={enabled}
+                onChange={(nutrition) =>
+                  ai.save.mutate({ ...ai.query.data!, nutrition })
+                }
+              />
+            </div>
           )}
-          <AiSources sources={target.sources} />
-          <Button variant="secondary" onClick={recalculate}>
-            Recalculate target
-          </Button>
-        </section>
+          {state.isError && <Notice tone="error">{state.error.message}</Notice>}
+          {state.data && !profile && (
+            <div className="nutrition-settings-empty">
+              <p>Nutrition isn't set up yet.</p>
+              <Button onClick={recalculate}>Set up Nutrition</Button>
+            </div>
+          )}
+          {profile && (
+            <form
+              className="nutrition-profile-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                save.mutate(profile);
+              }}
+            >
+              <label>
+                Age
+                <input
+                  type="number"
+                  min={13}
+                  max={110}
+                  value={profile.age}
+                  onChange={(event) =>
+                    change({ age: Number(event.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Sex, for the formula
+                <select
+                  value={profile.sex}
+                  onChange={(event) =>
+                    change({ sex: event.target.value as ProfileFields["sex"] })
+                  }
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="unspecified">Prefer not to say</option>
+                </select>
+              </label>
+              <label>
+                Height (cm)
+                <input
+                  type="number"
+                  min={100}
+                  max={250}
+                  value={profile.height_cm}
+                  onChange={(event) =>
+                    change({ height_cm: Number(event.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Weight (kg)
+                <input
+                  type="number"
+                  min={30}
+                  max={300}
+                  step={0.1}
+                  value={profile.weight_kg}
+                  onChange={(event) =>
+                    change({ weight_kg: Number(event.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Activity
+                <select
+                  value={profile.activity}
+                  onChange={(event) =>
+                    change({
+                      activity: event.target.value as ProfileFields["activity"],
+                    })
+                  }
+                >
+                  {ACTIVITIES.map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Pace
+                <select
+                  value={profile.pace}
+                  onChange={(event) =>
+                    change({
+                      pace: event.target.value as ProfileFields["pace"],
+                    })
+                  }
+                >
+                  <option value="gentle">Gentle</option>
+                  <option value="standard">Standard</option>
+                </select>
+              </label>
+              <label className="wide">
+                Your goal
+                <textarea
+                  rows={2}
+                  maxLength={300}
+                  value={profile.goal}
+                  onChange={(event) => change({ goal: event.target.value })}
+                />
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={profile.read_training}
+                  onChange={(event) =>
+                    change({ read_training: event.target.checked })
+                  }
+                />
+                Look at my tracked time and habits to see how I train
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={profile.pregnant}
+                  onChange={(event) =>
+                    change({ pregnant: event.target.checked })
+                  }
+                />
+                Pregnant or breastfeeding
+              </label>
+              {save.error && <Notice tone="error">{save.error.message}</Notice>}
+              <div className="nutrition-settings-actions">
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={!draft || save.isPending}
+                >
+                  {save.isPending ? "Saving…" : "Save"}
+                </Button>
+                {draft && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setDraft(null)}
+                  >
+                    Undo changes
+                  </Button>
+                )}
+              </div>
+            </form>
+          )}
+          {target && (
+            <section className="nutrition-settings-target">
+              <h3>Your target</h3>
+              <p>
+                <strong>{kcal(target.kcal)} kcal</strong> · {target.protein} g
+                protein · {target.carbs} g carbs · {target.fat} g fat
+              </p>
+              <small>
+                Maintenance {kcal(target.maintenance)} kcal (
+                {kcal(target.resting)} resting) · in force since{" "}
+                {dayLabel(target.starts_on, {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </small>
+              {target.explanation && (
+                <p className="settings-hint">{target.explanation}</p>
+              )}
+              <AiSources sources={target.sources} />
+              <Button variant="secondary" onClick={recalculate}>
+                Recalculate target
+              </Button>
+            </section>
+          )}
+        </>
       )}
     </section>
   );
 }
+
+const MACROS = [
+  ["kcal", "kcal"],
+  ["protein", "Protein g"],
+  ["carbs", "Carbs g"],
+  ["fat", "Fat g"],
+] as const;
 
 const blankItem = (): MealItem => ({
   name: "",
@@ -372,44 +405,42 @@ export function SavedMealsPanel() {
               />
             </label>
             <div className="saved-meal-items">
-              <div className="saved-meal-row heading">
-                <span>Item</span>
-                <span>Amount</span>
-                <span>kcal</span>
-                <span>P</span>
-                <span>C</span>
-                <span>F</span>
-                <span />
-              </div>
               {draft.items.map((item, index) => (
                 <div key={index} className="saved-meal-row">
                   <input
+                    className="saved-meal-name"
                     aria-label="Item"
+                    placeholder="Item"
                     value={item.name}
                     onChange={(event) =>
                       setItem(index, { name: event.target.value })
                     }
                   />
-                  <input
-                    aria-label="Amount"
-                    value={item.amount}
-                    onChange={(event) =>
-                      setItem(index, { amount: event.target.value })
-                    }
-                  />
-                  {(["kcal", "protein", "carbs", "fat"] as const).map((key) => (
+                  <label className="saved-meal-amount">
+                    Amount
                     <input
-                      key={key}
-                      type="number"
-                      min={0}
-                      aria-label={key}
-                      value={item[key]}
+                      value={item.amount}
+                      placeholder="1 bowl"
                       onChange={(event) =>
-                        setItem(index, {
-                          [key]: Math.max(0, Number(event.target.value) || 0),
-                        })
+                        setItem(index, { amount: event.target.value })
                       }
                     />
+                  </label>
+                  {MACROS.map(([key, label]) => (
+                    <label key={key}>
+                      {label}
+                      <input
+                        type="number"
+                        min={0}
+                        inputMode="decimal"
+                        value={item[key]}
+                        onChange={(event) =>
+                          setItem(index, {
+                            [key]: Math.max(0, Number(event.target.value) || 0),
+                          })
+                        }
+                      />
+                    </label>
                   ))}
                   <button
                     type="button"

@@ -38,6 +38,26 @@ import { chatEnter } from "../chat-enter";
 import { toStored } from "../mentions";
 import { useMentionPicker } from "./mention-picker";
 
+/** A picture shows as a thumbnail before it's sent; other files keep their icon. */
+function PendingPreview({ file }: { file: File }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file.type.startsWith("image/")) return;
+    const created = URL.createObjectURL(file);
+    setUrl(created);
+    return () => URL.revokeObjectURL(created);
+  }, [file]);
+  if (!url) return <FileText size={18} />;
+  return (
+    <img
+      className="pending-file-preview"
+      src={url}
+      alt=""
+      onError={() => setUrl(null)}
+    />
+  );
+}
+
 interface NoteComposerProps {
   /** Floats just above the composer, whatever its current height. */
   above?: ReactNode;
@@ -185,7 +205,7 @@ export function NoteComposer({
         <div className="pending-files">
           {files.map((file, index) => (
             <div className="pending-file" key={`${file.name}-${index}`}>
-              <FileText size={18} />
+              <PendingPreview file={file} />
               <span>
                 <strong>{file.name}</strong>
                 <small>{formatFileSize(file.size)}</small>

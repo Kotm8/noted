@@ -13,7 +13,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { liveInterval } from "../../lib/live";
-import { useAiStatus } from "../ai/queries";
+import { useAiPreferences, useAiStatus } from "../ai/queries";
 import { addDays, dayLabel, weekDays, zonedParts } from "../schedule/dates";
 import { useWorkspaceShell } from "../workspaces/shell-context";
 import { nutritionApi } from "./api";
@@ -27,6 +27,8 @@ import { SLOTS, kcal, totals } from "./types";
 export function NutritionPage() {
   const shell = useWorkspaceShell();
   const status = useAiStatus();
+  const ai = useAiPreferences();
+  const turnedOff = ai.query.data?.nutrition === false;
   const state = useQuery({
     queryKey: ["nutrition", "state"],
     queryFn: nutritionApi.state,
@@ -86,8 +88,8 @@ export function NutritionPage() {
           </span>
         )}
       </div>
-      {status.data?.connected && state.data?.target && !setup && (
-        <>
+      {status.data?.connected && state.data?.target && !setup && !turnedOff && (
+        <div className="header-actions">
           <Button
             variant="ghost"
             size="small"
@@ -106,7 +108,7 @@ export function NutritionPage() {
           >
             <Settings2 size={17} />
           </button>
-        </>
+        </div>
       )}
     </header>
   );
@@ -132,6 +134,32 @@ export function NutritionPage() {
               }
             >
               Open AI settings
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  if (turnedOff)
+    return (
+      <>
+        {header}
+        <div className="nutrition-scroll">
+          <div className="nutrition-connect">
+            <span className="connect-mark">
+              <Apple size={20} />
+            </span>
+            <h2>Nutrition is off</h2>
+            <p>
+              You turned it off in Settings › Nutrition. Everything you logged
+              is kept and comes back when you turn it on.
+            </p>
+            <Button
+              disabled={ai.save.isPending}
+              onClick={() =>
+                ai.save.mutate({ ...ai.query.data!, nutrition: true })
+              }
+            >
+              Turn Nutrition on
             </Button>
           </div>
         </div>

@@ -9,7 +9,7 @@ import android.widget.ProgressBar
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.noted.android.connection.ConnectionStore
-import com.noted.android.web.StartupView
+import com.noted.android.ui.StartupView
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith

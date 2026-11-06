@@ -146,16 +146,55 @@
   color: var(--text-faint);
   background: transparent;
 }
+/* A wide bar under the message, so the thread is easy to hit and shows when it last moved. */
 .note-thread-link {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  width: min(600px, 100%);
   margin-top: 6px;
-  padding: 2px 0;
-  border: 0;
-  color: var(--accent);
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted);
   background: transparent;
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
+  text-align: left;
+}
+.note-thread-link svg {
+  flex: none;
+  color: var(--accent);
+}
+.note-thread-link strong {
+  color: var(--link);
+  font-weight: 600;
+}
+.note-thread-link span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.note-thread-link .note-thread-arrow {
+  margin-left: auto;
+  color: var(--text-faint);
+  opacity: 0;
+}
+.note-thread-link:hover,
+.note-thread-link:focus-visible {
+  border-color: var(--border-default);
+  background: var(--surface-floating);
+}
+.note-thread-link:hover .note-thread-arrow,
+.note-thread-link:focus-visible .note-thread-arrow {
+  opacity: 1;
+}
+@media (hover: none) {
+  .note-thread-link {
+    border-color: var(--border-subtle);
+  }
+  .note-thread-link .note-thread-arrow {
+    opacity: 1;
+  }
 }
 .journal-list-heading {
   display: flex;

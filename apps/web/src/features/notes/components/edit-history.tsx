@@ -18,8 +18,8 @@ const when = (value: string) =>
   });
 
 /**
- * The "edited" label, which opens every earlier text of the message, newest first.
- * Restoring one keeps the current text as a version too, so nothing is lost.
+ * The History button in a message's toolbar, shown only once it was edited. It opens every
+ * earlier text, newest first. Restoring one keeps the current text as a version too.
  */
 export function EditHistory({ note }: { note: Note }) {
   const [open, setOpen] = useState(false);
@@ -45,17 +45,18 @@ export function EditHistory({ note }: { note: Note }) {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="edited-label edit-history-trigger"
+          className="icon-button"
+          aria-label="Edit history"
           title={`Edited ${when(note.updated_at)}. Show earlier versions`}
         >
-          edited
+          <History size={14} />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
           className="edit-history"
           side="bottom"
-          align="start"
+          align="end"
           sideOffset={6}
           collisionPadding={12}
           aria-label="Edit history"

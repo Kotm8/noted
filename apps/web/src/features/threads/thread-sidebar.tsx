@@ -1,10 +1,10 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowUp, CaseSensitive, LoaderCircle } from "lucide-react";
+import { ArrowUp, CaseSensitive, LoaderCircle, Sparkles } from "lucide-react";
 import { useFormatting, useFormattingVisible } from "../writing/use-formatting";
 import { toast } from "sonner";
 import { WritingSidebar } from "../../components/ui/writing-sidebar";
@@ -26,7 +26,9 @@ import { chatEnter } from "../notes/chat-enter";
 import { useMentionPicker } from "../notes/components/mention-picker";
 import { toStored } from "../notes/mentions";
 import { threadQuery } from "./queries";
-import { useMessageAi } from "../ai/use-message-ai";
+import { useOptionalAssistant } from "../ai/assistant/context";
+import { askAboutMessages } from "../ai/assistant/use-assistant";
+import { useAiStatus } from "../ai/queries";
 
 export function ThreadSidebar({
   rootId,
@@ -45,9 +47,29 @@ export function ThreadSidebar({
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Note | null>(null);
   const { draft, setDraft, clearSentDraft } = useDraft(`thread.${rootId}`);
-  const messageAi = useMessageAi(channel, (text) =>
-    setDraft((current) => [current, text].filter(Boolean).join("\n\n")),
-  );
+  const assistant = useOptionalAssistant();
+  const aiConnected = useAiStatus().data?.connected ?? false;
+  const ask = (chosen: Note[]) =>
+    askAboutMessages({
+      channelId: channel.id,
+      channelName: channel.name,
+      workspaceId: channel.workspace_id,
+      notes: chosen
+        .slice(0, 100)
+        .map((note) => ({ id: note.id, content: note.content })),
+      threadRootId: rootId,
+    });
+  useEffect(() => {
+    const draft = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail.threadRootId === rootId)
+        setDraft((current) =>
+          [current, detail.text].filter(Boolean).join("\n\n"),
+        );
+    };
+    window.addEventListener("noted:assistant-draft", draft);
+    return () => window.removeEventListener("noted:assistant-draft", draft);
+  }, [rootId, setDraft]);
   const query = useInfiniteQuery(threadQuery(rootId, targetId));
   const scroll = useTimelineScroll(query.data, !targetId);
   const highlighted = useRef(false);
@@ -151,6 +173,17 @@ export function ThreadSidebar({
               </time>
               <MessageMarkdown note={root} />
               <NoteAttachments attachments={root.attachments} />
+              {aiConnected && (
+                <button
+                  type="button"
+                  className="ask-ai-button thread-ask-ai"
+                  title="The assistant reads this thread and replies in it"
+                  onClick={() => ask([root, ...replies])}
+                >
+                  <Sparkles size={14} />
+                  Ask AI in this thread
+                </button>
+              )}
             </div>
             <div
               className="thread-replies"
@@ -188,8 +221,8 @@ export function ThreadSidebar({
                   onEdit={setEditing}
                   onCancelEdit={() => setEditing(null)}
                   onDelete={setDeleting}
-                  onAskAi={messageAi.ask}
-                  preview={messageAi.preview}
+                  onAskAi={aiConnected ? (note) => ask([note]) : undefined}
+                  preview={assistant?.preview}
                 />
                 {!query.hasPreviousPage && (
                   <OutgoingNotes channelId={channel.id} threadRootId={rootId} />
@@ -271,7 +304,7 @@ export function ThreadSidebar({
           </>
         )
       )}
-      {messageAi.popover}
+
       <DeleteNoteDialog
         open={deleting !== null}
         pending={remove.isPending}

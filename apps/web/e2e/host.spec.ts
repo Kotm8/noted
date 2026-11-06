@@ -73,29 +73,50 @@ test("hosting controls separate transfer and domain change and require exact del
       instance_id: "browser-instance",
     });
     removals++;
-    return route.fulfill({ status: 202, json: makeJob("remove", { status: "queued" }) });
+    return route.fulfill({
+      status: 202,
+      json: makeJob("remove", { status: "queued" }),
+    });
   });
   await page.goto("/");
   await page.getByLabel("Username", { exact: true }).fill("ilya");
-  await page.getByLabel("Password", { exact: true }).fill("browser-test-password-only");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("browser-test-password-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Server", exact: true }).click();
-  await page.getByRole("button", { name: "Switch domain", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Switch domain", exact: true })
+    .click();
   let dialog = page.getByRole("dialog", { name: "Switch domain", exact: true });
-  await dialog.getByLabel("New domain", { exact: true }).fill("new.example.com");
+  await dialog
+    .getByLabel("New domain", { exact: true })
+    .fill("new.example.com");
   await dialog.getByLabel("The new DNS record points to this VPS.").check();
   await dialog
     .getByLabel("Current owner password", { exact: true })
     .fill("browser-test-password-only");
-  await dialog.getByRole("button", { name: "Switch domain", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Open https://new.example.com" })).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Switch domain", exact: true })
+    .click();
+  await expect(
+    page.getByRole("link", { name: "Open https://new.example.com" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Transfer VPS", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "Transfer VPS", exact: true });
-  await dialog.getByLabel("Destination public IP", { exact: true }).fill("1.1.1.1");
-  await dialog.getByRole("button", { name: "Read SSH host key", exact: true }).click();
-  await expect(dialog.getByText("SHA256:fixture-fingerprint", { exact: true })).toBeVisible();
-  await dialog.getByLabel("The fingerprint matches the destination VPS.").check();
+  await dialog
+    .getByLabel("Destination public IP", { exact: true })
+    .fill("1.1.1.1");
+  await dialog
+    .getByRole("button", { name: "Read SSH host key", exact: true })
+    .click();
+  await expect(
+    dialog.getByText("SHA256:fixture-fingerprint", { exact: true }),
+  ).toBeVisible();
+  await dialog
+    .getByLabel("The fingerprint matches the destination VPS.")
+    .check();
   await dialog
     .getByLabel("Destination root password", { exact: true })
     .fill("fixture-ssh-password");
@@ -113,42 +134,71 @@ test("hosting controls separate transfer and domain change and require exact del
       "I understand that source writes stay paused while I update DNS and verify the new server.",
     )
     .check();
-  await page.screenshot({ path: "../../.local/screenshots/vps-transfer.png", fullPage: true });
-  await dialog.getByRole("button", { name: "Start VPS transfer", exact: true }).click();
-  await expect(page.getByText("The destination is ready. Change DNS to the new IP.")).toBeVisible();
-  await page.getByText("Cancel transfer and restore source writes", { exact: true }).click();
+  await page.screenshot({
+    path: "../../.local/screenshots/vps-transfer.png",
+    fullPage: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Start VPS transfer", exact: true })
+    .click();
+  await expect(
+    page.getByText("The destination is ready. Change DNS to the new IP."),
+  ).toBeVisible();
+  await page
+    .getByText("Cancel transfer and restore source writes", { exact: true })
+    .click();
   await page
     .getByLabel("Current owner password", { exact: true })
     .fill("browser-test-password-only");
-  await page.getByRole("button", { name: "Cancel transfer", exact: true }).click();
-  await page.getByRole("button", { name: "Delete Noted from this VPS", exact: true }).click();
-  dialog = page.getByRole("dialog", { name: "Permanently delete this server", exact: true });
+  await page
+    .getByRole("button", { name: "Cancel transfer", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete Noted from this VPS", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", {
+    name: "Permanently delete this server",
+    exact: true,
+  });
   const remove = dialog.getByRole("button", {
     name: "Permanently delete Noted and its data",
     exact: true,
   });
   await expect(remove).toBeDisabled();
   await dialog
-    .getByLabel("I have saved any backup I need and understand that this deletion is permanent.")
+    .getByLabel(
+      "I have saved any backup I need and understand that this deletion is permanent.",
+    )
     .check();
   await dialog
     .getByLabel("Current owner password", { exact: true })
     .fill("browser-test-password-only");
-  await dialog.getByLabel("Server deletion confirmation", { exact: true }).fill("I LOVE VERITY ");
+  await dialog
+    .getByLabel("Server deletion confirmation", { exact: true })
+    .fill("I LOVE VERITY ");
   await expect(remove).toBeDisabled();
   expect(removals).toBe(0);
-  await dialog.getByLabel("Server deletion confirmation", { exact: true }).fill("I LOVE VERITY");
-  await page.screenshot({ path: "../../.local/screenshots/danger-zone.png", fullPage: true });
+  await dialog
+    .getByLabel("Server deletion confirmation", { exact: true })
+    .fill("I LOVE VERITY");
+  await page.screenshot({
+    path: "../../.local/screenshots/danger-zone.png",
+    fullPage: true,
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await remove.scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
-    true,
-  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
   await page.screenshot({
     path: "../../.local/screenshots/danger-zone-mobile.png",
     fullPage: true,
   });
   await remove.click();
-  await expect(dialog.getByText("The VPS itself and unrelated apps are kept.")).toBeVisible();
+  await expect(
+    dialog.getByText("The VPS itself and unrelated apps are kept."),
+  ).toBeVisible();
   expect(removals).toBe(1);
 });

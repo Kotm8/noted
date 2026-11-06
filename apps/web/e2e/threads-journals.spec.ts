@@ -95,7 +95,7 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     .getByRole("textbox", { name: "Thread reply" })
     .fill("Keep this reply draft");
   await pane.getByRole("button", { name: "Close sidebar" }).click();
-  await page.getByRole("button", { name: "1 reply", exact: true }).click();
+  await page.getByRole("button", { name: /^1 reply/ }).click();
   await expect(pane.getByRole("textbox", { name: "Thread reply" })).toHaveValue(
     "Keep this reply draft",
   );
@@ -141,7 +141,9 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     .getByRole("dialog")
     .getByRole("button", { name: "Create channel", exact: true })
     .click();
-  await page.locator(".journal-entries").click({ position: { x: 300, y: 200 } });
+  await page
+    .locator(".journal-entries")
+    .click({ position: { x: 300, y: 200 } });
   await page.getByRole("dialog").getByLabel("Entry name").fill("Sunday notes");
   await page
     .getByRole("dialog")

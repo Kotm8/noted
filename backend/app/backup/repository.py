@@ -110,6 +110,9 @@ class BackupRepository:
         from app.backup.services.nutrition import nutrition_queries
 
         queries.update(nutrition_queries(owner_id))
+        from app.backup.services.assistant import assistant_queries
+
+        queries.update(assistant_queries(owner_id))
         result: dict[str, list[dict[str, Any]]] = {}
         total = 0
         for name, query in queries.items():

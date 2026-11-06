@@ -8,8 +8,14 @@ interface NoticeProps {
   className?: string;
 }
 
-export function Notice({ children, tone = "info", role, className = "" }: NoticeProps) {
-  const Icon = tone === "error" ? CircleAlert : tone === "warning" ? TriangleAlert : Info;
+export function Notice({
+  children,
+  tone = "info",
+  role,
+  className = "",
+}: NoticeProps) {
+  const Icon =
+    tone === "error" ? CircleAlert : tone === "warning" ? TriangleAlert : Info;
 
   return (
     <div

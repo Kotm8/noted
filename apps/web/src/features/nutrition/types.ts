@@ -4,7 +4,11 @@ export type Slot = "Breakfast" | "Lunch" | "Dinner" | "Snack";
 export const SLOTS: Slot[] = ["Breakfast", "Lunch", "Dinner", "Snack"];
 export type Sex = "male" | "female" | "unspecified";
 export type ActivityLevel =
-  "sedentary" | "light" | "moderate" | "very" | "athlete";
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "very"
+  | "athlete";
 export type Confidence = "high" | "medium" | "low";
 
 export interface MealItem {
@@ -131,6 +135,7 @@ export interface Choice {
 
 export interface MealEstimate {
   name: string;
+  slot?: Slot | null;
   items: MealItem[];
   saved_meal: string | null;
   question: { text: string; choices: Choice[] } | null;

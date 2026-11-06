@@ -32,9 +32,6 @@ export function HomeRoute() {
         if (isMobileLayout()) shell.openNavigation();
       }}
       onOpen={openActivity}
-      onChannel={(channel) =>
-        shell.openChannel(channel.workspace_id, channel.id)
-      }
     />
   );
 }

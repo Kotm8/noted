@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
@@ -230,11 +230,33 @@ class BackupWeighIn(BackupRecord):
     weight_kg: float = Field(ge=30, le=300, allow_inf_nan=False)
 
 
+class BackupAssistantTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=250000)
+    proposal: dict[str, Any] | None = None
+    sources: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
+    applied: bool = False
+    created_at: AwareDatetime
+
+
+class BackupAssistantChat(BaseModel):
+    id: UUID
+    title: str = Field(min_length=1, max_length=120)
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    turns: list[BackupAssistantTurn] = Field(default_factory=list, max_length=2000)
+
+
+class BackupMemory(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+    created_at: AwareDatetime
+
+
 class BackupContent(BackupRecord):
     habits: list[BackupHabit] = Field(default_factory=list)
     habit_entries: list[BackupHabitEntry] = Field(default_factory=list)
     format: Literal["noted-content-backup"] = "noted-content-backup"
-    version: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] = 1
+    version: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] = 1
     created_at: AwareDatetime
     workspaces: list[BackupWorkspace]
     categories: list[BackupCategory]
@@ -257,9 +279,12 @@ class BackupContent(BackupRecord):
     saved_meals: list[BackupSavedMeal] = Field(default_factory=list)
     meals: list[BackupMeal] = Field(default_factory=list)
     weigh_ins: list[BackupWeighIn] = Field(default_factory=list)
+    assistant_chats: list[BackupAssistantChat] = Field(default_factory=list)
+    ai_memories: list[BackupMemory] = Field(default_factory=list)
 
 
 class BackupCounts(BaseModel):
+    assistant_chats: int = 0
     meals: int = 0
     habits: int = 0
     day_templates: int = 0

@@ -1,5 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { ApiError } from "../lib/http";
