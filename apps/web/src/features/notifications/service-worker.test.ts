@@ -11,12 +11,16 @@ function worker() {
   const focus = vi.fn().mockResolvedValue(undefined);
   const skipWaiting = vi.fn().mockResolvedValue(undefined);
   const claim = vi.fn().mockResolvedValue(undefined);
+  const getNotifications = vi.fn().mockResolvedValue([]);
+  const fetch = vi
+    .fn()
+    .mockResolvedValue({ ok: true, json: async () => ({ stale: [] }) });
   const self = {
     skipWaiting,
     addEventListener: (name: string, handler: (event: unknown) => void) => {
       handlers[name] = handler;
     },
-    registration: { showNotification },
+    registration: { showNotification, getNotifications },
     location: { origin: "https://notes.example.com" },
     clients: {
       claim,
@@ -31,6 +35,8 @@ function worker() {
   runInNewContext(readFileSync(resolve("public/notifications-sw.js"), "utf8"), {
     self,
     URL,
+    URLSearchParams,
+    fetch,
   });
   return {
     handlers,
@@ -40,10 +46,56 @@ function worker() {
     focus,
     skipWaiting,
     claim,
+    fetch,
+    getNotifications,
   };
 }
 
 describe("notification service worker", () => {
+  it("clears only notifications whose revision is stale after reconnecting", async () => {
+    const test = worker();
+    const stale = { kind: "plan", promptId: "old", revision: 2 };
+    const current = { kind: "plan", promptId: "current", revision: 3 };
+    const close = vi.fn(),
+      keep = vi.fn();
+    test.getNotifications.mockResolvedValue([
+      { data: stale, close },
+      { data: current, close: keep },
+    ]);
+    test.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ stale: ["plan:old:2"] }),
+    });
+    const waitUntil = vi.fn();
+    test.handlers.message({
+      data: { type: "noted:reconcile-notifications" },
+      waitUntil,
+    });
+    await waitUntil.mock.calls[0][0];
+    expect(close).toHaveBeenCalledOnce();
+    expect(keep).not.toHaveBeenCalled();
+  });
+  it("does not replay an obsolete queued push", async () => {
+    const test = worker();
+    test.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ stale: ["plan:old:2"] }),
+    });
+    const waitUntil = vi.fn();
+    test.handlers.push({
+      data: {
+        json: () => ({
+          kind: "plan",
+          promptId: "old",
+          revision: 2,
+          title: "Old task",
+        }),
+      },
+      waitUntil,
+    });
+    await waitUntil.mock.calls[0][0];
+    expect(test.showNotification).not.toHaveBeenCalled();
+  });
   it("opens a habit notification without message reminder actions", async () => {
     const test = worker();
     const data = {

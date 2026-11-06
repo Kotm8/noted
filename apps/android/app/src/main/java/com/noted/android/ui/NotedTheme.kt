@@ -39,6 +39,7 @@ data class NotedPalette(
     val accent: Color = Color(0xFFE2C15A),
     val accentText: Color = Color(0xFF201E1A),
     val danger: Color = Color(0xFFDF9D96),
+    val success: Color = Color(0xFF9FC28A),
 )
 
 private val LocalNotedPalette = staticCompositionLocalOf { NotedPalette() }
@@ -46,6 +47,9 @@ object NotedStyle {
     val colors: NotedPalette
         @Composable get() = LocalNotedPalette.current
 }
+
+val NotedPalette.successSurface: Color get() = lerp(floating, success, .16f)
+val NotedPalette.accentSurface: Color get() = lerp(floating, accent, .08f)
 
 fun appearancePalette(appearance: JSONObject?): NotedPalette {
     val defaults = NotedPalette()

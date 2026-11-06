@@ -8,13 +8,14 @@ import { scheduleApi } from "../../schedule/api";
 import { findGap, proposalConflicts } from "../calendar/plans";
 import type { PreviewPlan } from "../calendar/types";
 import { aiApi, runAi, type AiSource } from "../api";
-import { nutritionApi } from "../../nutrition/api";
+import { nutritionApi, photoUrl } from "../../nutrition/api";
 import { notesApi } from "../../notes/api";
 import type {
   AssistantProposal,
   AttachedMessages,
   ChatSummary,
   ChatTurn,
+  ActionResult,
 } from "./types";
 import type { CalendarScope } from "../calendar/types";
 import type { PlanFields } from "../../schedule/types";
@@ -32,7 +33,9 @@ const hasChanges = (proposal: AssistantProposal | null | undefined) =>
       (proposal.habits?.length ?? 0) +
         (proposal.plans?.length ?? 0) +
         (proposal.meals?.length ?? 0) +
-        (proposal.rewrites?.length ?? 0),
+        (proposal.rewrites?.length ?? 0) +
+        (proposal.posts?.length ?? 0) +
+        (proposal.deletions?.length ?? 0),
   );
 const allSelected = (proposal: AssistantProposal) =>
   new Set([
@@ -40,6 +43,8 @@ const allSelected = (proposal: AssistantProposal) =>
     ...proposal.plans.map((_, i) => `plan-${i}`),
     ...proposal.meals.map((_, i) => `meal-${i}`),
     ...(proposal.rewrites ?? []).map((_, i) => `rewrite-${i}`),
+    ...(proposal.posts ?? []).map((_, i) => `post-${i}`),
+    ...(proposal.deletions ?? []).map((_, i) => `delete-${i}`),
   ]);
 const normalized = (proposal: AssistantProposal) => ({
   ...proposal,
@@ -47,6 +52,8 @@ const normalized = (proposal: AssistantProposal) => ({
   plans: Array.isArray(proposal.plans) ? proposal.plans : [],
   meals: Array.isArray(proposal.meals) ? proposal.meals : [],
   rewrites: Array.isArray(proposal.rewrites) ? proposal.rewrites : [],
+  posts: Array.isArray(proposal.posts) ? proposal.posts : [],
+  deletions: Array.isArray(proposal.deletions) ? proposal.deletions : [],
 });
 
 /** Opens the assistant with messages attached, from anywhere in the app. */
@@ -56,38 +63,112 @@ export function askAboutMessages(detail: AttachedMessages) {
 
 export function useSharedAssistant() {
   const client = useQueryClient();
+  const owner = client.getQueryData<{ id: string }>(["session"]);
+  const storageKey = owner ? `noted.assistant-draft:${owner.id}` : null;
+  const [saved] = useState(() => {
+    try {
+      return storageKey
+        ? JSON.parse(localStorage.getItem(storageKey) || "null")
+        : null;
+    } catch {
+      return null;
+    }
+  });
   const tracking = useTracking();
   const status = useQuery({ queryKey: ["ai-status"], queryFn: aiApi.status });
   const [open, setOpen] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [turns, setTurns] = useState<ChatTurn[]>([]);
-  const [chatId, setChatId] = useState<string | null>(null);
-  const [turnId, setTurnId] = useState<string | null>(null);
-  const [pictures, setPictures] = useState<AttachedPicture[]>([]);
+  const [prompt, setPrompt] = useState<string>(saved?.prompt ?? "");
+  const [turns, setTurns] = useState<ChatTurn[]>(saved?.turns ?? []);
+  const [chatId, setChatId] = useState<string | null>(saved?.chatId ?? null);
+  const [turnId, setTurnId] = useState<string | null>(saved?.turnId ?? null);
+  const [pictures, setPictures] = useState<AttachedPicture[]>(() =>
+    (saved?.pictures ?? [])
+      .filter((item: AttachedPicture) => item.id)
+      .map((item: AttachedPicture) => ({
+        ...item,
+        preview: photoUrl(item.id!),
+      })),
+  );
   const [loadingChat, setLoadingChat] = useState(false);
-  const [attached, setAttached] = useState<AttachedMessages | null>(null);
+  const [attached, setAttached] = useState<AttachedMessages | null>(
+    saved?.attached ?? null,
+  );
   const [streaming, setStreaming] = useState<string | null>(null);
   // The text each message had when it was attached, to apply rewrites safely and undo them.
-  const originals = useRef(new Map<string, string>());
+  const originals = useRef(new Map<string, string>(saved?.originals ?? []));
   const [focusRequest, setFocusRequest] = useState(0);
-  const restored = useRef(false);
+  const restored = useRef(Boolean(saved?.turns?.length));
   const chats = useQuery({
     queryKey: ["assistant-chats"],
     queryFn: () => request<ChatSummary[]>("/ai/assistant/chats"),
     enabled: open && Boolean(status.data?.connected),
   });
-  const [proposal, setProposal] = useState<AssistantProposal | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [proposal, setProposal] = useState<AssistantProposal | null>(
+    saved?.proposal ? normalized(saved.proposal) : null,
+  );
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(saved?.selected ?? []),
+  );
+  const [actionResults, setActionResults] = useState<ActionResult[]>(
+    saved?.actionResults ?? [],
+  );
+  const [recordsApplied, setRecordsApplied] = useState(
+    saved?.recordsApplied ?? false,
+  );
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [applied, setApplied] = useState(saved?.applied ?? false);
   const [retryPending, setRetryPending] = useState(false);
   const [error, setError] = useState("");
   const [stage, setStage] = useState("");
-  const [sources, setSources] = useState<AiSource[]>([]);
-  const [scope, setScope] = useState<CalendarScope | null>(null);
+  const [sources, setSources] = useState<AiSource[]>(saved?.sources ?? []);
+  const [scope, setScope] = useState<CalendarScope | null>(
+    saved?.scope ?? null,
+  );
   const abort = useRef<AbortController | null>(null);
-  const attempt = useRef({ key: "", id: "" });
+  const attempt = useRef(saved?.attempt ?? { key: "", id: "" });
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          prompt,
+          turns: turns.slice(-40),
+          chatId,
+          turnId,
+          proposal,
+          selected: [...selected],
+          scope,
+          applied,
+          actionResults,
+          recordsApplied,
+          attempt: attempt.current,
+          attached,
+          originals: [...originals.current],
+          pictures,
+          sources,
+        }),
+      );
+    } catch {
+      return;
+    }
+  }, [
+    storageKey,
+    prompt,
+    turns,
+    chatId,
+    turnId,
+    proposal,
+    selected,
+    scope,
+    applied,
+    actionResults,
+    recordsApplied,
+    attached,
+    pictures,
+    sources,
+  ]);
   const generation = useRef(0);
   const inFlight = useRef(false);
   const board = useQuery({
@@ -189,6 +270,7 @@ export function useSharedAssistant() {
   }, [proposal, applied, selected]);
   async function openChat(id: string) {
     cancel();
+    attempt.current = { key: "", id: "" };
     setLoadingChat(true);
     setError("");
     try {
@@ -206,6 +288,8 @@ export function useSharedAssistant() {
       setSelected(pending ? allSelected(pending) : new Set());
       setTurnId(pending ? last!.id : null);
       setApplied(false);
+      setActionResults(last?.proposal?.action_results ?? []);
+      setRecordsApplied(false);
       setSources(last?.role === "assistant" ? (last.sources ?? []) : []);
     } catch (error) {
       setError((error as Error).message);
@@ -215,6 +299,7 @@ export function useSharedAssistant() {
   }
   function newChat() {
     cancel();
+    attempt.current = { key: "", id: "" };
     setChatId(null);
     setTurns([]);
     setProposal(null);
@@ -223,6 +308,8 @@ export function useSharedAssistant() {
     setSources([]);
     setError("");
     setAttached(null);
+    setActionResults([]);
+    setRecordsApplied(false);
   }
   async function deleteChat(id: string) {
     try {
@@ -326,10 +413,17 @@ export function useSharedAssistant() {
           habits: proposal.habits.filter((_, i) => selected.has(`habit-${i}`)),
           plans: proposal.plans.filter((_, i) => selected.has(`plan-${i}`)),
           meals: proposal.meals.filter((_, i) => selected.has(`meal-${i}`)),
+          posts: (proposal.posts ?? []).filter((_, i) =>
+            selected.has(`post-${i}`),
+          ),
+          deletions: (proposal.deletions ?? []).filter((_, i) =>
+            selected.has(`delete-${i}`),
+          ),
         }),
       };
     }
     const controller = new AbortController();
+    attempt.current = { key: "", id: "" };
     abort.current = controller;
     const current = ++generation.current;
     inFlight.current = true;
@@ -341,6 +435,8 @@ export function useSharedAssistant() {
     setTurnId(null);
     setApplied(false);
     setStreaming(null);
+    setActionResults([]);
+    setRecordsApplied(false);
     setTurns((items) => [
       ...items,
       {
@@ -436,7 +532,27 @@ export function useSharedAssistant() {
     for (const change of changes) {
       const before = originals.current.get(change.id);
       if (before === change.text) continue;
-      await notesApi.update(change.id, change.text, before);
+      const index =
+        proposal?.rewrites?.findIndex((item) => item.id === change.id) ?? 0;
+      const key = `rewrite-${index}`;
+      try {
+        await notesApi.update(change.id, change.text, before);
+        setActionResults((items) => [
+          ...items.filter((item) => item.key !== key),
+          { key, ok: true, label: `Message ${index + 1}` },
+        ]);
+      } catch (error) {
+        setActionResults((items) => [
+          ...items.filter((item) => item.key !== key),
+          {
+            key,
+            ok: false,
+            error: (error as Error).message,
+            label: `Message ${index + 1}`,
+          },
+        ]);
+        throw error;
+      }
       originals.current.set(change.id, change.text);
       done.push({ id: change.id, before, after: change.text });
     }
@@ -491,7 +607,7 @@ export function useSharedAssistant() {
     setBusy(false);
     setStage("");
   }
-  async function apply() {
+  async function apply(confirmed = false) {
     if (
       !proposal ||
       !scope ||
@@ -510,22 +626,81 @@ export function useSharedAssistant() {
       plans: proposal.plans.filter((_, i) => selected.has(`plan-${i}`)),
       meals: proposal.meals.filter((_, i) => selected.has(`meal-${i}`)),
     };
+    const posts = (proposal.posts ?? [])
+      .map((item, i) => ({ ...item, key: `post-${i}` }))
+      .filter((item) => selected.has(item.key));
+    const deletions = (proposal.deletions ?? [])
+      .map((item, i) => ({ ...item, key: `delete-${i}` }))
+      .filter((item) => selected.has(item.key));
     const records = body.habits.length + body.plans.length + body.meals.length;
-    const key = JSON.stringify(body);
+    const key = JSON.stringify({ body, posts, deletions });
     if (attempt.current.key !== key)
       attempt.current = { key, id: crypto.randomUUID() };
     setApplying(true);
     setError("");
     try {
-      if (rewrites.length) await applyRewrites(rewrites);
+      if (rewrites.length && !recordsApplied) await applyRewrites(rewrites);
       const saved =
-        records || turnId
+        !recordsApplied &&
+        (records || (turnId && !posts.length && !deletions.length))
           ? await request<{ pictures?: string[] }>(
               "/ai/assistant/apply",
               "POST",
-              { ...body, request_id: attempt.current.id, turn_id: turnId },
+              {
+                ...body,
+                request_id: attempt.current.id,
+                turn_id: posts.length || deletions.length ? null : turnId,
+              },
             )
           : {};
+      setRecordsApplied(true);
+      if (posts.length || deletions.length) {
+        const outcome = await request<{ results: ActionResult[] }>(
+          "/ai/assistant/apply-actions",
+          "POST",
+          {
+            posts,
+            deletions,
+            confirmed,
+            request_id: attempt.current.id,
+            turn_id: turnId,
+          },
+        );
+        setActionResults((items) => [
+          ...items.filter((item) => item.key.startsWith("rewrite-")),
+          ...outcome.results,
+        ]);
+        setTurns((items) =>
+          items.map((item, index) =>
+            index === items.length - 1
+              ? {
+                  ...item,
+                  proposal: {
+                    ...item.proposal!,
+                    action_results: outcome.results,
+                  },
+                }
+              : item,
+          ),
+        );
+        await Promise.all(
+          [
+            "notes",
+            "journals",
+            "schedule",
+            "schedule-plan",
+            "habits",
+            "nutrition",
+          ].map((key) => client.invalidateQueries({ queryKey: [key] })),
+        );
+        if (outcome.results.some((item) => !item.ok)) {
+          setError(
+            `${outcome.results.filter((item) => item.ok).length} actions completed. Review the failed actions below.`,
+          );
+          setRetryPending(true);
+          return;
+        }
+      }
       setApplied(true);
       setTurns((items) =>
         items.map((item, index) =>
@@ -540,13 +715,23 @@ export function useSharedAssistant() {
         client.invalidateQueries({ queryKey: ["schedule"] }),
         client.invalidateQueries({ queryKey: ["schedule-plan"] }),
         client.invalidateQueries({ queryKey: ["nutrition"] }),
+        client.invalidateQueries({ queryKey: ["notes"] }),
+        client.invalidateQueries({ queryKey: ["journals"] }),
+        client.invalidateQueries({ queryKey: ["search"] }),
       ]);
       if (records) toast.success("Changes applied");
       void makePictures(saved.pictures ?? []);
     } catch (error) {
-      setError((error as Error).message);
+      setError(
+        `${rewrites.length ? "Any completed rewrites remain saved. " : ""}${(error as Error).message}`,
+      );
       setRetryPending(!(error instanceof ApiError) || error.status >= 500);
     } finally {
+      await Promise.all(
+        ["notes", "thread", "journals", "schedule", "nutrition", "habits"].map(
+          (key) => client.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
       setApplying(false);
     }
   }
@@ -594,6 +779,22 @@ export function useSharedAssistant() {
     setSelected,
     busy,
     applying,
+    recordsApplied,
+    actionResults,
+    changeDeletion: (
+      index: number,
+      change: Partial<NonNullable<AssistantProposal["deletions"]>[number]>,
+    ) => {
+      setProposal(
+        (current) =>
+          current && {
+            ...current,
+            deletions: (current.deletions ?? []).map((item, i) =>
+              i === index ? { ...item, ...change } : item,
+            ),
+          },
+      );
+    },
     applied,
     retryPending,
     error,

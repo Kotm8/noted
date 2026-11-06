@@ -6,6 +6,21 @@ import androidx.compose.ui.res.vectorResource
 import com.noted.android.R
 
 object NotedIcons {
+    val Play: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.noted_play)
+
+    val Camera: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.noted_camera)
+
+    val Image: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.noted_image)
+
+    val Remove: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.noted_remove)
+
+    val Sparkles: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.noted_sparkles)
+
     val Add: ImageVector
         @Composable get() = ImageVector.vectorResource(R.drawable.noted_add)
 

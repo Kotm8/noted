@@ -37,7 +37,8 @@ class NotedMessagingService : FirebaseMessagingService() {
             val payload = JSONObject(raw)
             if (payload.optString("kind") == "dismiss")
                 PushNotifications.dismiss(this, origin, payload)
-            else PushNotifications.show(this, origin, payload)
+            else if (payload.optString("kind") == "diagnostic") PushNotifications.show(this, origin, payload)
+            else NotificationSyncWorker.enqueue(this, payload)
         }
     }
 

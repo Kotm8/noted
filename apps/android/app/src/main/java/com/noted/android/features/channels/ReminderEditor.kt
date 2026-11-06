@@ -14,27 +14,18 @@ import java.time.*
 fun ReminderEditor(title: String = "When should it ring?", timezone: String, close: () -> Unit,
     confirm: String = "Set reminder", save: suspend (JSONObject) -> Unit) {
     val zone = ZoneId.of(timezone)
-    val now = ZonedDateTime.now(zone).plusMinutes(10)
-    var date by remember { mutableStateOf(now.toLocalDate()) }
-    var minute by remember { mutableIntStateOf(now.hour * 60 + now.minute) }
+    var due by remember { mutableStateOf(ZonedDateTime.now(zone).plusHours(1).withSecond(0).withNano(0)) }
     var repeat by remember { mutableStateOf("none") }
     var urgent by remember { mutableStateOf(false) }
-    EditorSheet(title, close, confirm, save = {
-        val due = date.atStartOfDay().plusMinutes(minute.toLong()).atZone(zone)
-        require(due.toInstant() > Instant.now()) { "Choose a future time." }
-        save(json("due_at" to due.toOffsetDateTime().toString(), "timezone" to timezone, "repeat" to repeat, "urgent" to urgent))
-    }) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(10 to "10 min", 60 to "1 hour", 1440 to "Tomorrow").forEach { (minutes, label) ->
-                NotedOutlinedButton(onClick = {
-                    val due = ZonedDateTime.now(zone).plusMinutes(minutes.toLong())
-                    date = due.toLocalDate(); minute = due.hour * 60 + due.minute
-                }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp)) { Text(label) }
-            }
-        }
-        DateField("Date", date) { date = it }
-        TimeField("Time", minute) { minute = it }
+    val actions = rememberActions()
+    DesignSheet(close, title) {
+        ReminderTimePicker(due) { due = it }
         Choice("Repeat", repeat, listOf("none" to "Once", "daily" to "Daily", "weekdays" to "Weekdays", "weekly" to "Weekly")) { repeat = it }
         Toggle("Urgent", urgent) { urgent = it }
+        PillButton({ actions.run {
+            require(due.toInstant() > Instant.now()) { "Choose a future time." }
+            save(json("due_at" to due.toOffsetDateTime().toString(), "timezone" to timezone, "repeat" to repeat, "urgent" to urgent))
+            close()
+        } }, Modifier.fillMaxWidth().padding(top = 20.dp), primary = true, enabled = !actions.busy) { Text(confirm) }
     }
 }

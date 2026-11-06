@@ -170,6 +170,23 @@
   color: var(--text-faint);
   font-size: var(--font-xs);
 }
+.ai-source-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 6px 0;
+  font-size: var(--font-xs);
+  list-style: none;
+}
+.ai-source-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.ai-source-disclosure[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
 .ai-sources {
   display: flex;
   flex-wrap: wrap;

@@ -1,116 +1,132 @@
 package com.noted.android.features.habits
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noted.android.data.*
-import com.noted.android.features.calendar.WeekdayPicker
+import com.noted.android.features.home.duration
 import com.noted.android.ui.*
-import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.ZoneId
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HabitsScreen(repository: NativeRepository) {
     val tracker = rememberResource(repository, "/time-tracking/tracker")
+    val activities = rememberResource(repository, "/time-tracking/activities")
     val timezone = tracker.obj?.optJSONObject("preferences")?.text("timezone")?.takeIf { it.isNotBlank() } ?: ZoneId.systemDefault().id
-    var day by rememberSaveable { mutableStateOf(LocalDate.now(ZoneId.of(timezone)).toString()) }
+    val day = LocalDate.now(ZoneId.of(timezone)).toString()
     val resource = rememberResource(repository, "/habits?start=$day&end=$day")
     val actions = rememberActions()
-    var edit by remember { mutableStateOf<JSONObject?>(null) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val colors = NotedStyle.colors
+    val context = LocalContext.current
+    val origin = repository.session.collectAsState().value?.origin
+    var counting by remember { mutableStateOf<Pair<JSONObject, JSONObject?>?>(null) }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)) {
         item {
-            DateField("Your day", LocalDate.parse(day)) { day = it.toString() }
-            ResourceStatus(resource) { repository.changed() }
+            ResourceStatus(resource) { repository.changed("habits") }
         }
         listOf("Morning", "Anytime", "Evening").forEach { period ->
             val habits = resource.obj?.rows("habits").orEmpty().filter { it.text("period") == period }
-            if (habits.isNotEmpty()) item { SectionTitle(period) }
+            if (habits.isNotEmpty()) item { DesignLabel(period) }
             items(habits, key = { it.text("id") }) { habit ->
                 val progress = resource.obj?.rows("progress")?.firstOrNull { it.text("habit_id") == habit.text("id") && it.text("day") == day }
                 val value = progress?.optDouble("value") ?: 0.0
-                val goal = habit.optDouble("goal", 1.0)
+                val goal = habit.optDouble("goal", 1.0).coerceAtLeast(.0001)
                 val automatic = habit.text("activity_id").isNotBlank()
-                val enabled = !automatic && !actions.busy && progress?.optBoolean("due") == true && !LocalDate.parse(day).isAfter(LocalDate.now(ZoneId.of(habit.text("timezone", timezone))))
-                val set: (Double) -> Unit = { amount -> actions.run {
+                val enabled = !automatic && !actions.busy && progress?.optBoolean("due") == true &&
+                    !LocalDate.parse(day).isAfter(LocalDate.now(ZoneId.of(habit.text("timezone", timezone))))
+                fun set(amount: Double) = actions.run {
                     repository.mutate("/habits/${habit.text("id")}/progress", "PUT", json("day" to day, "value" to amount,
                         "revision" to (progress?.optInt("revision") ?: 0)))
-                } }
-                Row(Modifier.fillMaxWidth().heightIn(min = 68.dp), verticalAlignment = Alignment.CenterVertically) {
-                    NotedCheckbox(value >= goal, if (enabled) { checked -> set(if (checked) goal else 0.0) } else null)
-                    Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
-                        Text(habit.text("name"))
-                        if (automatic) Text("From tracked activity", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        else if (progress?.optBoolean("due") == false) Text("Not scheduled today", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (habit.text("kind") != "check") NotedOutlinedButton(enabled = enabled, onClick = { set((value + 1).coerceAtMost(100000.0)) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-                        Text("${number(value)} / ${number(goal)} ${habit.text("unit")}")
-                    }
-                    ActionIcon(NotedIcons.Edit, "Edit ${habit.text("name")}") { edit = habit }
                 }
-                if (habit.text("kind") != "check") NotedProgressIndicator(progress = { (value / goal).toFloat().coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().padding(start = 54.dp, end = 48.dp).height(2.dp))
+                val activity = activities.rows.firstOrNull { it.text("id") == habit.text("activity_id") }
+                val tint = color(activity?.text("color").orEmpty(), colors.accent)
+                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(top = if (automatic) 8.dp else 0.dp),
+                    verticalAlignment = if (automatic) Alignment.Top else Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.width(44.dp), contentAlignment = Alignment.Center) {
+                        when {
+                            automatic -> Box(Modifier.padding(top = 6.dp).size(10.dp).background(tint, CircleShape))
+                            habit.text("kind") == "check" -> IconButton({ set(if (value >= goal) 0.0 else goal) },
+                                Modifier.size(44.dp), enabled = enabled) {
+                                Icon(if (value >= goal) NotedIcons.Check else NotedIcons.Circle,
+                                    if (value >= goal) "Mark ${habit.text("name")} not done" else "Mark ${habit.text("name")} done",
+                                    Modifier.size(22.dp), tint = if (value >= goal) colors.success else colors.muted)
+                            }
+                            else -> Box(Modifier.fillMaxWidth().heightIn(min = 44.dp)
+                                .combinedClickable(enabled = enabled, role = Role.Button,
+                                    onClickLabel = "Add one to ${habit.text("name")}",
+                                    onLongClickLabel = "Set ${habit.text("name")} progress",
+                                    onLongClick = { counting = habit to progress }) { set(value + 1) },
+                                contentAlignment = Alignment.Center) {
+                                Text("${number(value)}/${number(goal)}",
+                                    color = if (value >= goal) colors.success else colors.accent,
+                                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(habit.text("name"), color = if (value >= goal) colors.muted else colors.text,
+                            style = MaterialTheme.typography.bodyLarge)
+                        Text(when {
+                            automatic -> "From tracked ${activity?.text("name") ?: "activity"}"
+                            progress?.optBoolean("due") == false -> "Not scheduled today"
+                            habit.text("kind") == "check" -> if (habit.optJSONArray("weekdays")?.length() == 7) "Every day" else "Every scheduled day"
+                            else -> habit.text("unit")
+                        }, color = colors.muted, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal))
+                        if (automatic || habit.text("kind") == "time") {
+                            Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.input)) {
+                                Box(Modifier.fillMaxWidth((value / goal).toFloat().coerceIn(0f, 1f)).fillMaxHeight().background(tint))
+                            }
+                            Text("${duration((value * 60).toLong())} of ${duration((goal * 60).toLong())}",
+                                Modifier.padding(top = 4.dp), color = colors.muted,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal))
+                        }
+                    }
+                    if (!automatic && habit.text("kind") != "check") {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            HabitCountButton(false, habit.text("name"), enabled && value > 0) { set((value - 1).coerceAtLeast(0.0)) }
+                            HabitCountButton(true, habit.text("name"), enabled) { set(value + 1) }
+                        }
+                    }
+                }
             }
         }
         item {
-            NotedOutlinedButton(onClick = { edit = JSONObject() }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                Icon(NotedIcons.Add, null, Modifier.size(18.dp)); Text("Add habit", Modifier.padding(start = 8.dp))
-            }
+            Text("Add or change habits on the web.", Modifier.padding(top = 24.dp, bottom = 16.dp)
+                .heightIn(min = 44.dp).clickable(enabled = origin != null, role = Role.Button) {
+                    origin?.let { openOnWeb(context, it, "/habits") }
+                }, color = colors.muted, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal))
         }
     }
-    edit?.let { habit -> HabitEditor(repository, habit, timezone) { edit = null } }
+    counting?.let { (habit, progress) -> HabitProgressEditor(repository, habit, progress, day) { counting = null } }
 }
-
-private fun number(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else "%.1f".format(value)
 
 @Composable
-private fun HabitEditor(repository: NativeRepository, habit: JSONObject, timezone: String, close: () -> Unit) {
-    var name by remember { mutableStateOf(habit.text("name")) }
-    var kind by remember { mutableStateOf(habit.text("kind", "check")) }
-    var goal by remember { mutableStateOf(habit.optDouble("goal", 1.0).toString()) }
-    var unit by remember { mutableStateOf(habit.text("unit", "times")) }
-    var period by remember { mutableStateOf(habit.text("period", "Anytime")) }
-    var linked by remember { mutableStateOf(habit.text("activity_id")) }
-    var weekdays by remember { mutableStateOf(habit.optJSONArray("weekdays")?.let { days -> (0 until days.length()).map { days.optInt(it) }.toSet() } ?: (0..6).toSet()) }
-    var reminders by remember { mutableStateOf(!habit.isNull("reminder_minute")) }
-    var reminderMinute by remember { mutableIntStateOf(habit.optInt("reminder_minute", 540)) }
-    var firstReminder by remember { mutableStateOf(LocalDate.parse(habit.text("reminder_start", LocalDate.now(ZoneId.of(timezone)).toString()))) }
-    var removing by remember { mutableStateOf(false) }
-    val activities = rememberResource(repository, "/time-tracking/activities")
-    val id = habit.text("id")
-    if (removing) {
-        ConfirmDelete("Archive $name?", { removing = false }) {
-            repository.mutate("/habits/$id?revision=${habit.optInt("revision")}", "DELETE"); close()
-        }
-        return
-    }
-    EditorSheet(if (id.isBlank()) "New habit" else "Edit habit", close, enabled = name.isNotBlank() && weekdays.isNotEmpty(), save = {
-        val amount = if (kind == "check") 1.0 else goal.toDoubleOrNull() ?: error("Enter a valid target.")
-        val fields = json("name" to name, "kind" to kind, "goal" to amount, "unit" to if (kind == "time") "min" else unit,
-            "period" to period, "weekdays" to JSONArray(weekdays.sorted()), "activity_id" to linked.takeIf { kind == "time" && it.isNotBlank() },
-            "timezone" to habit.text("timezone", timezone), "starts_on" to habit.text("starts_on", LocalDate.now(ZoneId.of(timezone)).toString()),
-            "reminder_minute" to if (reminders) reminderMinute else null, "reminder_start" to if (reminders) firstReminder.toString() else null)
-        if (id.isNotBlank()) fields.put("revision", habit.optInt("revision"))
-        repository.mutate(if (id.isBlank()) "/habits" else "/habits/$id", if (id.isBlank()) "POST" else "PUT", fields)
-    }) {
-        Field("Name", name, { name = it })
-        Choice("Goal", kind, listOf("check" to "Check off", "count" to "Count", "time" to "Minutes")) { kind = it }
-        if (kind != "check") { Field("Daily target", goal, { goal = it }); if (kind == "count") Field("Unit", unit, { unit = it }) }
-        if (kind == "time") Choice("Tracked activity", linked, listOf("" to "Enter progress manually") + activities.rows.filter { !it.optBoolean("archived") }.map { it.text("id") to it.text("name") }) { linked = it }
-        Choice("Time of day", period, listOf("Morning", "Anytime", "Evening").map { it to it }) { period = it }
-        WeekdayPicker(weekdays) { weekdays = it }
-        Toggle("Reminder", reminders) { reminders = it }
-        if (reminders) {
-            DateField("First reminder", firstReminder) { firstReminder = it }
-            TimeField("Remind at", reminderMinute) { reminderMinute = it }
-        }
-        if (id.isNotBlank()) NotedTextButton(onClick = { removing = true }) { Text("Archive habit", color = MaterialTheme.colorScheme.error) }
+private fun HabitCountButton(add: Boolean, name: String, enabled: Boolean, click: () -> Unit) {
+    val colors = NotedStyle.colors
+    IconButton(click, Modifier.size(44.dp).border(1.dp, colors.border, CircleShape), enabled = enabled) {
+        Icon(if (add) NotedIcons.Add else NotedIcons.Remove, "${if (add) "Add one to" else "Remove one from"} $name",
+            Modifier.size(22.dp), tint = if (enabled) colors.secondary else colors.faint.copy(alpha = .5f))
     }
 }
+
+private fun number(value: Double) = if (value == value.toLong().toDouble()) value.toLong().toString() else "%.1f".format(value)

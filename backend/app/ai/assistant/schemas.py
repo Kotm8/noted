@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.ai.calendar.schemas import CalendarScope
 from app.ai.schemas import ConversationTurn
@@ -72,6 +72,42 @@ class MessageRewrite(BaseModel):
     text: str = Field(max_length=40000, description="Its complete new text, Markdown kept")
 
 
+class MessagePost(BaseModel):
+    channel_id: UUID
+    text: str = Field(min_length=1, max_length=40000)
+
+    @field_validator("text")
+    @classmethod
+    def nonempty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Write something before posting")
+        return value
+
+
+class ItemDeletion(BaseModel):
+    kind: Literal["message", "journal", "plan"]
+    id: UUID
+    revision: int | None = Field(default=None, ge=1)
+    scope: Literal["series", "occurrence"] | None = None
+    occurrence_date: date | None = None
+
+
+class AppliedPost(MessagePost):
+    key: str = Field(pattern=r"^post-\d{1,3}$")
+
+
+class AppliedDeletion(ItemDeletion):
+    key: str = Field(pattern=r"^delete-\d{1,3}$")
+
+
+class AssistantActions(BaseModel):
+    request_id: UUID
+    turn_id: UUID | None = None
+    posts: list[AppliedPost] = Field(default_factory=list, max_length=20)
+    deletions: list[AppliedDeletion] = Field(default_factory=list, max_length=30)
+    confirmed: bool = False
+
+
 class AssistantProposal(BaseModel):
     explanation: str = Field(
         max_length=8000,
@@ -80,6 +116,8 @@ class AssistantProposal(BaseModel):
     habits: list[HabitChange] = Field(default_factory=list, max_length=30)
     plans: list[PlanChange] = Field(default_factory=list, max_length=30)
     meals: list[MealChange] = Field(default_factory=list, max_length=20)
+    posts: list[MessagePost] = Field(default_factory=list, max_length=20)
+    deletions: list[ItemDeletion] = Field(default_factory=list, max_length=30)
     rewrites: list[MessageRewrite] = Field(
         default_factory=list,
         max_length=100,

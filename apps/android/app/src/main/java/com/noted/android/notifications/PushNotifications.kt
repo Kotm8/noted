@@ -20,6 +20,13 @@ import java.util.UUID
 import org.json.JSONObject
 
 object PushNotifications {
+    fun token(payload: JSONObject): String? {
+        val kind = payload.optString("kind").ifBlank { "reminder" }
+        val id = payload.optString(when (kind) {
+            "plan" -> "promptId"; "habit" -> "habitReminderId"; "writing" -> "writingPromptId"; else -> "messageId"
+        })
+        return if (kind == "diagnostic" || id.isBlank()) null else "$kind:$id:${payload.optInt("revision")}"
+    }
     private const val channel = "noted_reminders"
 
     fun show(context: Context, origin: String, payload: JSONObject) {
@@ -82,6 +89,7 @@ object PushNotifications {
                 .addExtras(
                     android.os.Bundle().apply {
                         putInt("noted_revision", payload.optInt("revision"))
+                        putString("noted_token", token(payload))
                     },
                 )
         val revision = payload.optInt("revision")

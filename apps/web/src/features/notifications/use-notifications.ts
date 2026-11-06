@@ -30,6 +30,15 @@ export function useNotifications() {
       document.hasFocus() &&
       Date.now() - lastInput < IDLE_AFTER_MS;
     const heartbeat = () => {
+      if ("serviceWorker" in navigator)
+        void navigator.serviceWorker
+          .getRegistration("/")
+          .then((registration) => {
+            registration?.active?.postMessage({
+              type: "noted:reconcile-notifications",
+            });
+          })
+          .catch(() => {});
       reported = present();
       void request("/notifications/presence", "POST", {
         ...device,
@@ -43,7 +52,25 @@ export function useNotifications() {
     };
     heartbeat();
     const timer = window.setInterval(heartbeat, 15000);
+    let reconcileTimer: number | undefined;
+    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
+      if (reconcileTimer !== undefined) return;
+      reconcileTimer = window.setTimeout(() => {
+        reconcileTimer = undefined;
+        if ("serviceWorker" in navigator)
+          void navigator.serviceWorker
+            .getRegistration("/")
+            .then((registration) => {
+              registration?.active?.postMessage({
+                type: "noted:reconcile-notifications",
+              });
+            })
+            .catch(() => {});
+      }, 750);
+    });
     window.addEventListener("focus", heartbeat);
+    window.addEventListener("online", heartbeat);
+    window.addEventListener("pageshow", heartbeat);
     window.addEventListener("blur", heartbeat);
     document.addEventListener("visibilitychange", heartbeat);
     for (const name of ACTIVITY_EVENTS)
@@ -80,7 +107,11 @@ export function useNotifications() {
     }
     return () => {
       window.clearInterval(timer);
+      window.clearTimeout(reconcileTimer);
+      unsubscribe();
       window.removeEventListener("focus", heartbeat);
+      window.removeEventListener("online", heartbeat);
+      window.removeEventListener("pageshow", heartbeat);
       window.removeEventListener("blur", heartbeat);
       document.removeEventListener("visibilitychange", heartbeat);
       for (const name of ACTIVITY_EVENTS)

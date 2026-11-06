@@ -300,13 +300,17 @@ def finish_reply(
     from app.threads.service import ThreadService
 
     finished = {**output}
+    from app.ai.assistant.actions import review_actions
+
+    with Session(engine) as db:
+        finished = review_actions(db, owner_id, finished)
     finished["rewrites"] = [
         {"id": str(numbered[item["number"]]), "text": item["text"]}
         for item in output.get("rewrites") or []
         if item.get("number") in numbered
     ]
     reply = (output.get("reply") or "").strip()
-    if reply and reply_to is not None:
+    if reply and reply_to is not None and not finished.get("posts"):
         with Session(engine) as db:
             message = ThreadService(db).reply(reply_to, owner_id, MessageCreate(content=reply))
             message.ai_generated = True

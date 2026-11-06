@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -39,6 +39,18 @@ from app.reminders.schemas import ReminderAction
 from app.reminders.service import ReminderService
 
 router = APIRouter(prefix="/notifications/android", tags=["notifications"])
+
+
+@router.get("/reconcile")
+def reconcile(
+    items: list[str] = Query(default=[], max_length=100),
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+) -> dict[str, list[str]]:
+    from app.notifications.reconciliation import stale_notifications
+
+    _, session = authenticate_device(db, authorization)
+    return {"stale": stale_notifications(db, session.user_id, items)}
 
 
 def require_configuration(settings: Settings) -> FirebaseConfiguration:

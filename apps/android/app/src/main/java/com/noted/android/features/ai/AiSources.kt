@@ -4,7 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.noted.android.data.*
@@ -15,9 +17,14 @@ import org.json.JSONObject
 fun AiSources(repository: NativeRepository, sources: List<JSONObject>) {
     val context = LocalContext.current
     val navigate = LocalNotedNavigate.current
-    if (sources.isNotEmpty()) Column {
-        SectionTitle("Sources")
-        sources.forEach { source ->
+    var expanded by remember { mutableStateOf(false) }
+    val unique = sources.distinctBy { it.text("url") }
+    if (unique.isNotEmpty()) Column {
+        NotedTextButton({ expanded = !expanded }) {
+            Text("${unique.size} ${if (unique.size == 1) "source" else "sources"}")
+            Icon(if (expanded) NotedIcons.ChevronUp else NotedIcons.ChevronDown, null, Modifier.padding(start = 6.dp).size(16.dp))
+        }
+        if (expanded) unique.forEach { source ->
             val raw = source.text("url")
             val url = if (raw.startsWith('/') && !raw.startsWith("//")) repository.api.origin + raw else raw
             NotedTextButton({

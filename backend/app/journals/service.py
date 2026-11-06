@@ -49,9 +49,10 @@ class JournalService:
         self.db.refresh(entry)
         return entry
 
-    def remove(self, entry_id: UUID, owner_id: UUID, revision: int) -> None:
+    def remove(self, entry_id: UUID, owner_id: UUID, revision: int, *, commit: bool = True) -> None:
         entry = self.get(entry_id, owner_id, lock=True)
         if entry.revision != revision:
             raise ConflictError("This entry changed. Reload it before deleting.")
         self.db.delete(entry)
-        self.db.commit()
+        if commit:
+            self.db.commit()

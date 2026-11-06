@@ -3,7 +3,7 @@ package com.noted.android.features.ai
 import com.noted.android.data.*
 import org.json.JSONObject
 
-val assistantGroups = listOf("plans", "habits", "meals", "rewrites")
+val assistantGroups = listOf("plans", "habits", "meals", "rewrites", "posts", "deletions")
 
 fun assistantSelection(proposal: JSONObject?): Set<String> = assistantGroups.flatMap { group ->
     proposal?.rows(group).orEmpty().indices.map { "$group-$it" }

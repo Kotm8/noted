@@ -1,4 +1,5 @@
 import { Menu as MenuIcon, MoreHorizontal, Search } from "lucide-react";
+import { AssistantButton } from "../../ai/assistant/assistant-button";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { ChannelIcon } from "./channel-icon";
 import type { Channel, OpenManagement, Workspace } from "../types";
@@ -45,6 +46,7 @@ export function ChannelHeader({
       </div>
 
       <div className="header-actions">
+        <AssistantButton />
         <button
           className="icon-button"
           aria-label="Open search"

@@ -110,6 +110,10 @@ class NativeRepository(private val context: Context) {
         session.value?.let { local.cached(it.partition, path) }
     }
 
+    suspend fun cachedAt(path: String): Long? = withContext(Dispatchers.IO) {
+        session.value?.let { local.savedAt(it.partition, path) }
+    }
+
     suspend fun fetch(path: String): String {
         val account = session.value ?: error("Sign in first.")
         val client = api

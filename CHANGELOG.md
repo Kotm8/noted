@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.3
+
+- Ask AI is available in the top-right header on Home, Calendar, Habits, Nutrition and every channel type.
+- The assistant can prepare Markdown posts for another project and channel, showing the destination and message for approval before posting. Successful posts include a link to the created message.
+- Review and confirm assistant deletions of messages, journal entries and calendar plans. Repeating plans require choosing an occurrence or the series; documents and whole channels are excluded.
+- The assistant preserves drafts and pending proposals when closed or restarted, supports resizing on desktop, copies Markdown drafts, and keeps your reading position while replies stream. Sources collapse behind a deduplicated count.
+- Notification reconciliation removes obsolete alerts after actions on another device and reconnecting. Android validates queued notifications before displaying them; manual activity changes settle outstanding task-switch prompts.
+- Day off backgrounds fill the calendar row to the sidebar. Message selection includes timestamps and minute markers.
+- Native Android Home uses tiles for tracking, reminders, habits and nutrition, with session editing, reminder actions, habit progress controls and meal logging. The assistant shares the reviewed posting and deletion actions and preserves unfinished conversations.
+
 ## 0.4.2
 
 - **One assistant.** ✨ on a message, or Ask AI on a selection, opens the sidebar assistant with those messages attached. You don't choose Rewrite, Reply or Draft anymore: ask in your own words. Rewrites preview in place and are applied with Undo. Drafts go into the message box with one tap. Saved prompts appear as quick chips.

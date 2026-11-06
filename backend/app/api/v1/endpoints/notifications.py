@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.auth.services.sessions import AuthenticatedSession
@@ -23,6 +23,17 @@ from app.notifications.service import (
 )
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+@router.get("/reconcile")
+def reconcile(
+    items: list[str] = Query(default=[], max_length=100),
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> dict[str, list[str]]:
+    from app.notifications.reconciliation import stale_notifications
+
+    return {"stale": stale_notifications(db, current.user.id, items)}
 
 
 @router.post("/test", response_model=PushTestResult)

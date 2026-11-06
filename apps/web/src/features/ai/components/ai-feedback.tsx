@@ -1,4 +1,4 @@
-import { BookOpen, Globe, LoaderCircle } from "lucide-react";
+import { BookOpen, Globe, LoaderCircle, ChevronDown } from "lucide-react";
 import type { AiSource } from "../api";
 import type { AiResult } from "../use-ai-run";
 
@@ -56,37 +56,55 @@ export function AiThinking({
 }
 
 export function AiSources({ sources }: { sources: AiSource[] }) {
-  if (!sources.length) return null;
+  const unique = [
+    ...new Map(sources.map((source) => [source.url, source])).values(),
+  ].filter((source) => {
+    try {
+      return ["http:", "https:"].includes(
+        new URL(source.url, window.location.origin).protocol,
+      );
+    } catch {
+      return false;
+    }
+  });
+  if (!unique.length) return null;
   return (
-    <div className="ai-sources" aria-label="Sources">
-      {sources.map((source) => {
-        const internal = /^\/w\/[0-9a-f-]{36}\/c\/[0-9a-f-]{36}(?:\?|$)/.test(
-          source.url,
-        );
-        let host: string;
-        try {
-          const url = new URL(source.url, window.location.origin);
-          if (!internal && !["https:", "http:"].includes(url.protocol))
+    <details className="ai-source-disclosure">
+      <summary>
+        <BookOpen size={14} />
+        {unique.length} {unique.length === 1 ? "source" : "sources"}
+        <ChevronDown size={14} />
+      </summary>
+      <div className="ai-sources" aria-label="Sources">
+        {unique.map((source) => {
+          const internal = /^\/w\/[0-9a-f-]{36}\/c\/[0-9a-f-]{36}(?:\?|$)/.test(
+            source.url,
+          );
+          let host: string;
+          try {
+            const url = new URL(source.url, window.location.origin);
+            if (!internal && !["https:", "http:"].includes(url.protocol))
+              return null;
+            host = internal ? source.title : url.hostname.replace(/^www\./, "");
+          } catch {
             return null;
-          host = internal ? source.title : url.hostname.replace(/^www\./, "");
-        } catch {
-          return null;
-        }
-        return (
-          <a
-            key={source.url}
-            href={source.url}
-            target="_blank"
-            rel="noreferrer"
-            title={source.title}
-          >
-            <span>
-              {internal ? <BookOpen size={13} /> : host[0].toUpperCase()}
-            </span>
-            {host}
-          </a>
-        );
-      })}
-    </div>
+          }
+          return (
+            <a
+              key={source.url}
+              href={source.url}
+              target="_blank"
+              rel="noreferrer"
+              title={source.title}
+            >
+              <span>
+                {internal ? <BookOpen size={13} /> : host[0].toUpperCase()}
+              </span>
+              {host}
+            </a>
+          );
+        })}
+      </div>
+    </details>
   );
 }

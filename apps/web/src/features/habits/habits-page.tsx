@@ -10,10 +10,10 @@ import {
   Clock,
   Menu,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
+import { AssistantButton } from "../ai/assistant/assistant-button";
 import { Notice } from "../../components/ui/notice";
 import { liveInterval } from "../../lib/live";
 import { useWorkspaceShell } from "../workspaces/shell-context";
@@ -148,16 +148,9 @@ export function HabitsPage() {
           <CheckSquare size={18} />
           <h1>Habits</h1>
         </div>
-        <Button
-          variant="ghost"
-          size="small"
-          onClick={() =>
-            window.dispatchEvent(new Event("noted:assistant-open"))
-          }
-        >
-          <Sparkles size={15} />
-          Ask AI
-        </Button>
+        <div className="header-actions">
+          <AssistantButton />
+        </div>
       </header>
       <div className="habits-scroll">
         <div className="habits-heading">

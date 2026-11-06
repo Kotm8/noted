@@ -103,6 +103,7 @@
   font-size: var(--font-xs);
 }
 .schedule-content {
+  --schedule-inset: 26px;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -248,7 +249,9 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-bottom: 5px;
+  margin-left: calc(-1 * var(--schedule-inset));
+  margin-right: calc(-1 * var(--schedule-inset));
+  padding: 0 var(--schedule-inset) 5px;
 }
 .schedule-grid {
   min-width: 1080px;
@@ -324,6 +327,12 @@
 .schedule-activity-grid.is-day-off .schedule-activity-row,
 .schedule-day-strip button.is-day-off {
   background-color: color-mix(in srgb, var(--surface-main) 96%, white);
+}
+.schedule-week-row.is-day-off {
+  box-shadow:
+    calc(-1 * var(--schedule-inset)) 0
+      color-mix(in srgb, var(--surface-main) 96%, white),
+    var(--schedule-inset) 0 color-mix(in srgb, var(--surface-main) 96%, white);
 }
 .schedule-day-kind {
   font-size: calc(10px * var(--text-scale, 1));
@@ -942,6 +951,7 @@ input.time-input[aria-invalid="true"] {
 @media (max-width: 1050px) {
   .schedule-content {
     padding-inline: 17px;
+    --schedule-inset: 17px;
   }
   .schedule-header .channel-heading > span {
     display: none;
@@ -950,6 +960,7 @@ input.time-input[aria-invalid="true"] {
 @media (max-width: 760px) {
   .schedule-content {
     padding: 20px 13px;
+    --schedule-inset: 13px;
   }
   .schedule-toolbar {
     gap: 16px;

@@ -1,4 +1,5 @@
 import { useAssistant } from "../ai/assistant/context";
+import { AssistantButton } from "../ai/assistant/assistant-button";
 import { liveInterval } from "../../lib/live";
 import {
   useCallback,
@@ -26,7 +27,6 @@ import {
   Settings,
   Square,
   Timer,
-  Sparkles,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { toast } from "sonner";
@@ -550,13 +550,16 @@ export function ScheduleBoard({
             <h1>Schedule</h1>
             <span>One calendar. All your activities.</span>
           </div>
-          <button
-            className="icon-button"
-            aria-label="Time tracking settings"
-            onClick={onSettings}
-          >
-            <Settings size={18} />
-          </button>
+          <div className="header-actions">
+            <AssistantButton />
+            <button
+              className="icon-button"
+              aria-label="Time tracking settings"
+              onClick={onSettings}
+            >
+              <Settings size={18} />
+            </button>
+          </div>
         </header>
         <div
           className={`schedule-content${planner.open && ai.data?.connected ? " calendar-ai-open" : ""}`}
@@ -612,19 +615,6 @@ export function ScheduleBoard({
               </Button>
             </div>
             <div className="schedule-toolbar-actions">
-              {ai.data?.connected && (
-                <Button
-                  variant="ghost"
-                  size="small"
-                  onClick={() =>
-                    window.dispatchEvent(new Event("noted:assistant-open"))
-                  }
-                  aria-expanded={planner.open}
-                >
-                  <Sparkles size={15} />
-                  {planner.proposals.length ? "Review plans" : "Ask AI"}
-                </Button>
-              )}
               <SaveDayTemplate date={date} timezone={preferences.timezone} />
               {mode === "day" && (
                 <DayTemplatePicker

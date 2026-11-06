@@ -8,9 +8,9 @@ import {
   LoaderCircle,
   Menu,
   Settings2,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { AssistantButton } from "../ai/assistant/assistant-button";
 import { Notice } from "../../components/ui/notice";
 import { liveInterval } from "../../lib/live";
 import { useAiPreferences, useAiStatus } from "../ai/queries";
@@ -88,28 +88,22 @@ export function NutritionPage() {
           </span>
         )}
       </div>
-      {status.data?.connected && state.data?.target && !setup && !turnedOff && (
-        <div className="header-actions">
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={() =>
-              window.dispatchEvent(new Event("noted:assistant-open"))
-            }
-          >
-            <Sparkles size={15} />
-            Ask AI
-          </Button>
-          <button
-            className="icon-button"
-            aria-label="Targets and profile"
-            title="Targets and profile"
-            onClick={() => setSetup(true)}
-          >
-            <Settings2 size={17} />
-          </button>
-        </div>
-      )}
+      <div className="header-actions">
+        <AssistantButton />
+        {status.data?.connected &&
+          state.data?.target &&
+          !setup &&
+          !turnedOff && (
+            <button
+              className="icon-button"
+              aria-label="Targets and profile"
+              title="Targets and profile"
+              onClick={() => setSetup(true)}
+            >
+              <Settings2 size={17} />
+            </button>
+          )}
+      </div>
     </header>
   );
 

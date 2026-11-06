@@ -30,12 +30,13 @@ class SearchService:
         sort: Literal["newest", "oldest"],
         limit: int,
         offset: int,
+        kind: Literal["message", "journal", "document"] | None = None,
     ) -> SearchPage:
         query = query.strip()
         if len(query) < 2:
             raise ValidationError("Enter at least two characters to search.")
         records, total = self.repository.search(
-            owner_id, query, workspace_id, channel_id, sort, limit, offset
+            owner_id, query, workspace_id, channel_id, sort, limit, offset, kind
         )
         return SearchPage(
             items=[

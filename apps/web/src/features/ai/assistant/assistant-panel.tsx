@@ -1,9 +1,13 @@
 import { FieldChanges } from "./field-changes";
+import { ActionProposals } from "./action-proposals";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { scheduleApi } from "../../schedule/api";
 import { useTracking } from "../../time-tracking/use-tracking";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowUp,
+  ArrowDown,
+  Copy,
   BookmarkCheck,
   Check,
   History,
@@ -32,6 +36,7 @@ import { Button } from "../../../components/ui/button";
 import { Notice } from "../../../components/ui/notice";
 import { DatePicker } from "../../../components/ui/date-picker";
 import { useAndroidBackLayer } from "../../../lib/android-navigation";
+import { toast } from "sonner";
 import { habitsApi } from "../../habits/api";
 import { dayLabel, minuteLabel } from "../../schedule/dates";
 import type { useSharedAssistant } from "./use-assistant";
@@ -61,10 +66,50 @@ export function AssistantPanel({
   const scroll = useRef<HTMLDivElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const following = useRef(true);
+  const position = useRef(0);
+  const [away, setAway] = useState(false);
+  const [confirmDeletion, setConfirmDeletion] = useState(false);
+  const [width, setWidth] = useState(() =>
+    Math.max(
+      300,
+      Math.min(
+        window.innerWidth - 640,
+        Number(localStorage.getItem("noted.assistant-width")) || 360,
+      ),
+    ),
+  );
+  useEffect(() => {
+    const resize = () =>
+      setWidth((value) =>
+        Math.max(300, Math.min(window.innerWidth - 640, value)),
+      );
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--assistant-width",
+      `${width}px`,
+    );
+    localStorage.setItem("noted.assistant-width", String(width));
+  }, [width]);
   useAndroidBackLayer(a.open, () => a.setOpen(false));
   useEffect(() => {
-    scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
+    if (following.current)
+      scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [a.proposal, a.busy, a.turns.length, a.streaming]);
+  useEffect(() => {
+    following.current = true;
+    setAway(false);
+    scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
+  }, [a.chatId]);
+  useLayoutEffect(() => {
+    if (a.open && scroll.current)
+      scroll.current.scrollTop = following.current
+        ? scroll.current.scrollHeight
+        : position.current;
+  }, [a.open]);
   useEffect(() => {
     if (a.focusRequest) requestAnimationFrame(() => input.current?.focus());
   }, [a.focusRequest]);
@@ -77,8 +122,17 @@ export function AssistantPanel({
     ? a.proposal.habits.length +
       a.proposal.plans.length +
       a.proposal.meals.length +
-      (a.proposal.rewrites?.length ?? 0)
+      (a.proposal.rewrites?.length ?? 0) +
+      (a.proposal.posts?.length ?? 0) +
+      (a.proposal.deletions?.length ?? 0)
     : 0;
+  const missingDeletionScope = (a.proposal?.deletions ?? []).some(
+    (item, i) =>
+      a.selected.has(`delete-${i}`) &&
+      item.kind === "plan" &&
+      item.target?.frequency !== "none" &&
+      (!item.scope || (item.scope === "occurrence" && !item.occurrence_date)),
+  );
   const habits = useQuery({
     queryKey: ["habits", "assistant-context", a.scope?.start, a.scope?.end],
     queryFn: () => habitsApi.board(a.scope!.start, a.scope!.end),
@@ -109,6 +163,51 @@ export function AssistantPanel({
         }
       }}
     >
+      <div
+        className="shared-ai-resize"
+        role="separator"
+        aria-label="Resize assistant"
+        aria-orientation="vertical"
+        aria-valuenow={width}
+        aria-valuemin={300}
+        aria-valuemax={Math.max(300, window.innerWidth - 640)}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            setWidth((current) =>
+              Math.max(
+                300,
+                Math.min(
+                  window.innerWidth - 640,
+                  current + (event.key === "ArrowLeft" ? 20 : -20),
+                ),
+              ),
+            );
+          }
+        }}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          const target = event.currentTarget;
+          target.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId))
+            setWidth(
+              Math.max(
+                300,
+                Math.min(
+                  window.innerWidth - 640,
+                  window.innerWidth - event.clientX,
+                ),
+              ),
+            );
+        }}
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+      />
       <header>
         <Sparkles size={16} />
         <strong>Assistant</strong>
@@ -173,7 +272,17 @@ export function AssistantPanel({
           <X size={18} />
         </button>
       </header>
-      <div className="shared-ai-scroll" ref={scroll}>
+      <div
+        className="shared-ai-scroll"
+        ref={scroll}
+        onScroll={(event) => {
+          const el = event.currentTarget;
+          position.current = el.scrollTop;
+          following.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 64;
+          setAway(!following.current);
+        }}
+      >
         {a.scope && !a.attached && (
           <details className="shared-ai-range">
             <summary>
@@ -248,6 +357,21 @@ export function AssistantPanel({
                 <div className="shared-ai-draft">
                   <small>Draft</small>
                   <Markdown content={turn.proposal.draft} />
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={() => {
+                      void navigator.clipboard
+                        .writeText(turn.proposal!.draft!)
+                        .then(
+                          () => toast.success("Draft copied"),
+                          () => toast.error("Could not copy draft"),
+                        );
+                    }}
+                  >
+                    <Copy size={14} />
+                    Copy draft
+                  </Button>
                   {a.attached && i === a.turns.length - 1 && (
                     <Button
                       size="small"
@@ -274,6 +398,14 @@ export function AssistantPanel({
                   Changes applied
                 </small>
               )}
+              {i < a.turns.length - 1 &&
+                turn.proposal?.action_results
+                  ?.filter((item) => item.ok && item.url)
+                  .map((item) => (
+                    <a key={item.key} href={item.url}>
+                      Open posted message
+                    </a>
+                  ))}
               {i < a.turns.length - 1 && turn.sources && (
                 <AiSources sources={turn.sources} />
               )}
@@ -521,9 +653,24 @@ export function AssistantPanel({
           </div>
         )}
         <AiSources sources={a.sources} />
+        <ActionProposals assistant={a} />
         {a.error && <Notice tone="error">{a.error}</Notice>}
       </div>
       <div className="shared-ai-bottom">
+        {away && (
+          <button
+            type="button"
+            className="shared-ai-latest"
+            onClick={() => {
+              following.current = true;
+              setAway(false);
+              scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
+            }}
+          >
+            <ArrowDown size={14} />
+            Latest messages
+          </button>
+        )}
         {changeCount > 0 && (
           <div className="shared-ai-review">
             {a.applied ? (
@@ -539,9 +686,18 @@ export function AssistantPanel({
                     a.applying ||
                     a.busy ||
                     !a.selected.size ||
+                    missingDeletionScope ||
                     (a.conflicts.size > 0 && !a.retryPending)
                   }
-                  onClick={() => void a.apply()}
+                  onClick={() => {
+                    if (
+                      (a.proposal?.deletions ?? []).some((_, i) =>
+                        a.selected.has(`delete-${i}`),
+                      )
+                    )
+                      setConfirmDeletion(true);
+                    else void a.apply();
+                  }}
                 >
                   {a.applying
                     ? "Applying…"
@@ -708,6 +864,25 @@ export function AssistantPanel({
           )}
         </form>
       </div>
+      <ConfirmDialog
+        open={confirmDeletion}
+        title="Apply changes and delete these items?"
+        description={(a.proposal?.deletions ?? [])
+          .filter((_, i) => a.selected.has(`delete-${i}`))
+          .map(
+            (item) =>
+              `${item.target?.title ?? item.kind}${item.kind === "plan" ? ` (${item.scope === "occurrence" ? item.occurrence_date : "entire series"})` : ""}`,
+          )
+          .join("; ")}
+        keepLabel="Keep reviewing"
+        confirmLabel="Confirm and apply"
+        pending={a.applying}
+        onClose={() => setConfirmDeletion(false)}
+        onConfirm={() => {
+          setConfirmDeletion(false);
+          void a.apply(true);
+        }}
+      />
     </aside>
   );
 }

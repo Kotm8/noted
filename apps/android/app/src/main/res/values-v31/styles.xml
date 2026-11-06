@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.Noted" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#E2C15A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">#1F1F1F</item>
+        <item name="android:statusBarColor">#1F1F1F</item>
+        <item name="android:navigationBarColor">#1F1F1F</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowSplashScreenBackground">#1F1F1F</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_brand</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#1F1F1F</item>
+    </style>
+</resources>

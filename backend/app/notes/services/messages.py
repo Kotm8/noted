@@ -1,7 +1,7 @@
 import re
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ from app.notes.schemas import (
 from app.notes.versions.models import MessageVersion
 from app.notes.versions.service import keep_version, version, versions
 from app.publishing.repository import complete_writing
+from app.reminders.models import Reminder
 from app.reminders.service import attach_reminder
 from app.workspaces.models import Channel
 from app.workspaces.services.channels import ChannelService
@@ -108,7 +109,9 @@ class MessageService:
             ),
         )
 
-    def create_message(self, channel_id: UUID, data: MessageCreate, owner_id: UUID) -> Message:
+    def create_message(
+        self, channel_id: UUID, data: MessageCreate, owner_id: UUID, *, commit: bool = True
+    ) -> Message:
         channel = self.channels.get_channel(channel_id, owner_id)
         if (sent := self.repository.sent(owner_id, data.client_id)) is not None:
             return sent
@@ -116,6 +119,9 @@ class MessageService:
         message = self.repository.create(channel_id, owner_id, content, client_id=data.client_id)
         attach_reminder(self.db, message, data.reminder)
         complete_writing(self.db, channel_id, utc_now())
+        if not commit:
+            self.db.flush()
+            return message
         try:
             self.db.commit()
         except IntegrityError:
@@ -157,13 +163,21 @@ class MessageService:
             owner_id,
         )
 
-    def delete_message(self, message_id: UUID, owner_id: UUID) -> None:
+    def delete_message(self, message_id: UUID, owner_id: UUID, *, commit: bool = True) -> None:
         message = self.get_message(message_id, owner_id, lock=True)
         message.deleted_at = utc_now()
         self.db.execute(
             update(Message)
             .where(Message.thread_root_id == message.id)
             .values(deleted_at=message.deleted_at)
+        )
+        deleted = select(Message.id).where(
+            (Message.id == message.id) | (Message.thread_root_id == message.id)
+        )
+        self.db.execute(
+            update(Reminder)
+            .where(Reminder.message_id.in_(deleted), Reminder.status == "active")
+            .values(status="done", revision=Reminder.revision + 1)
         )
         mark(
             self.db,
@@ -172,7 +186,8 @@ class MessageService:
             channel=message.channel_id,
             thread=message.thread_root_id or message.id,
         )
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
     def responses(self, messages: list[Message]) -> list[MessageResponse]:
         summaries = (

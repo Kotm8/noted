@@ -30,7 +30,7 @@ fun TrackedToday(repository: NativeRepository, sessions: List<JSONObject>, activ
     }.sortedBy { it.from }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Tracked today", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text("Total", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = NotedStyle.colors.muted)
             if (tracked.isNotEmpty()) Text(duration(tracked.sumOf { it.seconds }), color = NotedStyle.colors.secondary)
         }
         if (tracked.isEmpty()) Text("Nothing tracked yet today.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -63,24 +63,27 @@ private fun SessionEditor(repository: NativeRepository, session: JSONObject, act
         }
         return
     }
-    EditorSheet("Tracked session", close, enabled = activity.isNotBlank(), save = {
-        require(end > start) { "End time must follow start time." }
-        fun at(minute: Int) = day.atStartOfDay(zone).plusMinutes(minute.toLong()).toOffsetDateTime().toString()
-        repository.mutate("/time-tracking/sessions/$id", "PUT", json("activity_id" to activity, "started_at" to at(start),
-            "ended_at" to at(end), "revision" to session.optInt("revision")))
-        close()
-    }) {
+    val actions = rememberActions()
+    DesignSheet(close, "Tracked session") {
+        DesignLabel("Activity")
         Choice("Activity", activity, activities.filter { !it.optBoolean("archived") || it.text("id") == activity }
             .map { it.text("id") to it.text("name") }) { activity = it }
-        TimeField("Started", start) { start = it }
-        TimeField("Ended", end) { end = it }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.weight(1f)) { TimeField("Started", start) { start = it } }
+            Box(Modifier.weight(1f)) { TimeField("Ended", end) { end = it } }
+        }
         NotedTextButton(onClick = { deleting = true }) { Text("Delete session", color = MaterialTheme.colorScheme.error) }
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton(close, Modifier.weight(1f)) { Text("Cancel") }
+            PillButton({ actions.run {
+                require(end > start) { "End time must follow start time." }
+                fun at(minute: Int) = day.atStartOfDay(zone).plusMinutes(minute.toLong()).toOffsetDateTime().toString()
+                repository.mutate("/time-tracking/sessions/$id", "PUT", json("activity_id" to activity, "started_at" to at(start),
+                    "ended_at" to at(end), "revision" to session.optInt("revision")))
+                close()
+            } }, Modifier.weight(1f), primary = true, enabled = activity.isNotBlank() && end > start && !actions.busy) { Text("Save") }
+        }
     }
 }
 
 private fun clock(time: ZonedDateTime) = "%02d:%02d".format(time.hour, time.minute)
-
-private fun duration(seconds: Long): String {
-    val minutes = seconds / 60
-    return if (minutes < 1) "under a minute" else if (minutes < 60) "$minutes min" else "${minutes / 60} h ${minutes % 60} min"
-}

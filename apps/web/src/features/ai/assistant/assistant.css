@@ -3,7 +3,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 360px;
+  width: var(--assistant-width, 360px);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -11,17 +11,93 @@
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-sidebar);
 }
+.shared-ai-resize {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.shared-ai-resize:hover,
+.shared-ai-resize:focus-visible {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.shared-ai-latest {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 auto 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  color: var(--text-primary);
+  background: var(--surface-floating);
+  cursor: pointer;
+}
+.shared-ai-action {
+  border: 1px solid var(--border-default);
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+.shared-ai-action > label,
+.shared-ai-action-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.shared-ai-action > label {
+  flex-direction: row;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.shared-ai-action > label > input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin: 0;
+  padding: 0;
+  flex: none;
+}
+.shared-ai-action > small {
+  color: var(--text-muted);
+}
+.shared-ai-action details {
+  max-height: 240px;
+  overflow: auto;
+}
+.shared-ai-action-result {
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.shared-ai-action-result a {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--accent);
+}
+@media (max-width: 600px) {
+  .shared-ai-resize {
+    display: none;
+  }
+}
 .app-shell.assistant-open .main-panel {
-  margin-right: 360px;
+  margin-right: var(--assistant-width, 360px);
 }
 /* With a thread or journal open too, the whole layout makes room for the assistant, so the
    thread stays beside it instead of underneath. */
 .app-shell.assistant-open.writing-open {
-  padding-right: 360px;
+  padding-right: var(--assistant-width, 360px);
   grid-template-columns: 64px 244px minmax(240px, 1fr) clamp(
       320px,
       var(--writing-width, 420px),
-      calc(100vw / var(--ui-zoom, 1) - 908px)
+      calc(100vw / var(--ui-zoom, 1) - 548px - var(--assistant-width, 360px))
     );
 }
 .app-shell.assistant-open.writing-open .main-panel {
@@ -31,7 +107,7 @@
   grid-template-columns: 64px 244px minmax(0, 1fr);
 }
 .app-shell.assistant-open[data-writing-overlay="true"] .writing-sidebar {
-  right: 360px;
+  right: var(--assistant-width, 360px);
 }
 .shared-ai-panel > header {
   display: flex;

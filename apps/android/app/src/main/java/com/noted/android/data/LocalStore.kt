@@ -23,6 +23,12 @@ class LocalStore(context: Context) : SQLiteOpenHelper(context, "noted-native.db"
     }
 
     @Synchronized
+    fun savedAt(account: String, path: String): Long? = readableDatabase.rawQuery(
+        "SELECT saved FROM cache WHERE account=? AND path=?", arrayOf(account, path)).use {
+        if (it.moveToFirst()) it.getLong(0) else null
+    }
+
+    @Synchronized
     fun save(account: String, path: String, body: String) {
         writableDatabase.insertWithOnConflict("cache", null, ContentValues().apply {
             put("account", account); put("path", path); put("body", body); put("saved", System.currentTimeMillis())

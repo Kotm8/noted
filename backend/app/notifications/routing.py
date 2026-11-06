@@ -128,6 +128,7 @@ def deliver(
         result = send_push(subscription, private_key, origin, payload, ttl=ttl, settings=settings)
         if result == "accepted":
             row.delivered_at = now
+            row.retry_at = now
         elif result == "expired":
             db.delete(subscription)
     db.flush()
@@ -151,13 +152,13 @@ def dismiss_handled(
         select(model, PushSubscription)
         .join(PushSubscription, PushSubscription.id == model.subscription_id)
         .join(item_model, linked)
-        .where(handled, shown)
+        .where(handled, shown, model.retry_at <= utc_now())
         .limit(100)
     ).all()
     for delivery, subscription in rows:
-        db.delete(delivery)
         # Browsers must show something for every push, so they are not sent silent clears.
         if not subscription.endpoint.startswith("fcm:"):
+            db.delete(delivery)
             continue
         payload = json.dumps(
             {
@@ -168,6 +169,12 @@ def dismiss_handled(
             }
         )
         private_key = key.private_key if key else ""
-        send_push(subscription, private_key, origin, payload, settings=settings, urgent=False)
+        result = send_push(
+            subscription, private_key, origin, payload, settings=settings, urgent=False
+        )
+        if result in {"accepted", "expired"}:
+            db.delete(delivery)
+        else:
+            delivery.retry_at = utc_now() + timedelta(seconds=30)
     db.execute(delete(model).where(linked, handled, ~shown))
     db.commit()

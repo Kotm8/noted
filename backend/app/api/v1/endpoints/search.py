@@ -19,11 +19,12 @@ def search_notes(
     workspace_id: UUID | None = None,
     channel_id: UUID | None = None,
     sort: Literal["newest", "oldest"] = "newest",
+    kind: Literal["message", "journal", "document"] | None = None,
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> SearchPage:
     return SearchService(db).search(
-        current.user.id, q, workspace_id, channel_id, sort, limit, offset
+        current.user.id, q, workspace_id, channel_id, sort, limit, offset, kind
     )

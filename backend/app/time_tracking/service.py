@@ -28,6 +28,25 @@ class TrackingService:
         self.db = db
         self.repository = TrackingRepository(db)
 
+    def settle_prompts(self, owner_id: UUID, activity_id: UUID | None) -> None:
+        from app.schedule.prompts.models import PlanPrompt
+
+        active = self.repository.active(owner_id)
+        for prompt in self.db.scalars(
+            select(PlanPrompt).where(
+                PlanPrompt.owner_id == owner_id,
+                PlanPrompt.status == "pending",
+                PlanPrompt.notify_at <= utc_now(),
+            )
+        ):
+            prompt.status = (
+                "started"
+                if prompt.phase == "start" and prompt.activity_id == activity_id
+                else "superseded"
+            )
+            prompt.tracked_session_id = active.id if active else None
+            prompt.revision += 1
+
     def read(self, owner_id: UUID) -> TrackerResponse:
         state = self.repository.lock(owner_id)
         active = self.repository.active(owner_id)
@@ -79,6 +98,7 @@ class TrackingService:
                     nudges.start(owner_id, activity.id, config, now)
                     state.revision += 1
                 state.last_request_id = data.request_id
+                self.settle_prompts(owner_id, data.activity_id)
                 return self.read(owner_id)
         nudges = NudgeService(self.db)
         if data.action in {"start", "stop"}:
@@ -126,6 +146,9 @@ class TrackingService:
         state.revision += 1
         state.last_request_id = data.request_id
         self.db.flush()
+        if data.action in {"start", "stop", "resume"}:
+            active = self.repository.active(owner_id)
+            self.settle_prompts(owner_id, active.activity_id if active else None)
         return self.read(owner_id)
 
     def preferences(self, owner_id: UUID, data: TrackingPreferencesUpdate) -> TrackerResponse:

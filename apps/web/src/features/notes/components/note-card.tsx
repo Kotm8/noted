@@ -122,7 +122,7 @@ export function NoteCard({
         {note.ai_generated && (
           <span className="note-ai-tag" title="Written by the assistant">
             <Sparkles size={11} />
-            AI reply
+            Assistant
           </span>
         )}
         {note.reminder ? (

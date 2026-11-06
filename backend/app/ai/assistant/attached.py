@@ -22,6 +22,8 @@ INSTRUCTIONS = (
     "it's posted in the thread right away, so write it as the finished reply, without preamble. "
     "When they want a message to send themselves, return it in draft. Otherwise just answer in "
     "the explanation. Keep the explanation short when you return a rewrite, reply or draft."
+    " Requests to post to a different channel use posts and require review, independently of "
+    "these attachments. Do not also return a thread reply for that request."
 )
 
 

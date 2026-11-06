@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 from uuid import UUID
 
 from anyio import to_thread
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.ai.assistant import chats
 from app.ai.assistant.models import AiMemory, AssistantChat, AssistantTurn
 from app.ai.assistant.schemas import (
+    AssistantActions,
     AssistantApply,
     AssistantRequest,
     ChatSummary,
@@ -71,7 +73,12 @@ async def ask(
                         item["output"],
                     )
                 except (NotFoundError, ValidationError) as error:
-                    item["output"] = {**item["output"], "reply_error": str(error)}
+                    item["output"] = {
+                        **item["output"],
+                        "posts": [],
+                        "deletions": [],
+                        "reply_error": str(error),
+                    }
                 turn_id = await to_thread.run_sync(
                     chats.record_reply, engine, chat_id, current.user.id, item
                 )
@@ -94,6 +101,17 @@ def apply(
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> dict[str, list[str]]:
     return apply_changes(db, current.user.id, data)
+
+
+@router.post("/apply-actions")
+def apply_message_actions(
+    data: AssistantActions,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> dict[str, Any]:
+    from app.ai.assistant.actions import apply_actions
+
+    return apply_actions(db, current.user.id, data)
 
 
 @router.get("/chats", response_model=list[ChatSummary])

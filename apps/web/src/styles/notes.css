@@ -507,6 +507,11 @@
 .note-entry[data-note-id] {
   position: relative;
 }
+.note-entry[data-note-id] .note-time,
+.note-entry[data-note-id] .note-minute-marker {
+  cursor: pointer;
+  user-select: none;
+}
 .note-gutter {
   position: absolute;
   top: 0;

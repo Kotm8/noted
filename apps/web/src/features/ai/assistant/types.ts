@@ -49,6 +49,46 @@ export interface AssistantProposal {
   draft?: string | null;
   posted?: PostedReply;
   reply_error?: string;
+  posts?: MessagePost[];
+  deletions?: ItemDeletion[];
+  action_results?: ActionResult[];
+}
+export interface MessagePost {
+  channel_id: string;
+  text: string;
+  destination?: {
+    channel_name: string;
+    category_name?: string;
+    workspace_name: string;
+    url: string;
+  };
+}
+export interface ItemDeletion {
+  kind: "message" | "journal" | "plan";
+  id: string;
+  revision?: number | null;
+  scope?: "series" | "occurrence" | null;
+  occurrence_date?: string | null;
+  target?: {
+    title: string;
+    preview?: string;
+    workspace_name?: string;
+    channel_name?: string;
+    frequency?: string;
+    date?: string;
+    revision?: number;
+    start_minute?: number;
+    end_minute?: number;
+    timezone?: string;
+  };
+}
+export interface ActionResult {
+  key: string;
+  ok: boolean;
+  error?: string;
+  url?: string;
+  message_id?: string;
+  label?: string;
 }
 /** Messages a question is about: picked with ✨ on a message, a selection, or a thread. */
 export interface AttachedMessages {

@@ -43,6 +43,15 @@ class NotedKnowledge:
     def tools(self) -> list[Tool]:
         return [
             Tool(
+                self.find_channels,
+                name="find_channels",
+                takes_ctx=False,
+                sequential=True,
+                description="Find owner projects and channels by name, including empty channels. "
+                "Returns actual IDs and every matching destination. "
+                "Ask the owner when multiple destinations match.",
+            ),
+            Tool(
                 self.search,
                 name="search_noted",
                 takes_ctx=False,
@@ -69,6 +78,61 @@ class NotedKnowledge:
                 "Use this to read screenshots, diagrams or handwriting. GIFs show the first frame.",
             ),
         ]
+
+    def find_channels(
+        self, channel: str, project: str | None = None, category: str | None = None
+    ) -> dict[str, Any]:
+        from sqlalchemy import select
+
+        from app.workspaces.models import Category, Channel, Workspace
+
+        with Session(self.engine) as db:
+            categories: dict[UUID | None, str] = {
+                item.id: item.name
+                for item in db.scalars(
+                    select(Category)
+                    .join(Workspace, Workspace.id == Category.workspace_id)
+                    .where(Workspace.owner_id == self.owner_id)
+                )
+            }
+            rows = db.execute(
+                select(Channel, Workspace)
+                .join(Workspace, Workspace.id == Channel.workspace_id)
+                .where(Workspace.owner_id == self.owner_id)
+            ).all()
+            candidates = [
+                (c, p)
+                for c, p in rows
+                if (not project or project.casefold() in p.name.casefold())
+                and channel.casefold() in c.name.casefold()
+                and (
+                    not category
+                    or category.casefold() == categories.get(c.category_id, "").casefold()
+                )
+            ]
+            exact = [
+                (c, p)
+                for c, p in candidates
+                if c.name.casefold() == channel.casefold()
+                and (not project or p.name.casefold() == project.casefold())
+            ]
+            matches = exact or candidates
+            return {
+                "matches": [
+                    {
+                        "channel_id": str(c.id),
+                        "channel_name": c.name,
+                        "project_id": str(p.id),
+                        "project_name": p.name,
+                        "category_name": categories.get(c.category_id, ""),
+                        "kind": c.kind,
+                        "can_post": c.kind in {"note", "tasks"},
+                    }
+                    for c, p in matches[:100]
+                ],
+                "total": len(matches),
+                "ambiguous": len(matches) > 1,
+            }
 
     def result(self, value: dict[str, Any]) -> ToolReturn:
         size = len(json.dumps(value, ensure_ascii=False))

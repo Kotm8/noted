@@ -8,9 +8,8 @@ import {
   House,
   Menu,
   Search,
-  Sparkles,
 } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { AssistantButton } from "../ai/assistant/assistant-button";
 import { Notice } from "../../components/ui/notice";
 import { scheduleApi } from "../schedule/api";
 import {
@@ -103,16 +102,7 @@ export function HomePage({
           <h1>Home</h1>
         </div>
         <div className="header-actions">
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={() =>
-              window.dispatchEvent(new Event("noted:assistant-open"))
-            }
-          >
-            <Sparkles size={15} />
-            Ask AI
-          </Button>
+          <AssistantButton />
           <button
             className="icon-button"
             aria-label="Open search"

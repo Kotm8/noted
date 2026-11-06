@@ -70,6 +70,15 @@ export function NoteList({
             key={note.id}
             className={`note-entry ${startsGroup ? "note-group-start" : "note-group-follow"} ${startsNewDay ? "note-day-start" : ""}${selection?.selected.has(note.id) ? " note-selected" : ""}`}
             data-note-id={selection ? note.id : undefined}
+            onPointerDown={(event) => {
+              if (
+                selection &&
+                (event.target as HTMLElement).closest(
+                  ".note-time, .note-minute-marker",
+                )
+              )
+                selection.press(note.id, event);
+            }}
           >
             {startsNewDay && (
               <div className="date-divider">

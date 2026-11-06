@@ -68,7 +68,8 @@ ESTIMATE_INSTRUCTIONS = (
     " restaurant and home portions vary, so judge size from plates, hands and packaging. Mark"
     " confidence honestly: high for packaged or clearly measured food, medium for a fair visual"
     " guess, low when oils, sauces or hidden ingredients could change it a lot. If the owner"
-    " names a saved meal, use its items exactly and set saved_meal to its name. Ask at most one"
+    " names a saved meal, use its items exactly and set saved_meal to its name. When they refer to"
+    " a recent meal, start from that meal's items and change only what they say. Ask at most one"
     " question, only when its answer changes the total by more than about 80 kcal; give 2 to 4"
     " short answers, each with the replacement values for the one item it changes. Set slot when"
     " the owner names the meal or the food makes it clear, even if it's logged late; otherwise"
@@ -179,6 +180,10 @@ def prepare_estimate(
                 "name": meal.name,
                 "day": meal.day.isoformat(),
                 "kcal": round(totals(meal.items)["kcal"]),
+                "items": [
+                    {"name": item["name"], "amount": item.get("amount", ""), "kcal": item["kcal"]}
+                    for item in meal.items
+                ],
             }
             for meal in recent
         ],

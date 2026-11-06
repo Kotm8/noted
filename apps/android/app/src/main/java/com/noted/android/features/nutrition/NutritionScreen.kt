@@ -1,6 +1,8 @@
 package com.noted.android.features.nutrition
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,96 +26,64 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 @Composable
-fun NutritionScreen(repository: NativeRepository) {
+fun NutritionScreen(repository: NativeRepository, logMeal: () -> Unit) {
     val state = rememberResource(repository, "/nutrition")
     var day by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedDay = day ?: state.obj?.text("today")?.takeIf { it.isNotBlank() } ?: LocalDate.now().toString()
+    val selected = LocalDate.parse(selectedDay)
     val meals = rememberResource(repository, "/nutrition/meals?start=$selectedDay&end=$selectedDay")
-    var profile by remember { mutableStateOf(false) }
+    val week = rememberResource(repository, "/nutrition/days?start=${selected.minusDays(6)}&end=$selectedDay")
     var editing by remember { mutableStateOf<JSONObject?>(null) }
-    var target by remember { mutableStateOf(false) }
     var weight by remember { mutableStateOf(false) }
-    var savedManager by remember { mutableStateOf(false) }
-    var savedEditor by remember { mutableStateOf<JSONObject?>(null) }
-    val total = meals.rows.sumOf { meal -> meal.rows("items").sumOf { it.optInt("kcal") } }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val origin = repository.session.collectAsState().value?.origin
+    val colors = NotedStyle.colors
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            DateField("Food diary", LocalDate.parse(selectedDay)) { day = it.toString() }
-            ResourceStatus(meals) { repository.changed() }
-            Text("$total kcal", Modifier.padding(top = 12.dp), style = MaterialTheme.typography.headlineMedium)
-            state.obj?.optJSONObject("target")?.let { goal ->
-                Text("of ${goal.optInt("kcal")} kcal", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                NotedProgressIndicator(progress = { (total.toFloat() / goal.optInt("kcal").coerceAtLeast(1)).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                NotedOutlinedButton(onClick = { if (state.obj?.optJSONObject("profile") == null) profile = true else target = true }) { Text(if (state.obj?.optJSONObject("profile") == null) "Set up profile" else "Daily target") }
-                if (state.obj?.optJSONObject("profile") != null) NotedTextButton({ profile = true }) { Text("Profile") }
-                NotedOutlinedButton(onClick = { weight = true }) { Text("Weigh in") }
-            }
-            NotedTextButton({ savedManager = true }) { Text("Saved meals") }
+            DateField("Food diary", selected) { day = it.toString() }
+            ResourceStatus(state) { repository.changed("nutrition") }
+            ResourceStatus(meals) { repository.changed("nutrition") }
+            NutritionSummary(meals.rows, state.obj?.optJSONObject("target"))
+            DesignLabel("Meals")
         }
-        listOf("Breakfast", "Lunch", "Dinner", "Snack").forEach { slot ->
-            val entries = meals.rows.filter { it.text("slot") == slot }
-            if (entries.isNotEmpty()) item { SectionTitle(slot) }
-            items(entries, key = { it.text("id") }) { meal ->
+        items(meals.rows.sortedBy { it.optInt("minute") }, key = { it.text("id") }) { meal ->
+            NotedListItem(headlineContent = { Text(meal.text("slot")) }, supportingContent = {
+                Text("${meal.text("name")} \u00b7 ${minuteLabel(meal.optInt("minute"))}", maxLines = 2)
+            }, leadingContent = {
                 meal.optJSONArray("photo_ids")?.optString(0)?.takeIf { it.isNotBlank() }?.let { photo ->
-                    NativeImage(repository, "/api/v1/nutrition/photos/$photo", meal.text("name"), Modifier.fillMaxWidth().height(140.dp).clickable { editing = meal })
+                    NativeImage(repository, "/api/v1/nutrition/photos/$photo", meal.text("name"), Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)))
+                } ?: Icon(NotedIcons.Restaurant, null, Modifier.size(28.dp), tint = colors.muted)
+            }, trailingContent = { Text("${meal.rows("items").sumOf { it.optInt("kcal") }}", color = colors.secondary) },
+                modifier = Modifier.clickable { editing = meal })
+        }
+        if (meals.rows.isEmpty() && !meals.refreshing && meals.error == null) item { Text("No meals logged for this day.", color = colors.muted) }
+        item {
+            PillButton(logMeal, Modifier.fillMaxWidth(), primary = true) { Icon(NotedIcons.Camera, null, Modifier.size(18.dp)); Text("Log meal") }
+            NotedTextButton({ editing = json("day" to selectedDay) }, Modifier.fillMaxWidth()) { Text("Add a meal by hand") }
+        }
+        item {
+            ResourceStatus(week) { repository.changed("nutrition") }
+            NutritionWeek(week.rows, selected) { day = it.toString() }
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillButton({ weight = true }) { Text("Weigh in") }
+                PillButton({ origin?.let { openOnWeb(context, it, "/home?settings=nutrition") } }, enabled = origin != null) {
+                    Icon(NotedIcons.ExternalLink, null, Modifier.size(16.dp)); Text("Profile and target")
                 }
-                NotedListItem(headlineContent = { Text(meal.text("name")) }, supportingContent = { Text(meal.rows("items").joinToString(" · ") { it.text("name") }, maxLines = 2) },
-                    trailingContent = { Text("${meal.rows("items").sumOf { it.optInt("kcal") }} kcal") }, modifier = Modifier.clickable { editing = meal })
             }
         }
-        item { NotedButton(onClick = { editing = json("day" to selectedDay) }, modifier = Modifier.fillMaxWidth()) { Icon(NotedIcons.Add, null); Text("Add meal") } }
     }
     editing?.let { MealEditor(repository, it, state.obj?.rows("saved_meals").orEmpty()) { editing = null } }
-    if (profile) NutritionProfile(repository, state.obj?.optJSONObject("profile")) { profile = false }
-    if (savedManager) SavedMeals(state.obj?.rows("saved_meals").orEmpty(), { savedManager = false }) { savedEditor = it; savedManager = false }
-    savedEditor?.let { MealEditor(repository, it, emptyList(), saved = true) { savedEditor = null } }
-    if (target) {
-        val existing = state.obj?.optJSONObject("target")
-        var kcal by remember { mutableStateOf((existing?.optInt("kcal") ?: 2000).toString()) }
-        var protein by remember { mutableStateOf((existing?.optInt("protein") ?: 100).toString()) }
-        var carbs by remember { mutableStateOf((existing?.optInt("carbs") ?: 250).toString()) }
-        var fat by remember { mutableStateOf((existing?.optInt("fat") ?: 65).toString()) }
-        var proposal by remember { mutableStateOf<JSONObject?>(null) }
-        var thinking by remember { mutableStateOf(false) }
-        var failure by remember { mutableStateOf<String?>(null) }
-        val scope = rememberCoroutineScope()
-        EditorSheet("Daily nutrition target", { target = false }, enabled = !thinking, save = {
-            repository.mutate("/nutrition/target", "PUT", json("kcal" to kcal.toInt(), "protein" to protein.toInt(), "carbs" to carbs.toInt(), "fat" to fat.toInt(),
-                "explanation" to (proposal ?: existing)?.text("explanation").orEmpty(), "sources" to ((proposal ?: existing)?.optJSONArray("sources") ?: JSONArray())))
-        }) {
-            state.obj?.optJSONObject("limits")?.let { limits -> QuietNotice("Server limits: ${limits.optInt("lowest")}–${limits.optInt("highest")} kcal. Maintenance: ${limits.optInt("maintenance")} kcal.") }
-            Field("Calories", kcal, { kcal = it }); Field("Protein, g", protein, { protein = it }); Field("Carbohydrates, g", carbs, { carbs = it }); Field("Fat, g", fat, { fat = it })
-            NotedOutlinedButton({
-                thinking = true; failure = null
-                scope.launch {
-                    try {
-                        var done = false
-                        val profileFields = state.obj!!.getJSONObject("profile").copy().apply { remove("revision") }
-                        repository.api.stream("/ai/nutrition/target", json("profile" to profileFields)).collect { event ->
-                            if (event.text("type") == "error") error(event.text("message"))
-                            if (event.text("type") == "done") {
-                                proposal = event.getJSONObject("output")
-                                kcal = proposal!!.optInt("kcal").toString(); protein = proposal!!.optInt("protein").toString()
-                                carbs = proposal!!.optInt("carbs").toString(); fat = proposal!!.optInt("fat").toString(); done = true
-                            }
-                        }
-                        check(done) { "The suggestion was interrupted. Your current target is unchanged." }
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (error: Exception) { failure = error.message }
-                    finally { thinking = false }
-                }
-            }, enabled = !thinking) { Text(if (thinking) "Thinking…" else "Suggest with AI") }
-            proposal?.let { Markdown(it.text("explanation")); com.noted.android.features.ai.AiSources(repository, it.rows("sources")) }
-            failure?.let { QuietNotice(it, true) }
-        }
-    }
     if (weight) {
         var kilograms by remember { mutableStateOf("") }
-        EditorSheet("Weigh in", { weight = false }, enabled = kilograms.toDoubleOrNull()?.let { it in 30.0..300.0 } == true,
-            save = { repository.mutate("/nutrition/weigh-ins", "PUT", json("day" to selectedDay, "weight_kg" to kilograms.toDouble())) }) {
-            Field("Weight in kg", kilograms, { kilograms = it })
+        val actions = rememberActions()
+        DesignSheet({ weight = false }, "Weigh in") {
+            DesignLabel("Weight in kg")
+            Field("Weight", kilograms, { kilograms = it })
+            PillButton({ actions.run {
+                repository.mutate("/nutrition/weigh-ins", "PUT", json("day" to selectedDay, "weight_kg" to kilograms.toDouble()))
+                weight = false
+            } }, Modifier.fillMaxWidth().padding(top = 20.dp), primary = true,
+                enabled = !actions.busy && kilograms.toDoubleOrNull()?.let { it.isFinite() && it in 30.0..300.0 } == true) { Text("Save") }
         }
     }
 }

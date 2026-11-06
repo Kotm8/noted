@@ -21,12 +21,13 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun CalendarScreen(repository: NativeRepository) {
+fun CalendarScreen(repository: NativeRepository, focusPlan: String? = null, focusDate: String? = null) {
     val tracker = rememberResource(repository, "/time-tracking/tracker")
     val activities = rememberResource(repository, "/time-tracking/activities")
     val preferences = tracker.obj?.optJSONObject("preferences")
     val timezone = preferences?.text("timezone")?.takeIf { it.isNotBlank() } ?: ZoneId.systemDefault().id
-    var anchor by rememberSaveable { mutableStateOf(LocalDate.now(ZoneId.of(timezone)).toString()) }
+    var anchor by rememberSaveable(focusDate) { mutableStateOf(focusDate?.let { runCatching { LocalDate.parse(it).toString() }.getOrNull() }
+        ?: LocalDate.now(ZoneId.of(timezone)).toString()) }
     val first = LocalDate.parse(anchor).minusDays(3)
     val days = (0L..16L).map { first.plusDays(it) }
     val board = rememberResource(repository, schedulePath(first, first.plusDays(17), timezone))
@@ -37,10 +38,20 @@ fun CalendarScreen(repository: NativeRepository) {
     val scroll = rememberScrollState()
     val vertical = rememberScrollState()
     var details by remember { mutableStateOf<JSONObject?>(null) }
+    var focusOpened by remember(focusPlan, focusDate) { mutableStateOf(false) }
     val context = LocalContext.current
     val origin = repository.session.collectAsState().value?.origin
     val density = LocalDensity.current
     LaunchedEffect(anchor) { vertical.scrollTo(with(density) { (136.dp * 3).roundToPx() }) }
+    LaunchedEffect(focusPlan, board.raw) {
+        if (focusPlan != null && !focusOpened) board.obj?.rows("plans")?.firstOrNull {
+            it.text("id") == focusPlan && (focusDate == null || it.text("occurrence_date") == focusDate)
+        }?.let { plan ->
+            details = plan
+            focusOpened = true
+            scroll.scrollTo(with(density) { (((plan.optInt("start_minute") - start) * scale - 16).coerceAtLeast(0f)).dp.roundToPx() })
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { DateField("Go to", LocalDate.parse(anchor)) { anchor = it.toString() } }
@@ -124,16 +135,19 @@ fun CalendarScreen(repository: NativeRepository) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlanDetails(plan: JSONObject, activity: JSONObject?, close: () -> Unit, editOnWeb: () -> Unit) {
-    NotedSheet(onDismissRequest = close, title = plan.text("title")) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    DesignSheet(close, plan.text("title")) {
+        Column(Modifier.fillMaxWidth().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val day = runCatching { LocalDate.parse(plan.text("occurrence_date")).format(DateTimeFormatter.ofPattern("EEEE, d MMMM")) }.getOrDefault("")
             Text("$day · ${minuteLabel(plan.optInt("start_minute"))} - ${minuteLabel(plan.optInt("end_minute"))}")
             if (activity != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(NotedIcons.Circle, null, Modifier.size(12.dp), tint = color(activity.text("color")))
                 Text(activity.text("name"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            repeatLabel(plan)?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            NotedOutlinedButton(onClick = { close(); editOnWeb() }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text(repeatLabel(plan) ?: "Does not repeat", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!plan.optBoolean("notifications_enabled", true)) Text("Notifications off", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else if (!plan.isNull("notification_minutes")) Text(if (plan.optInt("notification_minutes") == 0) "Reminds you at the start"
+                else "Reminds you ${plan.optInt("notification_minutes")} minutes before", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            PillButton(onClick = { close(); editOnWeb() }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Icon(NotedIcons.ExternalLink, null, Modifier.size(16.dp)); Text("Edit on the web", Modifier.padding(start = 8.dp))
             }
         }

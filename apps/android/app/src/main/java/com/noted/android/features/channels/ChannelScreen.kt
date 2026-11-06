@@ -153,7 +153,7 @@ private fun MessageList(repository: NativeRepository, channel: JSONObject, appea
                 EmptyState("A place to put your thoughts", "Write your first note below.")
             }
         }
-        MessageComposer(repository, channel, path, timezone, thread != null) {
+        if (!com.noted.android.features.ai.LocalAssistantOpen.current) MessageComposer(repository, channel, path, timezone, thread != null) {
             scrollRequest++
             if (focus != null) { if (thread == null) openLatest() else focus = null }
         }
@@ -210,6 +210,8 @@ private fun MessageRow(repository: NativeRepository, message: JSONObject, timezo
             if (canReply) ActionIcon(NotedIcons.Forum, "Open thread", action = reply)
             ActionIcon(NotedIcons.NotificationsNone, "Set reminder") { remind = true }
             ActionIcon(NotedIcons.Edit, "Edit note") { edit = true }
+            val askAi = com.noted.android.features.ai.LocalAskAi.current
+            ActionIcon(NotedIcons.Sparkles, "Ask AI about this note") { askAi(message) }
             ActionIcon(NotedIcons.ContentCopy, "Copy note") { clipboard.setText(AnnotatedString(message.text("content"))) }
             ActionIcon(NotedIcons.Share, "Share note") {
                 context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, message.text("content")), "Share note"))

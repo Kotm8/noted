@@ -151,7 +151,14 @@ class ScheduleService:
         return item
 
     def remove(
-        self, owner_id: UUID, plan_id: UUID, revision: int, day: date | None, reset: bool = False
+        self,
+        owner_id: UUID,
+        plan_id: UUID,
+        revision: int,
+        day: date | None,
+        reset: bool = False,
+        *,
+        commit: bool = True,
     ) -> SchedulePlan:
         item = self.checked(owner_id, plan_id, revision)
         if day:
@@ -170,6 +177,9 @@ class ScheduleService:
         else:
             item.deleted_at = utc_now()
         item.revision += 1
-        self.db.commit()
-        self.db.refresh(item)
+        if commit:
+            self.db.commit()
+            self.db.refresh(item)
+        else:
+            self.db.flush()
         return item
