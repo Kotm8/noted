@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs the quick lint and format checks from CI before each commit.
+# Enable once per clone with: git config core.hooksPath .githooks
+# Skip for a single commit with: git commit --no-verify
+set -e
+root="$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: release versions"
+python "$root/scripts/release_version.py" >/dev/null
+
+echo "pre-commit: backend lint and format"
+cd "$root/backend"
+uv run --quiet ruff check app tests alembic ../scripts
+uv run --quiet ruff format --check app tests alembic ../scripts
+
+echo "pre-commit: web lint and format"
+cd "$root/apps/web"
+npm run --silent lint
+npm run --silent format:check
