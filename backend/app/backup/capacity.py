@@ -1,6 +1,6 @@
 import ctypes
-import os
 import shutil
+import sys
 from pathlib import Path
 
 from app.core.errors import ContentTooLargeError
@@ -17,7 +17,7 @@ def require_space(path: Path, additional: int) -> None:
 
 
 def available_memory() -> int:
-    if os.name == "nt":
+    if sys.platform == "win32":
 
         class Status(ctypes.Structure):
             _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong)] + [
