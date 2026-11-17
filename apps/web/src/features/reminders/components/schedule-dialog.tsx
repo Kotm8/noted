@@ -66,6 +66,7 @@ export function ScheduleDialog({
   pending,
   onClose,
   onConfirm,
+  confirmLabel = "Send reminder",
 }: {
   content: string;
   channelName: string;
@@ -74,6 +75,7 @@ export function ScheduleDialog({
   pending: boolean;
   onClose: () => void;
   onConfirm: (schedule: ReminderSchedule) => Promise<void>;
+  confirmLabel?: string;
 }) {
   const [from] = useState(() => new Date());
   const [due, setDue] = useState(() =>
@@ -225,7 +227,7 @@ export function ScheduleDialog({
           </Button>
           <Button ref={confirm} type="submit" disabled={pending}>
             <Bell size={20} />
-            {initial ? "Save time" : "Send reminder"}
+            {initial ? "Save time" : confirmLabel}
           </Button>
         </div>
       </form>

@@ -24,4 +24,4 @@ Run `python scripts/android.py check` from the repository root for phone/watch d
 
 Run `python scripts/android.py build` to build signed release APKs using the existing signing configuration. Retain the same signing key for compatible updates. The helper also exports the public app association for compatibility with older clients; the native phone runtime does not depend on browser association.
 
-Implementation details, verification results, upgrade behavior, and remaining device checks are in [the native Android handoff](../../docs/handoffs/native-android.md).
+Implementation details, verification results, upgrade behavior, and remaining device checks are in [the native Android handoff](../../docs/clients/android.md).

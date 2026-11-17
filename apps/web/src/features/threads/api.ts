@@ -19,4 +19,16 @@ export const threadsApi = {
       client_id: clientId,
     });
   },
+  replyWithFiles(
+    id: string,
+    content: string,
+    files: File[],
+    clientId?: string,
+  ): Promise<Note> {
+    const body = new FormData();
+    body.append("content", content);
+    if (clientId) body.append("client_id", clientId);
+    files.forEach((file) => body.append("files", file));
+    return request(`/messages/${id}/thread/with-files`, "POST", body);
+  },
 };

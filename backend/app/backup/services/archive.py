@@ -10,23 +10,22 @@ from uuid import UUID
 from pydantic import ValidationError as SchemaError
 from starlette.datastructures import Headers, UploadFile
 
-from app.backup.repository import MAX_RECORDS
+from app.backup.capacity import require_memory, require_space
 from app.backup.schemas import BackupBlob, BackupContent, BackupCounts
 from app.backup.services.assistant import validate_assistant
 from app.backup.services.habits import validate_habits
 from app.backup.services.nutrition import validate_nutrition
 from app.backup.services.templates import validate_templates
 from app.backup.services.tracking import validate_tracking
-from app.core.errors import ContentTooLargeError, ValidationError
+from app.backup.zip_directory import check_directory
+from app.core.errors import ValidationError
 from app.core.storage_limits import MAX_BATCH_SIZE, MAX_FILES
 from app.storage.media import VIDEO_TYPES, detect_video_type, inspect_image
-
-MAX_EXPANDED = 2 * 1024 * 1024 * 1024
-MAX_METADATA = 16 * 1024 * 1024
 
 
 def counts(data: BackupContent) -> BackupCounts:
     return BackupCounts(
+        finance_entries=len(data.finance.entries) if data.finance else 0,
         assistant_chats=len(data.assistant_chats),
         meals=len(data.meals),
         habits=len(data.habits),
@@ -44,9 +43,11 @@ def counts(data: BackupContent) -> BackupCounts:
         scheduled_messages=len(data.scheduled_messages),
         writing_prompts=len(data.writing_prompts),
         files=len(data.attachments)
+        + len(data.assistant_photos)
         + sum(bool(project.image) for project in data.workspaces)
         + sum(bool(channel.image) for channel in data.channels)
-        + sum(len(meal.photos) for meal in data.meals),
+        + sum(len(meal.photos) for meal in data.meals)
+        + sum(len(meal.photos) for meal in data.saved_meals),
     )
 
 
@@ -57,11 +58,30 @@ def blobs(data: BackupContent) -> list[tuple[BackupBlob, str | None]]:
     result.extend((item.image, item.image_type) for item in data.workspaces if item.image)
     result.extend((item.image, item.image_type) for item in data.channels if item.image)
     result.extend((photo, "image/webp") for meal in data.meals for photo in meal.photos)
+    result.extend((photo, "image/webp") for meal in data.saved_meals for photo in meal.photos)
+    result.extend((photo.file, "image/webp") for photo in data.assistant_photos)
+    if data.finance:
+        result.extend((asset.file, asset.content_type) for asset in data.finance.assets)
     return result
 
 
 def validate_graph(data: BackupContent) -> None:
+    photos = {item.id for item in data.assistant_photos}
+    if len(photos) != len(data.assistant_photos) or any(
+        photo not in photos
+        for chat in data.assistant_chats
+        for turn in chat.turns
+        for photo in turn.photo_ids
+    ):
+        raise ValidationError("The backup contains missing or duplicate assistant photos.")
+    if data.assistant_photos and data.version < 16:
+        raise ValidationError("Assistant photos require a version 16 backup.")
+    if data.version < 16 and (
+        data.preferences is not None or any(item.pinned_at for item in data.channels)
+    ):
+        raise ValidationError("Personal settings and pinned channels require a version 16 backup.")
     groups = [
+        [item.id for item in data.document_reminders],
         [item.id for item in data.habits],
         [item.id for item in data.day_templates],
         [item.id for item in data.note_templates],
@@ -79,19 +99,6 @@ def validate_graph(data: BackupContent) -> None:
         [item.id for item in data.scheduled_messages],
         [item.id for item in data.writing_prompts],
     ]
-    if (
-        sum(len(group) for group in groups)
-        + len(data.schedule_exceptions)
-        + len(data.habit_entries)
-        + len(data.meals)
-        + len(data.saved_meals)
-        + len(data.nutrition_targets)
-        + len(data.weigh_ins)
-        + sum(len(chat.turns) + 1 for chat in data.assistant_chats)
-        + len(data.ai_memories)
-        > MAX_RECORDS
-    ):
-        raise ContentTooLargeError("The backup exceeds the 50,000 record limit.")
     for group in groups:
         if len(set(group)) != len(group):
             raise ValidationError("The backup contains duplicate record IDs.")
@@ -99,6 +106,9 @@ def validate_graph(data: BackupContent) -> None:
     validate_templates(data)
     validate_habits(data)
     validate_nutrition(data)
+    from app.backup.services.finance import validate_finance
+
+    validate_finance(data)
     validate_assistant(data)
     if len({item.channel_id for item in data.writing_prompts}) != len(data.writing_prompts):
         raise ValidationError("The backup contains duplicate channel writing prompts.")
@@ -158,6 +168,13 @@ def validate_graph(data: BackupContent) -> None:
             raise ValidationError("Notes channels require a version 5 backup.")
         if any(channel_kinds.get(item.channel_id) != "document" for item in data.documents):
             raise ValidationError("The backup contains a document outside a Notes channel.")
+    if data.document_reminders:
+        if data.version < 15 or any(
+            channel_kinds.get(item.channel_id) != "document" for item in data.document_reminders
+        ):
+            raise ValidationError("Invalid Notes reminder backup")
+        if len({item.id for item in data.document_reminders}) != len(data.document_reminders):
+            raise ValidationError("Duplicate Notes reminders")
     files = blobs(data)
     if len({item.path for item, _ in files}) != len(files):
         raise ValidationError("The backup contains duplicate file paths.")
@@ -173,22 +190,7 @@ def validate_graph(data: BackupContent) -> None:
 
 def read_content(path: Path) -> BackupContent:
     try:
-        with path.open("rb") as source:
-            source.seek(-22, 2)
-            end = struct.unpack("<4s4H2IH", source.read(22))
-        if (
-            end[0] != b"PK\x05\x06"
-            or end[1]
-            or end[2]
-            or end[3] != end[4]
-            or end[4] > MAX_RECORDS + 1
-            or end[5] > 8 * 1024 * 1024
-            or end[7]
-            or end[5] + end[6] != path.stat().st_size - 22
-        ):
-            raise ValidationError(
-                "Choose a standard Noted ZIP without comments or multipart entries."
-            )
+        check_directory(path)
         with zipfile.ZipFile(path) as archive:
             metadata = archive.getinfo("content.json")
             if metadata.flag_bits & 1 or metadata.compress_type not in {
@@ -196,12 +198,9 @@ def read_content(path: Path) -> BackupContent:
                 zipfile.ZIP_DEFLATED,
             }:
                 raise ValidationError("Use an unencrypted standard ZIP backup.")
-            if metadata.file_size > MAX_METADATA:
-                raise ContentTooLargeError("The backup metadata exceeds 16 MB.")
+            require_memory(metadata.file_size * 8)
             with archive.open(metadata) as file:
-                raw = file.read(MAX_METADATA + 1)
-            if len(raw) > MAX_METADATA:
-                raise ContentTooLargeError("The backup metadata exceeds 16 MB.")
+                raw = file.read()
             data = BackupContent.model_validate_json(raw)
             validate_graph(data)
             return data
@@ -240,8 +239,7 @@ def validate_archive(path: Path, directory: Path) -> BackupContent:
             entries = archive.infolist()
             if len(entries) != len(expected) or {item.filename for item in entries} != expected:
                 raise ValidationError("The backup has missing, duplicate, or unexpected files.")
-            if sum(item.file_size for item in entries) > MAX_EXPANDED:
-                raise ContentTooLargeError("The expanded backup exceeds 2 GB.")
+            require_space(directory, sum(item.file_size for item in entries))
             for entry in entries:
                 if (
                     entry.flag_bits & 1

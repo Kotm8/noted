@@ -48,6 +48,7 @@ describe("live updates", () => {
     expect(
       liveQueryKeys({ topic: "notes", channel: "one", thread: "root" }),
     ).toEqual([
+      ["channel-library", "one"],
       ["notes", "one"],
       ["thread", "root"],
       ["home-activity"],
@@ -77,10 +78,12 @@ describe("live updates", () => {
     expect(liveQueryKeys({ topic })).toContainEqual([key]);
   });
 
-  it("only refreshes the affected settings and marks search stale lazily", () => {
+  it("refreshes related settings and marks search stale lazily", () => {
     expect(
       liveQueryKeys({ topic: "settings", settings: "appearance" }),
-    ).toEqual([["appearance"]]);
+    ).toEqual([["appearance"], ["watch-settings"]]);
+    client.setQueryData(["channel-library", "one"], { items: [] });
+    client.setQueryData(["channel-library", "two"], { items: [] });
     const invalidate = vi.spyOn(client, "invalidateQueries");
     invalidateLiveEvent(client, { topic: "notes", channel: "one" });
     expect(invalidate).toHaveBeenCalledWith({
@@ -91,6 +94,12 @@ describe("live updates", () => {
       queryKey: ["notes", "one"],
       refetchType: "active",
     });
+    expect(
+      client.getQueryState(["channel-library", "one"])?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(["channel-library", "two"])?.isInvalidated,
+    ).toBe(false);
   });
 
   it("failed handshakes leave the existing polling schedule alone", async () => {

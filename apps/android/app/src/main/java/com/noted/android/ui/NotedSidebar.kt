@@ -45,7 +45,7 @@ fun NotedSidebar(repository: NativeRepository, workspaces: List<JSONObject>, cha
     LaunchedEffect(channel?.text("workspace_id")) { channel?.let { selectProject(it.text("workspace_id")) } }
     val pinned = channels.filter { it.text("pinned_at").isNotBlank() }.sortedBy { it.text("pinned_at") }
     Row(Modifier.fillMaxSize().background(colors.sidebar)) {
-        Column(Modifier.width(64.dp).fillMaxHeight().background(colors.rail), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.width(64.dp).fillMaxHeight().background(colors.rail).ambientChrome(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.height(56.dp), contentAlignment = Alignment.Center) {
                 Image(painterResource(R.drawable.ic_brand), "Noted", Modifier.size(44.dp))
             }
@@ -56,7 +56,7 @@ fun NotedSidebar(repository: NativeRepository, workspaces: List<JSONObject>, cha
                     Box(Modifier.fillMaxWidth().height(52.dp), contentAlignment = Alignment.Center) {
                         if (active) Box(Modifier.align(Alignment.CenterStart).width(4.dp).height(28.dp).background(colors.accent, RoundedCornerShape(2.dp)))
                         Box(Modifier.size(44.dp).clip(RoundedCornerShape(if (active) 14.dp else 22.dp))
-                            .background(if (active) colors.selected else colors.floating)
+                            .background(if (active) colors.selected else colors.projectIcons)
                             .border(1.dp, if (active) colors.border else Color.Transparent, RoundedCornerShape(if (active) 14.dp else 22.dp))
                             .clickable(role = Role.Tab) { selectProject(workspace.text("id")) }
                             .semantics { contentDescription = "Project ${workspace.text("name")}"; this.selected = active }, contentAlignment = Alignment.Center) {

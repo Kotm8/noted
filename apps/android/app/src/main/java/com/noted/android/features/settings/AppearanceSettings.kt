@@ -26,12 +26,20 @@ fun AppearanceSettings(repository: NativeRepository) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Appearance", style = MaterialTheme.typography.titleLarge)
         ResourceStatus(resource) { repository.changed() }
-        Choice("Theme", value.text("preset", "modern"), appearancePresets.map { it.key to it.value.name }) {
-            val preset = applyAppearancePreset(value, it)
-            draft = (draft ?: JSONObject()).copy().apply {
-                listOf("preset", "background", "sidebar", "text", "accent").forEach { key -> put(key, preset.opt(key)) }
-            }
+        fun profile(style: String, mode: String) { draft = selectAppearanceProfile(value, style, mode) }
+        Choice("Profile", value.text("style", "modern"), listOf("modern" to "Modern", "comic" to "Comic", "snow" to "Snow", "stars" to "Stars")) { profile(it, value.text("mode", "dark")) }
+        Choice("Mode", value.text("mode", "dark"), listOf("dark" to "Dark", "light" to "Light")) { profile(value.text("style", "modern"), it) }
+        val savedThemes = value.optJSONObject("savedThemes") ?: JSONObject()
+        if (savedThemes.length() > 0) Choice("Saved theme", "", listOf("" to "Choose a theme") + savedThemes.keys().asSequence().map { it to it }.toList()) { name ->
+            savedThemes.optJSONObject(name)?.let { draft = it.copy().put("savedThemes", savedThemes) }
         }
+        var themeName by remember { mutableStateOf("") }
+        Field("Theme name", themeName, { themeName = it.take(60) })
+        NotedOutlinedButton(enabled = themeName.isNotBlank() && savedThemes.length() < 20, onClick = {
+            val theme = value.copy().apply { remove("savedThemes") }
+            set("savedThemes", savedThemes.copy().put(themeName.trim(), theme))
+            themeName = ""
+        }) { Text("Save a copy") }
         SectionTitle("Accent")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             listOf("#e2c15a", "#dba58b", "#b8cc9b", "#9db9ce", "#c1acd4", "#df9d96").forEach { hex ->
@@ -42,6 +50,19 @@ fun AppearanceSettings(repository: NativeRepository) {
         Field("Background", value.text("background"), { set("background", it) })
         Field("Sidebar", value.text("sidebar"), { set("sidebar", it) })
         Field("Text color", value.text("text"), { set("text", it) })
+        val extraColors = value.optJSONObject("colors") ?: JSONObject()
+        listOf("header" to "Header", "rail" to "Project rail", "input" to "Inputs", "floating" to "Panels", "selected" to "Selected", "headings" to "Headings", "textSecondary" to "Secondary text", "border" to "Borders").forEach { (key, label) ->
+            Field(label, extraColors.text(key), { set("colors", extraColors.copy().put(key, it)) })
+        }
+        Choice("Density", value.text("density", "comfortable"), listOf("compact" to "Compact", "comfortable" to "Comfortable", "spacious" to "Spacious")) { set("density", it) }
+        Choice("Font", value.text("font", "system"), listOf("system" to "System", "sans" to "Sans", "serif" to "Serif", "mono" to "Monospace")) { set("font", it) }
+        Choice("Code font", value.text("codeFont", "system"), listOf("system" to "System", "consolas" to "Consolas", "courier" to "Courier")) { set("codeFont", it) }
+        Text("Line height: ${value.optDouble("lineHeight", 1.6)}")
+        NotedSlider(value.optDouble("lineHeight", 1.6).toFloat(), { set("lineHeight", (it * 10).toInt() / 10.0) }, valueRange = 1.2f..2f, steps = 7)
+        Text("Reading width: ${value.optInt("readingWidth", 960)} px")
+        NotedSlider(value.optInt("readingWidth", 960).toFloat(), { set("readingWidth", it.toInt()) }, valueRange = 480f..1600f, steps = 27)
+        Toggle("Reduce motion", value.optBoolean("reducedMotion")) { set("reducedMotion", it) }
+        Toggle("Stronger borders and focus", value.optBoolean("highContrast")) { set("highContrast", it) }
         Text("Text size: ${value.optInt("textSize", 15)}")
         NotedSlider(value.optInt("textSize", 15).toFloat(), { set("textSize", it.toInt()) }, valueRange = 12f..20f, steps = 7)
         Text("Interface zoom: ${value.optInt("zoom", 100)}%")

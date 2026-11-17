@@ -11,7 +11,10 @@ BACKEND_SMOKE = (
     "tests/test_owner_provisioning.py",
     "tests/test_sessions.py",
     "tests/test_notes.py",
+    "tests/test_thread_attachments.py",
+    "tests/test_document_reminders.py::test_named_document_reminders_retry_and_follow_the_document",
     "tests/test_backups.py",
+    "tests/test_finance.py",
     "tests/test_templates.py",
     "tests/test_habits.py",
     "tests/test_push_isolation.py",
@@ -19,9 +22,14 @@ BACKEND_SMOKE = (
 )
 
 BROWSER_SMOKE = (
+    "thread attachments support picker, paste and queued file retries",
+    "Ask AI on one message drafts, and asking in a thread posts the reply there",
+    "item context menus reuse message, attachment and navigation actions",
     "portable ZIP export and previewed import",
+    "Finance uses the split layout and saves money settings and purchases",
     "the owner can organize, write, edit, and delete persistent notes",
     "Notes channels autosave Markdown",
+    "Notes documents schedule named reminders and reopen their linked content",
     "reminders persist, support keyboard scheduling",
     "server updates require an explicit install",
     "channel clicks preserve the current page and draft",

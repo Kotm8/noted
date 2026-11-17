@@ -1,6 +1,7 @@
 import type { Reminder } from "../reminders/types";
 
 export interface Note {
+  client_id?: string | null;
   thread_root_id?: string | null;
   reply_count?: number;
   last_reply_at?: string | null;

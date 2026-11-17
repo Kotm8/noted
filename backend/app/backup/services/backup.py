@@ -9,13 +9,13 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
+from app.backup.capacity import require_space
 from app.backup.schemas import BackupContent, BackupPreview, ImportBackup, ImportResult
 from app.backup.services.archive import counts, validate_archive
 from app.backup.services.cache import LIFETIME, BackupCache
 from app.backup.services.exporter import BackupExporter
 from app.backup.services.importer import BackupImporter
-from app.core.errors import ContentTooLargeError, ValidationError
-from app.core.storage_limits import MAX_ARCHIVE
+from app.core.errors import ValidationError
 from app.storage.base import FileStorage
 
 
@@ -47,6 +47,8 @@ class BackupService:
             expires_at=datetime.now(UTC) + LIFETIME,
             size=(directory / "backup.zip").stat().st_size,
             counts=counts(data),
+            has_preferences=data.preferences is not None,
+            warnings=data.warnings,
             download_url=f"/api/v1/backups/{token}/download" if download else None,
         )
 
@@ -57,13 +59,15 @@ class BackupService:
     async def upload_unlocked(self, owner_id: UUID, request: Request) -> BackupPreview:
         token, directory = self.cache.create(owner_id)
         try:
+            declared = request.headers.get("content-length")
+            if declared is not None:
+                require_space(directory, int(declared))
             size = 0
             digest = hashlib.sha256()
             with (directory / "backup.zip").open("xb") as file:
                 async for chunk in request.stream():
                     size += len(chunk)
-                    if size > MAX_ARCHIVE:
-                        raise ContentTooLargeError("Backups must be no larger than 1 GB.")
+                    require_space(directory, len(chunk))
                     digest.update(chunk)
                     file.write(chunk)
             with tempfile.TemporaryDirectory(prefix="checked-", dir=directory) as checked:
@@ -109,7 +113,11 @@ class BackupService:
                     validate_archive, directory / "backup.zip", Path(temporary)
                 )
                 await BackupImporter(self.db, self.storage).restore(
-                    data, Path(temporary), owner_id, request.mode == "replace"
+                    data,
+                    Path(temporary),
+                    owner_id,
+                    request.mode == "replace",
+                    request.restore_preferences,
                 )
                 result = ImportResult(counts=counts(data))
             self.cache.remove(directory)

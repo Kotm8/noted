@@ -3,9 +3,10 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import anyio
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.backup.preferences import restore_preferences
 from app.backup.repository import BackupRepository
 from app.backup.schemas import BackupContent
 from app.backup.services.archive import blobs
@@ -17,6 +18,7 @@ from app.backup.services.tracking import restore_tracking
 from app.core.security import utc_now
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
+from app.notes.documents.reminders.models import DocumentReminder
 from app.notes.models import Attachment, Message
 from app.notes.versions.models import MessageVersion
 from app.publishing.models import ScheduledMessage, WritingPrompt
@@ -38,8 +40,17 @@ class BackupImporter:
         self.storage = storage
 
     async def restore(
-        self, data: BackupContent, directory: Path, owner_id: UUID, replace: bool
+        self,
+        data: BackupContent,
+        directory: Path,
+        owner_id: UUID,
+        replace: bool,
+        include_preferences: bool | None = None,
     ) -> None:
+        empty = (
+            self.db.scalar(select(Workspace.id).where(Workspace.owner_id == owner_id).limit(1))
+            is None
+        )
         identifiers = {
             item.id: uuid4()
             for group in (
@@ -58,6 +69,8 @@ class BackupImporter:
                 data.habits,
                 data.day_templates,
                 data.note_templates,
+                data.document_reminders,
+                data.assistant_photos,
             )
             for item in group
         }
@@ -65,6 +78,9 @@ class BackupImporter:
         created: list[str] = []
         try:
             self.db.execute(text("SELECT pg_advisory_xact_lock(731492681)"))
+            from app.backup.services.finance import check_currency, restore_finance
+
+            check_currency(self.db, owner_id, data.finance, replace)
             for blob, _ in blobs(data):
                 identifier = uuid4().hex
                 key = f"{identifier[:2]}/{identifier}"
@@ -113,6 +129,7 @@ class BackupImporter:
                         else None,
                         name=channel.name,
                         kind=channel.kind,
+                        pinned_at=channel.pinned_at,
                         position=channel.position,
                         created_at=channel.created_at,
                         banner_storage_key=keys[channel.image.path] if channel.image else None,
@@ -153,10 +170,27 @@ class BackupImporter:
                     )
                 )
             for document in data.documents:
+                content = document.content
+                for reminder in data.document_reminders:
+                    if reminder.channel_id == document.channel_id:
+                        content = content.replace(
+                            f"#reminder-{reminder.id}", f"#reminder-{identifiers[reminder.id]}"
+                        )
                 self.db.add(
                     ChannelDocument(
                         channel_id=identifiers[document.channel_id],
-                        **document.model_dump(exclude={"channel_id"}),
+                        **document.model_dump(exclude={"channel_id", "content"}),
+                        content=content,
+                    )
+                )
+            for reminder in data.document_reminders:
+                self.db.add(
+                    DocumentReminder(
+                        id=identifiers[reminder.id],
+                        owner_id=owner_id,
+                        channel_id=identifiers[reminder.channel_id],
+                        read_revision=0,
+                        **reminder.model_dump(exclude={"id", "channel_id"}),
                     )
                 )
             for attachment in data.attachments:
@@ -208,7 +242,10 @@ class BackupImporter:
             restore_templates(self.db, owner_id, data, identifiers, replace)
             restore_habits(self.db, owner_id, data, identifiers)
             restore_nutrition(self.db, owner_id, data, keys, replace)
-            restore_assistant(self.db, owner_id, data, replace)
+            restore_assistant(self.db, owner_id, data, replace, identifiers, keys)
+            restore_finance(self.db, owner_id, data, keys, replace)
+            if include_preferences is True or (include_preferences is None and (replace or empty)):
+                restore_preferences(self.db, owner_id, data, identifiers)
             self.db.commit()
         except BaseException:
             self.db.rollback()

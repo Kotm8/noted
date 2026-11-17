@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
 /**
  * Home as a grid of tiles (design C). Each tile answers one question and has one action that works
  * without leaving Home; tiles for features that are off or empty are left out rather than shown blank.
- * The behaviour is specified in docs/design/phone/home-tiles-stories.md.
+ * The behaviour is specified in design-previews/design/phone/home-tiles-stories.md.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

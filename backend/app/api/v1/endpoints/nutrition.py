@@ -160,7 +160,7 @@ def add_saved(
 ) -> SavedMealResponse:
     saved = NutritionService(db).add_saved(current.user.id, data)
     db.commit()
-    return SavedMealResponse.model_validate(saved)
+    return NutritionService(db).saved_response(saved)
 
 
 @router.put("/saved-meals/{saved_id}", response_model=SavedMealResponse)
@@ -172,16 +172,17 @@ def edit_saved(
 ) -> SavedMealResponse:
     saved = NutritionService(db).edit_saved(current.user.id, saved_id, data)
     db.commit()
-    return SavedMealResponse.model_validate(saved)
+    return NutritionService(db).saved_response(saved)
 
 
 @router.delete("/saved-meals/{saved_id}", status_code=204)
 def remove_saved(
     saved_id: UUID,
+    revision: int | None = Query(default=None, ge=1),
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
 ) -> None:
-    NutritionService(db).remove_saved(current.user.id, saved_id)
+    NutritionService(db).remove_saved(current.user.id, saved_id, revision)
     db.commit()
 
 

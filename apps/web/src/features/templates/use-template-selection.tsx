@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 
 export function useTemplateSelection() {
   const [id, setId] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (!dirty) return;
+    const prevent = (event: Event) => event.preventDefault();
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("noted:before-settings-navigation", prevent);
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      window.removeEventListener("noted:before-settings-navigation", prevent);
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [dirty]);
   const [next, setNext] = useState<string | null>(null);
   function activate(value: string | null) {
     setId(value);

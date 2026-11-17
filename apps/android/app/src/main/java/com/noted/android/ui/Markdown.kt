@@ -1,5 +1,6 @@
 package com.noted.android.ui
 
+import android.graphics.Paint
 import android.widget.TextView
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -32,30 +33,42 @@ fun continueTask(before: String, after: String): String {
 }
 
 @Composable
-fun Markdown(content: String, change: ((String) -> Unit)? = null, modifier: Modifier = Modifier, activate: (() -> Unit)? = null) {
+fun Markdown(content: String, change: ((String) -> Unit)? = null, modifier: Modifier = Modifier, activate: (() -> Unit)? = null,
+    completed: Boolean = false, completedReminders: Set<String> = emptySet()) {
     val lines = content.lines()
-    Column(modifier) {
+    val readingWidth = (LocalAppearancePreferences.current?.optInt("readingWidth", 960) ?: 960).dp
+    Column(modifier.widthIn(max = readingWidth)) {
         var start = 0
         lines.forEachIndexed { index, line ->
             val match = taskLine.matchEntire(line)
             if (match != null) {
-                if (index > start) MarkdownText(lines.subList(start, index).joinToString("\n"), activate)
+                if (index > start) MarkdownText(lines.subList(start, index).joinToString("\n"), activate, completed, completedReminders)
+                val checked = match.groupValues[2] != " "
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    NotedCheckbox(match.groupValues[2] != " ", onCheckedChange = change?.let { save -> { checked -> save(toggleTask(content, index, checked)) } })
-                    Box(Modifier.weight(1f)) { MarkdownText(match.groupValues[4], activate) }
+                    NotedCheckbox(checked, onCheckedChange = change?.let { save -> { checked -> save(toggleTask(content, index, checked)) } })
+                    Box(Modifier.weight(1f)) { MarkdownText(match.groupValues[4], activate, completed || checked, completedReminders) }
                 }
                 start = index + 1
             }
         }
-        if (start < lines.size) MarkdownText(lines.subList(start, lines.size).joinToString("\n"), activate)
+        if (start < lines.size) MarkdownText(lines.subList(start, lines.size).joinToString("\n"), activate, completed, completedReminders)
     }
 }
 
 @Composable
-fun MarkdownText(text: String, activate: (() -> Unit)? = null) {
+fun MarkdownText(text: String, activate: (() -> Unit)? = null, completed: Boolean = false, completedReminders: Set<String> = emptySet()) {
     val context = LocalContext.current
-    val markwon = remember(context) { Markwon.builder(context).usePlugin(StrikethroughPlugin.create()).build() }
-    val foreground = MaterialTheme.colorScheme.onSurface.toArgb()
+    val preferences = LocalAppearancePreferences.current
+    val family = when (preferences?.optString("font")) { "serif" -> android.graphics.Typeface.SERIF; "mono" -> android.graphics.Typeface.MONOSPACE; else -> android.graphics.Typeface.SANS_SERIF }
+    val codeFamily = if (preferences?.optString("codeFont") == "courier") android.graphics.Typeface.create("courier", android.graphics.Typeface.NORMAL) else android.graphics.Typeface.MONOSPACE
+    val lineHeight = (preferences?.optDouble("lineHeight", 1.6) ?: 1.6).toFloat()
+    val markwon = remember(context, codeFamily) { Markwon.builder(context).usePlugin(StrikethroughPlugin.create()).usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
+        override fun configureTheme(builder: io.noties.markwon.core.MarkwonTheme.Builder) { builder.codeTypeface(codeFamily) }
+    }).build() }
+    val foreground = (if (completed) NotedStyle.colors.muted else MaterialTheme.colorScheme.onSurface).toArgb()
+    val rendered = if (completedReminders.isEmpty()) text else text.replace(
+        Regex("""\[(?:\\.|[^\]\\])*\]\(#reminder-([a-fA-F0-9-]{36})\)"""),
+    ) { if (it.groupValues[1] in completedReminders) "~~${it.value}~~" else it.value }
     val link = NotedStyle.colors.link.toArgb()
     val density = LocalDensity.current
     val textPixels = with(density) { MaterialTheme.typography.bodyLarge.fontSize.toPx() }
@@ -65,9 +78,12 @@ fun MarkdownText(text: String, activate: (() -> Unit)? = null) {
         setLineSpacing(4f, 1.1f)
     } }, modifier = Modifier.fillMaxWidth(), update = {
         it.setTextIsSelectable(activate == null)
+        it.typeface = family
+        it.setLineSpacing(0f, lineHeight)
         it.setTextColor(foreground); it.setLinkTextColor(link)
+        it.paintFlags = if (completed) it.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else it.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
         it.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, textPixels)
         it.setOnClickListener(if (activate != null) android.view.View.OnClickListener { activate() } else null)
-        if (it.tag != text) { markwon.setMarkdown(it, text); it.tag = text }
+        if (it.tag != rendered) { markwon.setMarkdown(it, rendered); it.tag = rendered }
     })
 }

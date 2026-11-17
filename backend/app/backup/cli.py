@@ -9,12 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
+from app.backup.capacity import require_space
 from app.backup.services.archive import validate_archive
 from app.backup.services.exporter import BackupExporter
 from app.backup.services.importer import BackupImporter
 from app.core.config import Settings
 from app.core.errors import ApplicationError, ConflictError
-from app.core.storage_limits import MAX_ARCHIVE
 from app.db.database import create_database_engine
 from app.storage.local import LocalFileStorage
 from app.workspaces.models import Workspace
@@ -47,8 +47,7 @@ async def run(command: str) -> None:
                 with archive.open("xb") as file:
                     while chunk := sys.stdin.buffer.read(65536):
                         size += len(chunk)
-                        if size > MAX_ARCHIVE:
-                            raise ConflictError("The transfer archive exceeds 1 GB.")
+                        require_space(directory, len(chunk))
                         file.write(chunk)
                 data = validate_archive(archive, directory / "files")
                 await BackupImporter(db, storage).restore(

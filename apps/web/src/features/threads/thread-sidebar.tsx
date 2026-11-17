@@ -4,19 +4,24 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowUp, CaseSensitive, LoaderCircle, Sparkles } from "lucide-react";
+import {
+  ArrowUp,
+  CaseSensitive,
+  LoaderCircle,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import { useFormatting, useFormattingVisible } from "../writing/use-formatting";
 import { toast } from "sonner";
 import { WritingSidebar } from "../../components/ui/writing-sidebar";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
-import { threadsApi } from "./api";
 import { NoteList } from "../notes/components/note-list";
 import { MessageMarkdown } from "../notes/components/message-markdown";
 import { NoteAttachments } from "../notes/components/note-attachments";
 import { DeleteNoteDialog } from "../notes/components/delete-note-dialog";
 import { OutgoingNotes } from "../notes/components/outgoing-notes";
-import { enqueue, flushOutbox, hasWaiting, unreachable } from "../notes/outbox";
+import { enqueue, flushOutbox } from "../notes/outbox";
 import { useTimelineScroll } from "../notes/hooks/use-timeline-scroll";
 import { useDraft } from "../notes/hooks/use-draft";
 import { notesApi } from "../notes/api";
@@ -29,6 +34,8 @@ import { threadQuery } from "./queries";
 import { useOptionalAssistant } from "../ai/assistant/context";
 import { askAboutMessages } from "../ai/assistant/use-assistant";
 import { useAiStatus } from "../ai/queries";
+import { useComposerFiles } from "../notes/hooks/use-composer-files";
+import { PendingFiles } from "../notes/components/pending-files";
 
 export function ThreadSidebar({
   rootId,
@@ -91,42 +98,36 @@ export function ThreadSidebar({
       client.invalidateQueries({ queryKey: ["search"] }),
     ]);
   const replyRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { files, setFiles, addFiles } = useComposerFiles();
   const mentions = useMentionPicker(replyRef, draft);
   const formatting = useFormatting(replyRef);
   const [formattingVisible, toggleFormatting] = useFormattingVisible();
   const send = useMutation({
     networkMode: "always",
-    mutationFn: async (content: string) => {
+    mutationFn: async ({
+      content,
+      files,
+    }: {
+      content: string;
+      files: File[];
+    }) => {
       const stored = toStored(content, mentions.refs.current);
       const clientId = crypto.randomUUID();
-      // Replies wait on this device when the server can't be reached, like messages.
-      const queue = async () => {
-        await enqueue({
+      await enqueue(
+        {
           clientId,
           channelId: channel.id,
           content: stored,
           threadRootId: rootId,
-        });
-        return null;
-      };
-      if (hasWaiting() || !navigator.onLine) return queue();
-      return threadsApi
-        .reply(rootId, stored, clientId)
-        .catch((error: unknown) => {
-          if (unreachable(error)) return queue();
-          throw error;
-        });
+        },
+        files,
+      );
+      void flushOutbox(client);
     },
-    onSuccess: async (note, content) => {
+    onSuccess: async (_, { content }) => {
       clearSentDraft(content);
-      if (note === null) {
-        toast("No connection. The reply will send when you're back online.", {
-          id: "outbox",
-        });
-        void flushOutbox(client);
-        return;
-      }
-      await refresh();
+      setFiles([]);
       if (targetId) onReturnToLatest?.();
       else scroll.jumpToLatest();
     },
@@ -147,9 +148,9 @@ export function ThreadSidebar({
       .reverse()
       .flatMap((page) => page.replies.items) ?? [];
   function submit() {
-    if (!draft.trim() || send.isPending) return;
+    if ((!draft.trim() && !files.length) || send.isPending) return;
     scroll.followLatestNotes();
-    send.mutate(draft);
+    send.mutate({ content: draft, files: [...files] });
   }
   return (
     <WritingSidebar title={`Thread · #${channel.name}`} onClose={onClose}>
@@ -246,6 +247,15 @@ export function ThreadSidebar({
             )}
             <form
               className="thread-composer"
+              onDragOver={(event) => {
+                if (event.dataTransfer.types.includes("Files"))
+                  event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (send.isPending || !event.dataTransfer.files.length) return;
+                event.preventDefault();
+                addFiles(Array.from(event.dataTransfer.files));
+              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 submit();
@@ -253,11 +263,42 @@ export function ThreadSidebar({
             >
               {mentions.menu}
               {formattingVisible && formatting.toolbar}
+              <PendingFiles
+                files={files}
+                disabled={send.isPending}
+                onRemove={(index) =>
+                  setFiles((current) =>
+                    current.filter((_, position) => position !== index),
+                  )
+                }
+              />
+              <input
+                ref={fileInputRef}
+                hidden
+                type="file"
+                multiple
+                aria-label="Attach reply files"
+                disabled={send.isPending}
+                onChange={(event) => {
+                  addFiles(Array.from(event.target.files ?? []));
+                  event.target.value = "";
+                }}
+              />
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Add reply files"
+                title="Add files"
+                disabled={send.isPending}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Plus size={18} />
+              </button>
               <textarea
                 ref={replyRef}
                 autoFocus
                 aria-label="Thread reply"
-                placeholder="Continue this thought…"
+                placeholder="Reply in thread"
                 value={draft}
                 maxLength={40000}
                 rows={1}
@@ -267,6 +308,13 @@ export function ThreadSidebar({
                   event.target.style.height = `${Math.min(180, event.target.scrollHeight)}px`;
                 }}
                 onSelect={mentions.onSelect}
+                onPaste={(event) => {
+                  const pasted = Array.from(event.clipboardData.files);
+                  if (pasted.length && !send.isPending) {
+                    event.preventDefault();
+                    addFiles(pasted);
+                  }
+                }}
                 onKeyDown={(event) => {
                   if (mentions.onKeyDown(event) || formatting.onKeyDown(event))
                     return;
@@ -291,7 +339,7 @@ export function ThreadSidebar({
                 className="thread-send"
                 type="submit"
                 aria-label="Send reply"
-                disabled={!draft.trim() || send.isPending}
+                disabled={(!draft.trim() && !files.length) || send.isPending}
               >
                 {send.isPending ? (
                   <LoaderCircle size={17} className="spin" />

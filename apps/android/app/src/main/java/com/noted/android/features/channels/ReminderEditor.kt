@@ -12,13 +12,15 @@ import java.time.*
 
 @Composable
 fun ReminderEditor(title: String = "When should it ring?", timezone: String, close: () -> Unit,
-    confirm: String = "Set reminder", save: suspend (JSONObject) -> Unit) {
+    confirm: String = "Set reminder", content: String? = null, delayMinutes: Long = 60,
+    save: suspend (JSONObject) -> Unit) {
     val zone = ZoneId.of(timezone)
-    var due by remember { mutableStateOf(ZonedDateTime.now(zone).plusHours(1).withSecond(0).withNano(0)) }
+    var due by remember(timezone, delayMinutes) { mutableStateOf(ZonedDateTime.now(zone).plusMinutes(delayMinutes)) }
     var repeat by remember { mutableStateOf("none") }
     var urgent by remember { mutableStateOf(false) }
     val actions = rememberActions()
-    DesignSheet(close, title) {
+    DesignSheet({ if (!actions.busy) close() }, title) {
+        content?.takeIf { it.isNotBlank() }?.let { Text(it, Modifier.padding(bottom = 16.dp)) }
         ReminderTimePicker(due) { due = it }
         Choice("Repeat", repeat, listOf("none" to "Once", "daily" to "Daily", "weekdays" to "Weekdays", "weekly" to "Weekly")) { repeat = it }
         Toggle("Urgent", urgent) { urgent = it }

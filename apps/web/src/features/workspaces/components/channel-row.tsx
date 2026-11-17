@@ -1,7 +1,8 @@
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { ChannelIcon } from "./channel-icon";
-import { ChannelPinItem } from "./channel-pin-item";
-import { Menu, MenuItem } from "../../../components/ui/menu";
+import { ChannelActions } from "./channel-actions";
+import { ContextMenu } from "../../../components/ui/context-menu";
+import { Menu } from "../../../components/ui/menu";
 import type { Channel, OpenManagement } from "../types";
 import type { SidebarReorder } from "../hooks/use-sidebar-reorder";
 
@@ -23,59 +24,38 @@ export function ChannelRow({
   reorder,
 }: ChannelRowProps) {
   return (
-    <div
-      className={`channel-row ${selected ? "channel-active" : ""}`}
-      data-channel-id={channel.id}
-      {...reorder.channelProps(channel)}
+    <ContextMenu
+      label={`Actions for channel ${channel.name}`}
+      menu={<ChannelActions channel={channel} onManage={onManage} />}
     >
-      <button
-        className="channel-link"
-        onClick={() => onSelect(channel)}
-        aria-current={selected ? "page" : undefined}
-        aria-busy={pending || undefined}
+      <div
+        className={`channel-row ${selected ? "channel-active" : ""}`}
+        data-channel-id={channel.id}
+        {...reorder.channelProps(channel)}
       >
-        <ChannelIcon kind={channel.kind} size={18} />
-        <span>{channel.name}</span>
-      </button>
+        <button
+          className="channel-link"
+          onClick={() => onSelect(channel)}
+          aria-current={selected ? "page" : undefined}
+          aria-busy={pending || undefined}
+        >
+          <ChannelIcon kind={channel.kind} size={18} />
+          <span>{channel.name}</span>
+        </button>
 
-      <Menu
-        trigger={
-          <button
-            className="channel-options icon-button"
-            aria-label={`Options for ${channel.name}`}
-          >
-            <MoreHorizontal size={15} />
-          </button>
-        }
-      >
-        <ChannelPinItem channel={channel} />
-        <MenuItem
-          onSelect={() =>
-            onManage({
-              kind: "channel",
-              workspaceId: channel.workspace_id,
-              item: channel,
-            })
+        <Menu
+          trigger={
+            <button
+              className="channel-options icon-button"
+              aria-label={`Options for ${channel.name}`}
+            >
+              <MoreHorizontal size={15} />
+            </button>
           }
         >
-          <Pencil size={14} />
-          Edit channel
-        </MenuItem>
-        <MenuItem
-          danger
-          onSelect={() =>
-            onManage({
-              kind: "channel",
-              workspaceId: channel.workspace_id,
-              item: channel,
-              deleting: true,
-            })
-          }
-        >
-          <Trash2 size={14} />
-          Delete channel
-        </MenuItem>
-      </Menu>
-    </div>
+          <ChannelActions channel={channel} onManage={onManage} />
+        </Menu>
+      </div>
+    </ContextMenu>
   );
 }

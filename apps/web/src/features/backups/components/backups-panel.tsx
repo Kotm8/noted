@@ -13,11 +13,15 @@ export function BackupsPanel() {
   const [preview, setPreview] = useState<BackupPreview | null>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [confirmation, setConfirmation] = useState("");
+  const [restorePreferences, setRestorePreferences] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const exported = useMutation({ mutationFn: backupsApi.export });
   const uploaded = useMutation({
     mutationFn: backupsApi.preview,
-    onSuccess: setPreview,
+    onSuccess: (data) => {
+      setPreview(data);
+      setRestorePreferences(false);
+    },
   });
   const restored = useMutation({
     mutationFn: backupsApi.import,
@@ -77,8 +81,8 @@ export function BackupsPanel() {
       <div className="settings-section">
         <h3>Import a backup</h3>
         <p>
-          Choose a Noted ZIP to verify and preview it before importing. Maximum
-          ZIP size: 1 GB.
+          Choose a Noted ZIP to verify and preview it before importing. Large
+          ZIP64 backups are supported when the server has enough free space.
         </p>
         <Button disabled={busy} onClick={() => fileInput.current?.click()}>
           <Upload size={15} />
@@ -102,10 +106,6 @@ export function BackupsPanel() {
             uploaded.reset();
             exported.reset();
             setFileError(null);
-            if (file.size > 1024 * 1024 * 1024) {
-              setFileError("Choose a backup ZIP no larger than 1 GB.");
-              return;
-            }
             uploaded.mutate(file);
           }}
         />
@@ -116,6 +116,22 @@ export function BackupsPanel() {
           <div className="backup-preview">
             <p>Backup from {new Date(preview.created_at).toLocaleString()}</p>
             <BackupSummary counts={preview.counts} />
+            {preview.warnings?.map((warning) => (
+              <Notice key={warning}>{warning}</Notice>
+            ))}
+            {preview.has_preferences && (
+              <label className="backup-options">
+                <input
+                  type="checkbox"
+                  checked={restorePreferences}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setRestorePreferences(event.target.checked)
+                  }
+                />
+                Restore personal settings and AI prompts
+              </label>
+            )}
             <fieldset className="import-options">
               <legend>How should this content be imported?</legend>
               <label>
@@ -157,7 +173,14 @@ export function BackupsPanel() {
                 (mode === "replace" && confirmation !== "REPLACE MY NOTES")
               }
               onClick={() =>
-                restored.mutate({ token: preview.token, mode, confirmation })
+                restored.mutate({
+                  token: preview.token,
+                  mode,
+                  confirmation,
+                  restore_preferences: preview.has_preferences
+                    ? restorePreferences
+                    : undefined,
+                })
               }
             >
               {restored.isPending ? "Importing..." : "Import backup"}

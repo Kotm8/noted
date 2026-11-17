@@ -195,7 +195,7 @@ private fun NativeWorkspace(repository: NativeRepository, destination: StateFlow
             }
         }) {
             Scaffold(snackbarHost = { SnackbarHost(snackbar) }, topBar = {
-                Column(Modifier.background(NotedStyle.colors.header).statusBarsPadding()) {
+                Column(Modifier.background(NotedStyle.colors.header).ambientChrome().statusBarsPadding()) {
                     Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (route == "habits") IconButton({ route = "home" }, Modifier.size(44.dp)) {

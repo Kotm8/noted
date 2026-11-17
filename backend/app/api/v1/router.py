@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     channel_banners,
     channels,
     documents,
+    finance,
     habits,
     health,
     home,
@@ -74,3 +75,4 @@ router.include_router(assistant.router)
 router.include_router(assistant.memory_router)
 router.include_router(nutrition.router)
 router.include_router(nutrition.ai_router)
+router.include_router(finance.router)

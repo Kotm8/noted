@@ -6,11 +6,22 @@ from sqlalchemy.orm import Session
 from app.auth.services.sessions import AuthenticatedSession
 from app.dependencies.auth import get_current_session
 from app.dependencies.database import get_db
+from app.notes.library import LibraryPage, channel_library
 from app.workspaces.models import Channel
 from app.workspaces.schemas import ChannelCreate, ChannelPin, ChannelResponse
 from app.workspaces.services.channels import ChannelService
 
 router = APIRouter(tags=["channels"])
+
+
+@router.get("/channels/{channel_id}/library", response_model=LibraryPage)
+def list_channel_library(
+    channel_id: UUID,
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> LibraryPage:
+    return channel_library(db, current.user.id, channel_id, offset)
 
 
 @router.get("/workspaces/{workspace_id}/channels", response_model=list[ChannelResponse])

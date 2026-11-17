@@ -1,4 +1,5 @@
 import { ChevronDown, FolderPlus, Hash, Pencil, Trash2 } from "lucide-react";
+import { ContextMenu } from "../../../components/ui/context-menu";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import type { OpenManagement, Workspace } from "../types";
 
@@ -17,17 +18,38 @@ export function WorkspaceMenu({ workspace, onManage }: WorkspaceMenuProps) {
   if (!workspace) return <div className="workspace-title">{title}</div>;
 
   return (
-    <Menu
-      trigger={
-        <button
-          className="workspace-title"
-          aria-label={`${workspace.name} workspace menu`}
-        >
-          {title}
-          <ChevronDown size={17} />
-        </button>
-      }
+    <ContextMenu
+      label={`Actions for project ${workspace.name}`}
+      menu={<WorkspaceActions workspace={workspace} onManage={onManage} />}
     >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Menu
+          trigger={
+            <button
+              className="workspace-title"
+              aria-label={`${workspace.name} workspace menu`}
+            >
+              {title}
+              <ChevronDown size={17} />
+            </button>
+          }
+        >
+          <WorkspaceActions workspace={workspace} onManage={onManage} />
+        </Menu>
+      </div>
+    </ContextMenu>
+  );
+}
+
+export function WorkspaceActions({
+  workspace,
+  onManage,
+}: {
+  workspace: Workspace;
+  onManage: OpenManagement;
+}) {
+  return (
+    <>
       <MenuItem
         onSelect={() =>
           onManage({ kind: "channel", workspaceId: workspace.id })
@@ -59,6 +81,6 @@ export function WorkspaceMenu({ workspace, onManage }: WorkspaceMenuProps) {
         <Trash2 size={14} />
         Delete workspace
       </MenuItem>
-    </Menu>
+    </>
   );
 }

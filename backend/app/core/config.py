@@ -4,9 +4,9 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.4.3")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.4.4")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
-SCHEMA_REVISION = "0031_assistant_chats"
+SCHEMA_REVISION = "0034_document_reminders"
 API_VERSION = 1
 # Sign-in attempts allowed per address each minute. Only the browser test server raises it,
 # because its whole suite signs in from one address.

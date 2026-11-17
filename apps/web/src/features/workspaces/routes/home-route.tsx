@@ -25,7 +25,9 @@ export function HomeRoute() {
   return (
     <HomePage
       onNavigation={shell.openNavigation}
-      onCalendar={() => shell.openPage("/schedule")}
+      onCalendar={(date) =>
+        shell.openPage(date ? `/schedule?date=${date}` : "/schedule")
+      }
       onSearch={shell.openSearch}
       onActivity={() => {
         window.dispatchEvent(new Event("noted:choose-activity"));

@@ -44,7 +44,7 @@
 .dropdown-item.format-style-h3 {
   font-weight: 600;
 }
-.dropdown-item svg:last-child {
+.dropdown-item[class*="format-style-"] > svg:last-child {
   margin-left: auto;
 }
 .composer-actions {

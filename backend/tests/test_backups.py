@@ -62,6 +62,7 @@ def test_backup_roundtrip_preserves_content_files_and_login(
     ).json()
     ready, raw = export(owner)
     assert ready["counts"] == {
+        "finance_entries": 0,
         "assistant_chats": 0,
         "habits": 0,
         "meals": 0,
@@ -144,13 +145,13 @@ def test_large_attachments_survive_backup_restore(owner: TestClient, channel: di
         assert owner.get(attachment["download_url"]).content == payload
 
 
-def test_backup_upload_rejects_over_1_gib_before_reading(owner: TestClient) -> None:
+def test_backup_large_header_is_not_rejected_by_old_limit(owner: TestClient) -> None:
     response = owner.post(
         f"{API}/backups/preview",
         content=b"",
         headers={"Content-Length": str(1024 * 1024 * 1024 + 1)},
     )
-    assert response.status_code == 413
+    assert response.status_code == 422
 
 
 def test_video_backup_roundtrip_and_mismatched_container_rejection(

@@ -6,6 +6,7 @@ import {
 import ReactMarkdown, { type ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import { Bell } from "lucide-react";
 import { CodeBlock } from "./code-block";
 import { useMentionDirectory } from "../mention-context";
 import { lineBreaks } from "../line-breaks";
@@ -16,6 +17,8 @@ interface MarkdownProps {
   content: string;
   onContentChange?: (content: string) => void;
   pending?: boolean;
+  onReminder?: (id: string) => void;
+  completedReminders?: ReadonlySet<string>;
 }
 
 const TaskSettings = createContext<MarkdownProps>({ content: "" });
@@ -69,7 +72,13 @@ function TaskInput({
   );
 }
 
-export function Markdown({ content, onContentChange, pending }: MarkdownProps) {
+export function Markdown({
+  content,
+  onContentChange,
+  pending,
+  onReminder,
+  completedReminders,
+}: MarkdownProps) {
   const { channels, open } = useMentionDirectory();
   return (
     <TaskSettings.Provider value={{ content, onContentChange, pending }}>
@@ -90,7 +99,16 @@ export function Markdown({ content, onContentChange, pending }: MarkdownProps) {
               <CodeBlock className={className}>{children}</CodeBlock>
             ),
             a: ({ children, href, title, className }) =>
-              className === "channel-mention" ? (
+              onReminder && /^#reminder-[0-9a-f-]{36}$/i.test(href ?? "") ? (
+                <button
+                  type="button"
+                  className={`document-reminder-link${completedReminders?.has(href!.slice(10)) ? " is-done" : ""}`}
+                  onClick={() => onReminder(href!.slice(10))}
+                >
+                  <Bell size={13} />
+                  {children}
+                </button>
+              ) : className === "channel-mention" ? (
                 <a
                   className={className}
                   href={href || undefined}

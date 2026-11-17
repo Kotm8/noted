@@ -42,6 +42,7 @@ def command(arguments: list[str], content: bytes | None = None) -> bytes:
 
 
 def run() -> None:
+    subprocess.run([sys.executable, str(ROOT / "scripts/test_compose_install.py")], check=True)
     project = f"noted-update-test-{uuid4().hex[:8]}"
     local = ROOT / ".local"
     local.mkdir(exist_ok=True)

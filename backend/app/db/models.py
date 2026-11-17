@@ -3,10 +3,20 @@ from app.ai.calendar.models import CalendarApplicationRecord
 from app.ai.models import AiPrompt, AiRun
 from app.auth.models import AuthThrottle, Installation, LoginSession, User
 from app.db.base import Base
+from app.finance.models import (
+    FinanceAccount,
+    FinanceAsset,
+    FinanceDelivery,
+    FinanceEntry,
+    FinanceItem,
+    FinanceMutation,
+    FinanceProfile,
+)
 from app.habits.models import Habit, HabitDelivery, HabitEntry, HabitReminder
 from app.journals.models import JournalEntry
 from app.live.models import WatchSyncState
 from app.notes.documents.models import ChannelDocument
+from app.notes.documents.reminders.models import DocumentReminder, DocumentReminderDelivery
 from app.notes.models import Attachment, Message
 from app.notes.versions.models import MessageVersion
 from app.notifications.models import (
@@ -50,8 +60,17 @@ __all__ = [
     "Category",
     "Channel",
     "ChannelDocument",
+    "DocumentReminder",
+    "DocumentReminderDelivery",
     "DayTemplate",
     "DevicePresence",
+    "FinanceAccount",
+    "FinanceAsset",
+    "FinanceDelivery",
+    "FinanceEntry",
+    "FinanceItem",
+    "FinanceMutation",
+    "FinanceProfile",
     "Habit",
     "HabitDelivery",
     "HabitEntry",

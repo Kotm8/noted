@@ -1,6 +1,27 @@
 #!/bin/sh
 set -eu
 umask 077
+
+ensure_compose() (
+    docker compose version >/dev/null 2>&1 && return 0
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq || return 37
+    if apt-get install -y --no-remove --no-upgrade --no-install-recommends docker-compose-plugin; then
+        docker compose version >/dev/null 2>&1 && return 0
+    fi
+    apt-get install -y --no-remove --no-upgrade --no-install-recommends ca-certificates curl || return 37
+    compose_download=$(mktemp -d) || return 37
+    trap 'rm -f "$compose_download/docker-compose-linux-x86_64" "$compose_download/docker-compose-linux-x86_64.sha256"; rmdir "$compose_download"' EXIT
+    compose_release=https://github.com/docker/compose/releases/download/v5.6.0
+    for compose_asset in docker-compose-linux-x86_64 docker-compose-linux-x86_64.sha256; do
+        curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 "$compose_release/$compose_asset" -o "$compose_download/$compose_asset" || return 37
+    done
+    cd "$compose_download" || return 37
+    sha256sum --check docker-compose-linux-x86_64.sha256 || return 37
+    install -m 0755 -d /usr/local/lib/docker/cli-plugins || return 37
+    install -m 0755 docker-compose-linux-x86_64 /usr/local/lib/docker/cli-plugins/docker-compose || return 37
+    docker compose version >/dev/null 2>&1 || return 37
+)
 test "$(id -u)" = 0 || exit 30
 test "$(uname -m)" = x86_64 || exit 31
 . /etc/os-release
@@ -21,7 +42,6 @@ else
     fi
 fi
 if command -v docker >/dev/null; then
-    docker compose version >/dev/null || exit 37
     systemctl is-active --quiet docker || exit 38
 fi
 test "$(df -Pk /opt | awk 'NR==2 {print $4}')" -gt 2097152 || exit 39
@@ -57,5 +77,5 @@ if test -n "$packages"; then
     apt-get install -y $packages
 fi
 python3 -c 'import sys; assert sys.version_info >= (3,11)'
-docker compose version >/dev/null
+ensure_compose || exit 37
 systemctl is-active --quiet docker

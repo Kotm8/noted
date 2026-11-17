@@ -1,3 +1,4 @@
+import { AttachmentMenu } from "../components/attachment-menu";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -155,48 +156,50 @@ function ViewerImage({
           <X size={21} />
         </Dialog.Close>
       </header>
-      <div
-        className={`image-viewer-stage ${view.transform.scale > 1 ? "is-zoomed" : ""}`}
-        ref={view.viewport}
-        {...view.handlers}
-        onClick={() => {
-          if (view.background.current && !view.moved.current) onClose();
-        }}
-      >
+      <AttachmentMenu file={file}>
         <div
-          className="image-viewer-picture"
-          style={{
-            width: view.image.width,
-            height: view.image.height,
-            transform: `translate(${view.transform.x}px, ${view.transform.y}px) scale(${view.transform.scale})`,
+          className={`image-viewer-stage ${view.transform.scale > 1 ? "is-zoomed" : ""}`}
+          ref={view.viewport}
+          {...view.handlers}
+          onClick={() => {
+            if (view.background.current && !view.moved.current) onClose();
           }}
         >
-          <img
-            className="image-viewer-preview"
-            src={file.preview_url!}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-          />
-          <img
-            className={`image-viewer-original ${loaded ? "is-loaded" : ""}`}
-            key={src}
-            src={src}
-            alt={file.original_filename}
-            draggable={false}
-            onLoad={(event) => {
-              const image = event.currentTarget;
-              setDimensions({
-                width: image.naturalWidth,
-                height: image.naturalHeight,
-              });
-              setLoaded(true);
-              setFailed(false);
+          <div
+            className="image-viewer-picture"
+            style={{
+              width: view.image.width,
+              height: view.image.height,
+              transform: `translate(${view.transform.x}px, ${view.transform.y}px) scale(${view.transform.scale})`,
             }}
-            onError={() => setFailed(true)}
-          />
+          >
+            <img
+              className="image-viewer-preview"
+              src={file.preview_url!}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <img
+              className={`image-viewer-original ${loaded ? "is-loaded" : ""}`}
+              key={src}
+              src={src}
+              alt={file.original_filename}
+              draggable={false}
+              onLoad={(event) => {
+                const image = event.currentTarget;
+                setDimensions({
+                  width: image.naturalWidth,
+                  height: image.naturalHeight,
+                });
+                setLoaded(true);
+                setFailed(false);
+              }}
+              onError={() => setFailed(true)}
+            />
+          </div>
         </div>
-      </div>
+      </AttachmentMenu>
       <footer className="image-viewer-footer">
         <div className="image-viewer-progress" role="status">
           {failed ? (

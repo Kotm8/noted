@@ -43,7 +43,7 @@ test("N01 manages exact Markdown and inserts it into an existing message draft",
   );
   await page.goto(`/w/${project.id}/c/${channel.id}`);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  const settings = page.locator(".settings-destination, .settings-dialog");
   await settings
     .getByRole("button", { name: "Note templates", exact: true })
     .click();
@@ -64,7 +64,7 @@ test("N01 manages exact Markdown and inserts it into an existing message draft",
   ).toHaveValue(content);
   await page.screenshot({ path: "../../.local/templates-note-manager.png" });
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   const draft = page.getByLabel("Message journal-drafts", { exact: true });
   await draft.fill("beforeafter");
@@ -96,7 +96,7 @@ test("N01 manages exact Markdown and inserts it into an existing message draft",
     settings.getByRole("heading", { name: "Note templates", exact: true }),
   ).toBeVisible();
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   await page.reload();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -118,7 +118,7 @@ test("D01 edits horizontal blocks, applies under the right date, and opens a pho
   });
   await page.reload();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  const settings = page.locator(".settings-destination, .settings-dialog");
   await settings
     .getByRole("button", { name: "Time tracking", exact: true })
     .click();
@@ -162,7 +162,7 @@ test("D01 edits horizontal blocks, applies under the right date, and opens a pho
   );
   await page.screenshot({ path: "../../.local/templates-day-manager.png" });
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   await page
     .locator(".sidebar-global-navigation")

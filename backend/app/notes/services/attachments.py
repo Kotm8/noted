@@ -17,6 +17,7 @@ from app.reminders.service import attach_reminder
 from app.storage.base import FileStorage
 from app.storage.media import IMAGE_TYPES
 from app.storage.uploads import UploadService
+from app.threads.service import ThreadService
 from app.workspaces.services.channels import ChannelService
 
 
@@ -36,11 +37,19 @@ class AttachmentService:
         files: list[UploadFile],
         reminder: ReminderSchedule | None = None,
         client_id: UUID | None = None,
+        thread_root_id: UUID | None = None,
     ) -> Message:
         channel = ChannelService(self.db).get_channel(channel_id, owner_id)
+        if thread_root_id is not None:
+            root = ThreadService(self.db).root(thread_root_id, owner_id, lock=True)
+            if root.channel_id != channel_id:
+                raise ValidationError("Choose a thread in this channel.")
+            if reminder is not None:
+                raise ValidationError("Schedule reminders on channel notes.")
         if (sent := self.messages.sent(owner_id, client_id)) is not None:
             return sent
-        content = channel_content(channel, content)
+        if thread_root_id is None:
+            content = channel_content(channel, content)
         if not files or len(files) > MAX_FILES:
             raise ValidationError(f"Choose between 1 and {MAX_FILES} files.")
         if len(content) > 40000:
@@ -49,7 +58,9 @@ class AttachmentService:
         saved_keys: list[str] = []
         total_size = 0
         try:
-            message = self.messages.create(channel_id, owner_id, content, client_id=client_id)
+            message = self.messages.create(
+                channel_id, owner_id, content, thread_root_id, client_id=client_id
+            )
             attach_reminder(self.db, message, reminder)
             for position, file in enumerate(files):
                 saved = await self.uploads.save(file)

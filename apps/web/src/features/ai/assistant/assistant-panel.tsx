@@ -122,6 +122,7 @@ export function AssistantPanel({
     ? a.proposal.habits.length +
       a.proposal.plans.length +
       a.proposal.meals.length +
+      (a.proposal.finance?.length ?? 0) +
       (a.proposal.rewrites?.length ?? 0) +
       (a.proposal.posts?.length ?? 0) +
       (a.proposal.deletions?.length ?? 0)
@@ -693,6 +694,11 @@ export function AssistantPanel({
                     if (
                       (a.proposal?.deletions ?? []).some((_, i) =>
                         a.selected.has(`delete-${i}`),
+                      ) ||
+                      (a.proposal?.finance ?? []).some(
+                        (change, i) =>
+                          change.operation === "delete" &&
+                          a.selected.has(`finance-${i}`),
                       )
                     )
                       setConfirmDeletion(true);
@@ -867,12 +873,22 @@ export function AssistantPanel({
       <ConfirmDialog
         open={confirmDeletion}
         title="Apply changes and delete these items?"
-        description={(a.proposal?.deletions ?? [])
-          .filter((_, i) => a.selected.has(`delete-${i}`))
-          .map(
-            (item) =>
-              `${item.target?.title ?? item.kind}${item.kind === "plan" ? ` (${item.scope === "occurrence" ? item.occurrence_date : "entire series"})` : ""}`,
-          )
+        description={[
+          (a.proposal?.deletions ?? [])
+            .filter((_, i) => a.selected.has(`delete-${i}`))
+            .map(
+              (item) =>
+                `${item.target?.title ?? item.kind}${item.kind === "plan" ? ` (${item.scope === "occurrence" ? item.occurrence_date : "entire series"})` : ""}`,
+            )
+            .join("; "),
+          ...(a.proposal?.finance ?? [])
+            .filter(
+              (change, i) =>
+                change.operation === "delete" && a.selected.has(`finance-${i}`),
+            )
+            .map((change) => `${change.entity}: ${change.title || change.id}`),
+        ]
+          .filter(Boolean)
           .join("; ")}
         keepLabel="Keep reviewing"
         confirmLabel="Confirm and apply"

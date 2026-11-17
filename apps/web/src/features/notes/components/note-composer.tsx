@@ -9,21 +9,20 @@ import {
 import {
   ChevronDown,
   Clock3,
-  FileText,
   Hash,
   LoaderCircle,
   Plus,
   SendHorizontal,
   Slash,
   CaseSensitive,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "react-router-dom";
-import { formatFileSize } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
 import type { Channel } from "../../workspaces/types";
 import { useDraft } from "../hooks/use-draft";
+import { useComposerFiles } from "../hooks/use-composer-files";
+import { PendingFiles } from "./pending-files";
 import { ScheduleDialog } from "../../reminders/components/schedule-dialog";
 import { noteCommands, parseNoteCommand } from "../../reminders/commands";
 import type { ReminderSchedule } from "../../reminders/types";
@@ -37,26 +36,6 @@ import {
 import { chatEnter } from "../chat-enter";
 import { toStored } from "../mentions";
 import { useMentionPicker } from "./mention-picker";
-
-/** A picture shows as a thumbnail before it's sent; other files keep their icon. */
-function PendingPreview({ file }: { file: File }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!file.type.startsWith("image/")) return;
-    const created = URL.createObjectURL(file);
-    setUrl(created);
-    return () => URL.revokeObjectURL(created);
-  }, [file]);
-  if (!url) return <FileText size={18} />;
-  return (
-    <img
-      className="pending-file-preview"
-      src={url}
-      alt=""
-      onError={() => setUrl(null)}
-    />
-  );
-}
 
 interface NoteComposerProps {
   /** Floats just above the composer, whatever its current height. */
@@ -98,7 +77,7 @@ export function NoteComposer({
       inputRef.current?.focus();
   }, [location.key, location.search]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<File[]>([]);
+  const { files, setFiles, addFiles } = useComposerFiles();
   const [scheduledDraft, setScheduledDraft] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState<{
     content: string;
@@ -112,19 +91,6 @@ export function NoteComposer({
   const stored = (text: string) => toStored(text, mentions.refs.current);
   const formatting = useFormatting(inputRef);
   const [formattingVisible, toggleFormatting] = useFormattingVisible();
-
-  function addFiles(incoming: File[]) {
-    const next = [...files, ...incoming];
-    if (
-      next.length > 10 ||
-      next.some((file) => file.size > 250 * 1024 * 1024) ||
-      next.reduce((size, file) => size + file.size, 0) > 500 * 1024 * 1024
-    ) {
-      toast.error("Choose up to 10 files, 250 MB each and 500 MB total.");
-      return;
-    }
-    setFiles(next);
-  }
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -201,31 +167,15 @@ export function NoteComposer({
       }}
     >
       {above}
-      {files.length > 0 && (
-        <div className="pending-files">
-          {files.map((file, index) => (
-            <div className="pending-file" key={`${file.name}-${index}`}>
-              <PendingPreview file={file} />
-              <span>
-                <strong>{file.name}</strong>
-                <small>{formatFileSize(file.size)}</small>
-              </span>
-              <button
-                className="icon-button"
-                aria-label={`Remove ${file.name}`}
-                disabled={isSending}
-                onClick={() =>
-                  setFiles((current) =>
-                    current.filter((_, position) => position !== index),
-                  )
-                }
-              >
-                <X size={15} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <PendingFiles
+        files={files}
+        disabled={isSending}
+        onRemove={(index) =>
+          setFiles((current) =>
+            current.filter((_, position) => position !== index),
+          )
+        }
+      />
       <input
         ref={fileInputRef}
         hidden

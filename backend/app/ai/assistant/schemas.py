@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.ai.calendar.schemas import CalendarScope
 from app.ai.schemas import ConversationTurn
+from app.finance.schemas import FinanceChange
 from app.habits.schemas import HabitFields
 from app.nutrition.schemas import MealItem, Slot
 from app.schedule.schemas import PlanCreate
@@ -116,6 +117,7 @@ class AssistantProposal(BaseModel):
     habits: list[HabitChange] = Field(default_factory=list, max_length=30)
     plans: list[PlanChange] = Field(default_factory=list, max_length=30)
     meals: list[MealChange] = Field(default_factory=list, max_length=20)
+    finance: list[FinanceChange] = Field(default_factory=list, max_length=50)
     posts: list[MessagePost] = Field(default_factory=list, max_length=20)
     deletions: list[ItemDeletion] = Field(default_factory=list, max_length=30)
     rewrites: list[MessageRewrite] = Field(
@@ -162,6 +164,7 @@ class AssistantRequest(CalendarScope):
 
 
 class AssistantApply(AssistantProposal, CalendarScope):
+    confirmed_finance: bool = False
     request_id: UUID
     turn_id: UUID | None = None
 

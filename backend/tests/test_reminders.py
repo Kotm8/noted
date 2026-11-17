@@ -90,6 +90,24 @@ def test_reminder_channel_requires_time_atomically(owner, channel, db):
     )
 
 
+def test_schedule_existing_note_from_its_actions(owner, channel):
+    note = owner.post(
+        f"{API}/channels/{channel['id']}/messages", json={"content": "Remember this"}
+    ).json()
+    path = f"{API}/messages/{note['id']}/reminder"
+    created = owner.put(path, json=schedule())
+    assert created.status_code == 200, created.text
+    assert created.json()["revision"] == 1
+    assert (
+        owner.get(f"{API}/channels/{channel['id']}/messages").json()["items"][0]["reminder"][
+            "status"
+        ]
+        == "active"
+    )
+    changed = owner.put(path, json=schedule())
+    assert changed.status_code == 200 and changed.json()["revision"] == 2
+
+
 @pytest.mark.parametrize(
     "values",
     [

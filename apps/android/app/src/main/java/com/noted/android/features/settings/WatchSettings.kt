@@ -39,7 +39,8 @@ fun WatchSettings(repository: NativeRepository) {
             NotedSlider(value.optDouble("text_scale", 1.0).toFloat(), { set("text_scale", it.toDouble()) }, valueRange = .85f..1.3f)
             Choice("Schedule ahead", value.optInt("schedule_hours", 4), listOf(2, 4, 6, 8).map { it to "$it hours" }) { set("schedule_hours", it) }
             Toggle("Hide notification contents", value.optBoolean("hide_contents")) { set("hide_contents", it) }
-            Field("Accent", value.text("accent", "#e2c15a"), { set("accent", it) })
+            Choice("Accent source", value.text("accent_source", "app"), listOf("app" to "Follow app accent", "custom" to "Custom watch accent")) { set("accent_source", it) }
+            if (value.text("accent_source", "app") == "custom") Field("Accent", value.text("accent", "#e2c15a"), { set("accent", it) })
             NotedButton(onClick = { actions.run { repository.mutate("/wear/settings", "PUT", value); draft = null } }, enabled = draft != null && !actions.busy) { Text("Save watch settings") }
         }
     }

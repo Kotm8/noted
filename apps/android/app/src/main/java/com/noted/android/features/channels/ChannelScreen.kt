@@ -80,7 +80,7 @@ private fun MessageList(repository: NativeRepository, channel: JSONObject, appea
         val last = messages.lastOrNull()?.text("id")
         val nearBottom = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let { it >= listState.layoutInfo.totalItemsCount - 4 } ?: true
         if (previousLast == null || nearBottom || scrollRequest != previousScrollRequest) {
-            if (endIndex >= 0) listState.scrollToItem(endIndex)
+            if (endIndex >= 0) listState.requestScrollToItem(endIndex)
         }
         previousScrollRequest = scrollRequest
         previousLast = last
@@ -89,7 +89,7 @@ private fun MessageList(repository: NativeRepository, channel: JSONObject, appea
         val index = messages.indexOfFirst { it.text("id") == focus }
         if (!located && index >= 0) {
             val preceding = (if (thread != null) 1 else 0) + (if (!page?.text("next_cursor").isNullOrBlank()) 1 else 0)
-            listState.scrollToItem(index + preceding)
+            listState.requestScrollToItem(index + preceding)
             located = true
         }
     }
@@ -172,14 +172,15 @@ private fun MessageRow(repository: NativeRepository, message: JSONObject, timezo
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val id = message.text("id")
-    Column(Modifier.fillMaxWidth().clickable { controls = !controls }.padding(vertical = 5.dp)) {
+    val spacing = when (LocalAppearancePreferences.current?.optString("density")) { "compact" -> 2.dp; "spacious" -> 9.dp; else -> 5.dp }
+    Column(Modifier.fillMaxWidth().clickable { controls = !controls }.padding(vertical = spacing)) {
         if (message.optBoolean("ai_generated")) Text("AI reply", Modifier.padding(bottom = 2.dp),
             style = MaterialTheme.typography.labelSmall, color = NotedStyle.colors.muted)
-        Markdown(message.text("content"), activate = { controls = !controls }, change = { updated -> actions.run {
+        val reminder = message.optJSONObject("reminder")
+        Markdown(message.text("content"), activate = { controls = !controls }, completed = reminder?.text("status") == "done", change = { updated -> actions.run {
             repository.mutate("/messages/$id", "PUT", json("content" to updated, "expected_content" to message.text("content")))
         } })
         message.rows("attachments").forEach { AttachmentView(repository, it) }
-        val reminder = message.optJSONObject("reminder")
         if (reminder != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(NotedIcons.NotificationsNone, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
@@ -203,7 +204,7 @@ private fun MessageRow(repository: NativeRepository, message: JSONObject, timezo
             val last = lastReply(message.text("last_reply_at"), timezone)
             Icon(NotedIcons.Forum, null, Modifier.size(16.dp))
             Text("$replies ${if (replies == 1) "reply" else "replies"}", Modifier.padding(start = 8.dp))
-            if (last != null) Text(" · Last reply $last", color = NotedStyle.colors.muted)
+            if (last != null) Text(" Â· Last reply $last", color = NotedStyle.colors.muted)
         }
         if (controls && time != null) Text(time, style = MaterialTheme.typography.labelSmall, color = NotedStyle.colors.muted)
         if (controls) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -247,8 +248,9 @@ private fun lastReply(iso: String, timezone: String): String? = runCatching {
 private fun MessageComposer(repository: NativeRepository, channel: JSONObject, path: String, timezone: String, thread: Boolean, sent: () -> Unit) {
     var text by rememberSaveable(path) { mutableStateOf("") }
     var restored by remember(path) { mutableStateOf(false) }
-    var files by remember { mutableStateOf(emptyList<Uri>()) }
-    var scheduling by remember { mutableStateOf(false) }
+    var files by remember(path) { mutableStateOf(emptyList<Uri>()) }
+    var scheduling by remember(path) { mutableStateOf<ReminderCommand?>(null) }
+    var commandError by remember(path) { mutableStateOf<String?>(null) }
     var templates by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val session by repository.session.collectAsStateWithLifecycle()
@@ -268,8 +270,8 @@ private fun MessageComposer(repository: NativeRepository, channel: JSONObject, p
         actions.run {
             if (attached.isEmpty()) repository.sendMessage(path, content, reminder)
             else {
-                require(!thread) { "Attach files in the main channel." }
-                repository.api.upload(context, "/channels/${channel.text("id")}/messages/with-files", content, attached, reminder, UUID.randomUUID().toString())
+                val uploadPath = if (thread) "$path/with-files" else "/channels/${channel.text("id")}/messages/with-files"
+                repository.api.upload(context, uploadPath, content, attached, reminder, UUID.randomUUID().toString())
                 repository.changed()
             }
             text = ""; files = emptyList()
@@ -278,21 +280,29 @@ private fun MessageComposer(repository: NativeRepository, channel: JSONObject, p
         }
     }
     val send = {
-        if (text.isNotBlank() || files.isNotEmpty()) {
-            if (channel.text("kind") == "reminder" && !thread) scheduling = true else submit(null)
+        if (!actions.busy && scheduling == null && (text.isNotBlank() || files.isNotEmpty())) {
+            val command = parseReminderCommand(text)
+            if (command != null && thread) {
+                commandError = "Schedule reminders in the main channel."
+            } else if (command != null && command.content.isBlank() && files.isEmpty()) {
+                commandError = "Write a reminder name after /remind."
+            } else if (command != null || (channel.text("kind") == "reminder" && !thread)) {
+                scheduling = command ?: ReminderCommand(text)
+            } else submit(null)
         }
     }
     Column(Modifier.fillMaxWidth().imePadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        commandError?.let { Text(it, color = NotedStyle.colors.danger, style = MaterialTheme.typography.bodySmall) }
         if (files.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${files.size} files attached", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
             NotedTextButton(onClick = { files = emptyList() }) { Text("Remove") }
         }
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).background(NotedStyle.colors.input, RoundedCornerShape(6.dp))
             .border(1.dp, NotedStyle.colors.border, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (!thread) ActionIcon(NotedIcons.Add, "Add files") { pickFiles.launch(arrayOf("*/*")) }
-            NotedTextField(text, { text = continueTask(text, it); repository.drafts.write(account, path, text) }, Modifier.weight(1f), maxLines = 6, chrome = false,
-                fieldLabel = if (thread) "Reply" else "Message #${channel.text("name")}",
-                placeholder = { Text(if (thread) "Reply" else "Message #${channel.text("name")}") },
+            ActionIcon(NotedIcons.Add, "Add files") { pickFiles.launch(arrayOf("*/*")) }
+            NotedTextField(text, { text = continueTask(text, it); commandError = null; repository.drafts.write(account, path, text) }, Modifier.weight(1f), maxLines = 6, chrome = false,
+                fieldLabel = if (thread) "Reply in thread" else "Message #${channel.text("name")}",
+                placeholder = { Text(if (thread) "Reply in thread" else "Message #${channel.text("name")}") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { send() }))
             ActionIcon(NotedIcons.NoteAdd, "Insert template") { templates = true }
             NotedFilledIconButton(onClick = send, enabled = !actions.busy && (text.isNotBlank() || files.isNotEmpty()), modifier = Modifier.padding(start = 4.dp)) {
@@ -301,12 +311,28 @@ private fun MessageComposer(repository: NativeRepository, channel: JSONObject, p
             }
         }
     }
-    if (scheduling) ReminderEditor(timezone = timezone, close = { scheduling = false }, confirm = "Send reminder") { reminder ->
-        if (files.isEmpty()) repository.sendMessage(path, text, reminder)
-        else { repository.api.upload(context, "/channels/${channel.text("id")}/messages/with-files", text, files, reminder, UUID.randomUUID().toString()); repository.changed() }
-        text = ""; files = emptyList()
-        repository.drafts.save(account, path, "")
-        sent()
+    scheduling?.let { command ->
+        ReminderEditor(
+            timezone = timezone,
+            close = { scheduling = null },
+            confirm = "Send reminder",
+            content = command.content,
+            delayMinutes = command.delayMinutes,
+        ) { reminder ->
+            if (files.isEmpty()) {
+                repository.sendMessage(path, command.content, reminder)
+            } else {
+                repository.api.upload(
+                    context, "/channels/${channel.text("id")}/messages/with-files",
+                    command.content, files, reminder, UUID.randomUUID().toString(),
+                )
+                repository.changed()
+            }
+            text = ""
+            files = emptyList()
+            repository.drafts.save(account, path, "")
+            sent()
+        }
     }
     if (templates) TemplatePicker(repository, { templates = false }) { text += it; repository.drafts.write(account, path, text); templates = false }
 }

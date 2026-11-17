@@ -189,7 +189,7 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
 
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Warm", exact: true }).click();
+  await page.getByRole("button", { name: "Comic", exact: true }).click();
   await page.getByRole("slider", { name: "Text size", exact: true }).fill("17");
   await page
     .getByRole("slider", { name: "Interface zoom", exact: true })
@@ -197,7 +197,7 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
   await expect(
     page.getByText("Saving appearance...", { exact: true }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("button", { name: /Close (dialog|settings)/ }).click();
   await page.reload();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.style.zoom))
@@ -207,9 +207,9 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
   );
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Warm", exact: true }),
+    page.getByRole("button", { name: "Comic", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Reset appearance" }).click();
+  await page.getByRole("button", { name: "Reset to defaults" }).click();
   await page.getByRole("button", { name: "Server", exact: true }).click();
   await expect(
     page.getByText("Private, owner only", { exact: true }),
@@ -227,8 +227,8 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
     page.getByRole("heading", { name: "Home", exact: true }),
   ).toBeVisible();
   await page
-    .locator(".home-project-navigation")
-    .getByRole("button", { name: "Programming", exact: true })
+    .getByRole("navigation", { name: "Workspaces", exact: true })
+    .getByRole("button", { name: "Open workspace Programming", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "python", exact: true }),
@@ -341,7 +341,7 @@ test("the owner can organize, write, edit, and delete persistent notes", async (
     path: "../../.local/screenshots/settings-mobile.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("button", { name: /Close (dialog|settings)/ }).click();
   await page.setViewportSize({ width: 1440, height: 960 });
 
   const channelId = page.url().split("/c/")[1];

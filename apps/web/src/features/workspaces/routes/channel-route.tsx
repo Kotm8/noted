@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChannelLibrary } from "../../notes/library/channel-library";
 import { JournalList } from "../../journals/journal-list";
 import { NotesTimeline } from "../../notes/components/notes-timeline";
 import { DocumentPage } from "../../notes/documents/document-page";
@@ -10,8 +11,20 @@ import { useWorkspaceShell } from "../shell-context";
 import type { Channel } from "../types";
 
 export function ChannelRoute() {
+  const [params, setParams] = useSearchParams();
   const shell = useWorkspaceShell();
   const { workspace, channel, isLoading } = shell.navigation;
+  const files = params.get("view") === "files";
+  function setFiles(open: boolean) {
+    setParams(
+      (current) => {
+        if (open) current.set("view", "files");
+        else current.delete("view");
+        return current;
+      },
+      { replace: true },
+    );
+  }
   return (
     <>
       <ChannelHeader
@@ -23,10 +36,47 @@ export function ChannelRoute() {
         searchOpen={shell.searchOpen}
         onOpenSearch={shell.openSearch}
       />
-      {channel && <WritingPromptBanner channelId={channel.id} />}
+      {channel && !["document", "journal"].includes(channel.kind ?? "note") && (
+        <div className="channel-views" role="tablist" aria-label="Channel view">
+          <button
+            role="tab"
+            aria-selected={!files}
+            onClick={() => setFiles(false)}
+          >
+            {channel.kind === "document"
+              ? "Notes"
+              : channel.kind === "journal"
+                ? "Journal"
+                : "Messages"}
+          </button>
+          <button
+            role="tab"
+            aria-selected={files}
+            onClick={() => setFiles(true)}
+          >
+            Files &amp; links
+          </button>
+        </div>
+      )}
+      {channel && !files && <WritingPromptBanner channelId={channel.id} />}
       {channel && <NudgeBanner channelId={channel.id} />}
       {channel ? (
-        <ChannelContent channel={channel} />
+        files ? (
+          <ChannelLibrary
+            channelId={channel.id}
+            onOpen={(id, root) => {
+              shell.openNote({
+                workspaceId: channel.workspace_id,
+                channelId: channel.id,
+                noteId: root ?? id,
+                threadId: root ?? undefined,
+                replyId: root ? id : undefined,
+              });
+            }}
+          />
+        ) : (
+          <ChannelContent channel={channel} />
+        )
       ) : (
         <WorkspaceEmpty
           workspace={workspace}

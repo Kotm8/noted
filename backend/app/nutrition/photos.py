@@ -11,7 +11,8 @@ from app.core.security import utc_now
 from app.core.storage_limits import MAX_PHOTO_SIZE
 from app.notes.images.encoding import MAX_PREVIEW_BYTES, encode_preview
 from app.notes.images.service import preview_bytes
-from app.nutrition.models import MealPhoto
+from app.nutrition.models import MealPhoto, SavedMealPhoto
+from app.nutrition.photo_references import retained_photo, unused_file_keys
 from app.nutrition.service import NutritionService
 from app.storage.base import FileStorage
 from app.storage.media import inspect_image
@@ -26,12 +27,16 @@ async def store_photo(
     if upload.size is not None and upload.size > MAX_PHOTO_SIZE:
         raise ContentTooLargeError("Photos must be no larger than 25 MB.")
     unsaved = db.scalar(
-        select(func.count()).where(MealPhoto.owner_id == owner_id, MealPhoto.meal_id.is_(None))
+        select(func.count()).where(
+            MealPhoto.owner_id == owner_id, MealPhoto.meal_id.is_(None), ~retained_photo()
+        )
     )
     if (unsaved or 0) >= MAX_UNSAVED_PHOTOS:
         await remove_stale(db, storage, owner_id)
         unsaved = db.scalar(
-            select(func.count()).where(MealPhoto.owner_id == owner_id, MealPhoto.meal_id.is_(None))
+            select(func.count()).where(
+                MealPhoto.owner_id == owner_id, MealPhoto.meal_id.is_(None), ~retained_photo()
+            )
         )
         if (unsaved or 0) >= MAX_UNSAVED_PHOTOS:
             raise ValidationError(
@@ -55,10 +60,17 @@ async def store_photo(
 
 
 async def remove_stale(db: Session, storage: FileStorage, owner_id: UUID) -> None:
+    candidates = []
     for photo in NutritionService(db).stale_photos(owner_id, utc_now()):
-        await storage.delete(photo.storage_key)
+        if db.scalar(
+            select(SavedMealPhoto.photo_id).where(SavedMealPhoto.photo_id == photo.id).limit(1)
+        ):
+            continue
+        candidates.append(photo.storage_key)
         db.delete(photo)
     db.flush()
+    for key in unused_file_keys(db, candidates):
+        await storage.delete(key)
 
 
 async def photo_content(storage: FileStorage, photo: MealPhoto) -> BinaryContent:

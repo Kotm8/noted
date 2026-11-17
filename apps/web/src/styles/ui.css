@@ -121,6 +121,10 @@ label > small {
   background: var(--surface-selected);
 }
 
+.dropdown-item > svg {
+  flex-shrink: 0;
+}
+
 .text-danger {
   color: var(--danger);
 }
@@ -140,4 +144,23 @@ label > small {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: var(--font-md);
+}
+
+.comic-halftone-host {
+  position: relative;
+  isolation: isolate;
+}
+.comic-halftone {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+:root[data-background-profile="comic"] .comic-halftone,
+:root[data-background-profile="snow"] .comic-halftone,
+:root[data-background-profile="stars"] .comic-halftone {
+  display: block;
 }

@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.auth.cookies import set_session_cookies
 from app.auth.models import User
-from app.auth.schemas import AppearancePreferences, PasswordChangeRequest, UserResponse
+from app.auth.schemas import (
+    AppearancePreferences,
+    AppearanceTheme,
+    PasswordChangeRequest,
+    UserResponse,
+)
 from app.auth.services.appearance import AppearanceService
 from app.auth.services.auth import AuthService
 from app.auth.services.sessions import AuthenticatedSession
@@ -15,6 +20,14 @@ from app.server.schemas.settings import ServerSettingsResponse
 from app.server.services.settings import ServerService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
+
+
+@router.post("/appearance/validate")
+def validate_theme(
+    data: AppearanceTheme,
+    current: AuthenticatedSession = Depends(get_current_session),
+) -> AppearanceTheme:
+    return data
 
 
 @router.get("/appearance", response_model=AppearancePreferences | None)

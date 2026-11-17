@@ -1,3 +1,4 @@
+import { ComicHalftone } from "../../components/ui/comic-halftone";
 import { useAssistant } from "../ai/assistant/context";
 import { AssistantButton } from "../ai/assistant/assistant-button";
 import { liveInterval } from "../../lib/live";
@@ -117,6 +118,7 @@ function weekOffset(box: HTMLElement, row: HTMLElement) {
 }
 
 export function ScheduleBoard({
+  initialDate,
   onNavigation,
   onReminder,
   onSettings,
@@ -124,6 +126,7 @@ export function ScheduleBoard({
   onNavigation: () => void;
   onReminder: (flag: ReminderFlag) => void;
   onSettings: () => void;
+  initialDate?: string;
 }) {
   const { tracker, activities, action } = useTracking();
   const preferences = tracker.data?.preferences ?? {
@@ -132,7 +135,7 @@ export function ScheduleBoard({
     timezone: "UTC",
   };
   const [date, setDate] = useState(
-    () => zonedParts(Date.now(), preferences.timezone).date,
+    () => initialDate ?? zonedParts(Date.now(), preferences.timezone).date,
   );
   const [mode, setMode] = useState<"week" | "day">("week");
   const [editing, setEditing] = useState<{
@@ -142,6 +145,7 @@ export function ScheduleBoard({
     anchorX?: number;
     deleting?: boolean;
   } | null>(null);
+  const [sessionDeleting, setSessionDeleting] = useState(false);
   const [session, setSession] = useState<TimeSession | null>(null);
   const [draft, setDraft] = useState<PlanFields | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -538,6 +542,7 @@ export function ScheduleBoard({
     <>
       <div className="schedule-page">
         <header className="channel-header schedule-header">
+          <ComicHalftone />
           <div className="channel-heading">
             <button
               className="icon-button mobile-menu"
@@ -787,7 +792,15 @@ export function ScheduleBoard({
                 activities={activities.data ?? []}
                 now={now}
                 onPlan={onGridPlan}
-                onSession={setSession}
+                onSession={(item) => {
+                  setSessionDeleting(false);
+                  setSession(item);
+                }}
+                onRemoveSession={(item) => {
+                  setSessionDeleting(true);
+                  setSession(item);
+                }}
+                onRemovePlan={(plan) => setEditing({ plan, deleting: true })}
                 onReminder={onReminder}
                 onDay={onGridDay}
                 draft={
@@ -891,6 +904,7 @@ export function ScheduleBoard({
       {session && (
         <SessionEditor
           session={session}
+          deleting={sessionDeleting}
           activities={activities.data ?? []}
           timezone={preferences.timezone}
           onClose={() => setSession(null)}

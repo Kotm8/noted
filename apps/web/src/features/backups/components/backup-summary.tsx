@@ -4,6 +4,9 @@ export function BackupSummary({ counts }: { counts: BackupCounts }) {
   return (
     <dl className="backup-counts">
       {Object.entries({
+        ...(counts.finance_entries
+          ? { "Finance transactions": counts.finance_entries }
+          : {}),
         ...(counts.habits ? { Habits: counts.habits } : {}),
         ...(counts.meals ? { Meals: counts.meals } : {}),
         ...(counts.assistant_chats

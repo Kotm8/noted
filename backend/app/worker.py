@@ -11,8 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.security import utc_now
+from app.finance.notifications import dispatch_finance
+from app.finance.recurrence import advance_finance
 from app.habits.models import Habit, HabitDelivery
 from app.habits.worker import dispatch_habits
+from app.notes.documents.reminders.delivery import dispatch_document_reminders
+from app.notes.documents.reminders.models import DocumentReminder, DocumentReminderDelivery
 from app.notifications.models import NotificationDelivery
 from app.notifications.worker import dispatch_dismissals, dispatch_due
 from app.publishing.delivery import dispatch_writing
@@ -29,6 +33,7 @@ logger = logging.getLogger(__name__)
 MAX_SLEEP = timedelta(seconds=60)
 MIN_SLEEP = timedelta(seconds=1)
 WATCHED_TABLES = {
+    "document_reminders",
     "habits",
     "habit_entries",
     "reminders",
@@ -76,6 +81,7 @@ def next_due(engine: Engine, now: datetime) -> datetime | None:
     """Earliest future time at which anything needs to be sent or retried."""
     candidates: list[Select[Any]] = [
         select(Reminder.due_at.label("at")).where(Reminder.status == "active"),
+        select(DocumentReminder.due_at).where(DocumentReminder.status == "active"),
         select(PlanPrompt.notify_at).where(PlanPrompt.status == "pending"),
         select(WritingPrompt.next_at).where(WritingPrompt.enabled.is_(True)),
         select(WritingNudgeRun.next_at),
@@ -85,6 +91,7 @@ def next_due(engine: Engine, now: datetime) -> datetime | None:
             select(model.retry_at).where(model.delivered_at.is_(None))
             for model in (
                 NotificationDelivery,
+                DocumentReminderDelivery,
                 PlanPromptDelivery,
                 WritingDelivery,
                 NudgeDelivery,
@@ -104,11 +111,14 @@ def run_cycle(
     """Send everything that is due. Returns False while the server is in maintenance."""
     origin = settings.app_origin
     dispatch_due(engine, origin, settings)
+    dispatch_document_reminders(engine, settings)
     dispatch_dismissals(engine, origin, settings)
     dispatch_plan_prompts(engine, origin, settings)
     if settings.maintenance_path and settings.maintenance_path.exists():
         return False
     advance_due(engine, now, previous, max_gap=MAX_SLEEP + timedelta(seconds=30))
+    advance_finance(engine)
+    dispatch_finance(engine, settings, now)
     dispatch_writing(engine, settings, started)
     advance_nudges(engine, now)
     dispatch_nudges(engine, settings)

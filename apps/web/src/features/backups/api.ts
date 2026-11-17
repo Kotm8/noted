@@ -6,6 +6,7 @@ export const backupsApi = {
   preview: (file: File) =>
     request<BackupPreview>("/backups/preview", "POST", file),
   import: (data: {
+    restore_preferences?: boolean;
     token: string;
     mode: "merge" | "replace";
     confirmation: string;

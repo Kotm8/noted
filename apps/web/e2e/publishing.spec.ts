@@ -105,7 +105,7 @@ test("schedule, review, edit and cancel without losing the draft", async ({
     path: "../../.local/screenshots/channel-scheduling.png",
   });
   await queue
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   const file = {
     name: "hello.txt",
@@ -154,7 +154,7 @@ test("recurring writing prompt and queued message fire on the server; writing co
     path: "../../.local/screenshots/writing-prompt-settings.png",
   });
   await dialog
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   const saved = await api(page, `/channels/${channel.id}/writing-prompt`);
   expect(saved.frequency).toBe("biweekly");

@@ -134,7 +134,10 @@ test("Nutrition sets a target, estimates a meal and keeps it as a saved meal", a
     });
   });
 
-  await page.getByRole("button", { name: "Nutrition", exact: true }).click();
+  await page
+    .locator(".sidebar-global-navigation")
+    .getByRole("button", { name: "Nutrition", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "About you" })).toBeVisible();
   await page.getByLabel("Age").fill("27");
   await page.getByRole("radio", { name: "Male", exact: true }).click();
@@ -186,7 +189,7 @@ test("Nutrition sets a target, estimates a meal and keeps it as a saved meal", a
   await page.screenshot({ path: "../../.local/nutrition-today.png" });
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  const dialog = page.locator(".settings-destination, .settings-dialog");
   await dialog
     .getByRole("button", { name: "Saved meals", exact: true })
     .click();
@@ -214,7 +217,9 @@ test("Nutrition is hidden until AI is connected", async ({ page }) => {
     page.getByRole("button", { name: "Habits", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Nutrition", exact: true }),
+    page
+      .locator(".sidebar-global-navigation")
+      .getByRole("button", { name: "Nutrition", exact: true }),
   ).toHaveCount(0);
   await page.goto("/nutrition");
   await expect(

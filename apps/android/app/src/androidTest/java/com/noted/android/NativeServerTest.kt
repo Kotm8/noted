@@ -83,17 +83,15 @@ class NativeServerTest {
             scenario.onActivity { activity -> activity.startActivity(Intent(activity, MainActivity::class.java).setData(Uri.parse("$origin/habits")).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)) }
             compose.waitUntil(15_000) { compose.onAllNodesWithText("Drink water").fetchSemanticsNodes().isNotEmpty() }
             capture("habits")
-            val count = compose.onAllNodes(hasText("glasses", substring = true) and hasClickAction()).onFirst()
-            val before = count.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString { it.text }.substringBefore(" / ").toInt()
+            val count = compose.onAllNodes(hasText("/8", substring = true) and hasClickAction()).onFirst()
+            val before = count.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString { it.text }.substringBefore("/").toInt()
             count.performClick()
-            compose.waitUntil(15_000) { compose.onAllNodesWithText("${before + 1} / 8 glasses").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("${before + 1}/8").fetchSemanticsNodes().isNotEmpty() }
             scenario.onActivity { activity -> activity.startActivity(Intent(activity, MainActivity::class.java).setData(Uri.parse("$origin/schedule")).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)) }
             compose.waitUntil(15_000) { compose.onAllNodesWithText("Go to").fetchSemanticsNodes().isNotEmpty() }
             capture("calendar")
-            compose.onNodeWithContentDescription("New plan").performClick()
-            compose.onNodeWithText("Plan activity").assertIsDisplayed()
-            capture("plan-editor")
-            compose.onNodeWithText("Cancel").performClick()
+            compose.onNodeWithContentDescription("Edit the calendar on the web").assertIsDisplayed()
+            compose.onNodeWithContentDescription("New plan").assertDoesNotExist()
             scenario.onActivity { it.intent = launchIntent }
         }
     }

@@ -1,5 +1,79 @@
 import { expect, test, type Page } from "./fixtures";
 
+test("messages appear during slow sends, survive reload and retry refusals without duplicates", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Username", { exact: true }).fill("ilya");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("browser-test-password-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".app-shell")).toBeVisible();
+  const project = await api(page, "/workspaces", { name: "Delivery" });
+  const channel = await api(page, `/workspaces/${project.id}/channels`, {
+    name: "pending",
+  });
+  await page.goto(`/w/${project.id}/c/${channel.id}`);
+  const composer = page.getByRole("textbox", { name: "Message pending" });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const endpoint = `**/channels/${channel.id}/messages`;
+  const sentIds: string[] = [];
+  await page.route(endpoint, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    sentIds.push(route.request().postDataJSON().client_id);
+    await gate;
+    await route.continue().catch(() => {});
+  });
+  await composer.fill("Persist this slow message");
+  await composer.press("Enter");
+  await expect(page.locator(".outgoing-note")).toContainText(
+    "Persist this slow message",
+  );
+  await expect(composer).toHaveValue("");
+  await page.reload();
+  await expect(page.locator(".outgoing-note")).toContainText(
+    "Persist this slow message",
+  );
+  await composer.fill("My next draft");
+  release();
+  await expect(page.locator(".outgoing-note")).toHaveCount(0);
+  await expect(
+    page.locator(".note").filter({ hasText: "Persist this slow message" }),
+  ).toHaveCount(1);
+  await expect(composer).toHaveValue("My next draft");
+  expect(new Set(sentIds).size).toBe(1);
+  await page.unroute(endpoint);
+  let refused = false;
+  await page.route(endpoint, async (route) => {
+    if (route.request().method() === "POST" && !refused) {
+      refused = true;
+      return route.fulfill({
+        status: 422,
+        json: { detail: "Temporary test refusal" },
+      });
+    }
+    return route.continue();
+  });
+  await composer.fill("Refused once");
+  await composer.press("Enter");
+  const failed = page.locator(".outgoing-failed");
+  await expect(failed).toContainText("Temporary test refusal");
+  await expect(
+    failed.getByRole("button", { name: "Delete", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(failed).toContainText("Refused once");
+  await failed.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.locator(".outgoing-note")).toHaveCount(0);
+  await expect(
+    page.locator(".note").filter({ hasText: "Refused once" }),
+  ).toHaveCount(1);
+});
+
 async function api(page: Page, path: string, body: unknown) {
   return page.evaluate(
     async ({ path, body }) => {
@@ -82,7 +156,7 @@ test("edits keep a history behind the toolbar and messages written offline send 
   const firstNote = page.locator(".main-panel .note").first();
   await firstNote.hover();
   await firstNote
-    .getByRole("button", { name: "Open thread", exact: true })
+    .getByRole("button", { name: "Reply in thread", exact: true })
     .click();
   const pane = page.getByRole("complementary", { name: "Thread · #drafts" });
   const reply = pane.getByRole("textbox", { name: "Thread reply" });

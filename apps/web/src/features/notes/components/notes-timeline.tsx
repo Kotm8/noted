@@ -141,6 +141,7 @@ export function NotesTimeline({
   ) {
     scroll.followLatestNotes();
     await createNote.mutateAsync({ content, files, reminder });
+    if (targetId) onReturnToLatest?.();
     scroll.jumpToLatest();
   }
 

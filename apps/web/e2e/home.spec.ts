@@ -52,7 +52,7 @@ function makeDue(id: string) {
   );
 }
 
-test("H02 opens the real calendar and projects, and read activity survives a reload", async ({
+test("Home B opens the real calendar and projects, and read activity survives a reload", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -102,10 +102,10 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
   });
   makeDue(message.id);
   await page.reload();
-  await expect(page.locator(".home-agenda")).toContainText(
+  await expect(page.locator(".home-day-ruler")).toContainText(
     "A real calendar plan",
   );
-  const missed = page.getByRole("region", { name: "Missed activity" });
+  const missed = page.getByRole("region", { name: "Needs you", exact: true });
   await expect(missed).toContainText("A reminder for Home");
   await missed
     .getByRole("button", {
@@ -114,15 +114,11 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
     })
     .click();
   await expect(
-    missed
-      .locator(".home-missed-item")
-      .filter({ hasText: "A reminder for Home" }),
+    missed.locator(".home-need-row").filter({ hasText: "A reminder for Home" }),
   ).toHaveClass(/is-read/);
   await page.reload();
   await expect(
-    page
-      .locator(".home-missed-item")
-      .filter({ hasText: "A reminder for Home" }),
+    page.locator(".home-need-row").filter({ hasText: "A reminder for Home" }),
   ).toHaveClass(/is-read/);
   expect(
     (await api(page, `/channels/${channel.id}/messages`)).items.find(
@@ -144,8 +140,8 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page
-    .locator(".home-project-navigation")
-    .getByRole("button", { name: "Home study", exact: true })
+    .getByRole("navigation", { name: "Workspaces", exact: true })
+    .getByRole("button", { name: "Open workspace Home study", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "reading", exact: true }),
@@ -155,7 +151,7 @@ test("H02 opens the real calendar and projects, and read activity survives a rel
     .getByRole("button", { name: "Home", exact: true })
     .click();
   await page
-    .locator(".home-notification-title")
+    .locator(".home-need-content")
     .filter({ hasText: "A reminder for Home" })
     .click();
   await expect(page.locator(`#note-${message.id}`)).toBeVisible();
@@ -238,7 +234,7 @@ test("Android Back closes panels before returning from channels and Calendar to 
     .click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(
-    page.getByRole("dialog", { name: "Settings", exact: true }),
+    page.locator(".settings-destination, .settings-dialog"),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Time tracking", exact: true })
@@ -250,11 +246,11 @@ test("Android Back closes panels before returning from channels and Calendar to 
   await page.goBack();
   await expect(page.getByRole("menu")).toHaveCount(0);
   await expect(
-    page.getByRole("dialog", { name: "Settings", exact: true }),
+    page.locator(".settings-destination, .settings-dialog"),
   ).toBeVisible();
   await page.goBack();
   await expect(
-    page.getByRole("dialog", { name: "Settings", exact: true }),
+    page.locator(".settings-destination, .settings-dialog"),
   ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Home", exact: true }),
@@ -264,8 +260,8 @@ test("Android Back closes panels before returning from channels and Calendar to 
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
   await page
-    .locator(".home-project-navigation")
-    .getByRole("button", { name: "Android Home", exact: true })
+    .getByRole("navigation", { name: "Workspaces", exact: true })
+    .getByRole("button", { name: "Open workspace Android Home", exact: true })
     .click();
   await expect(
     page.getByRole("textbox", { name: "Message second" }),

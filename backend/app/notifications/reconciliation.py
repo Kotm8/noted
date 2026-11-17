@@ -13,6 +13,29 @@ from app.writing_nudges.models import WritingNudge
 
 
 def current(db: Session, owner: UUID, kind: str, identifier: UUID, revision: int) -> bool:
+    if kind == "document":
+        from app.notes.documents.reminders.models import DocumentReminder
+
+        note_reminder = db.get(DocumentReminder, identifier)
+        return bool(
+            note_reminder
+            and note_reminder.owner_id == owner
+            and note_reminder.revision == revision
+            and note_reminder.status == "active"
+            and note_reminder.due_at <= utc_now()
+        )
+    if kind == "finance":
+        from app.finance.models import FinanceItem
+
+        finance_item = db.get(FinanceItem, identifier)
+        return bool(
+            finance_item
+            and finance_item.owner_id == owner
+            and finance_item.kind == "occurrence"
+            and not finance_item.deleted
+            and finance_item.revision == revision
+            and finance_item.fields["status"] == "pending"
+        )
     if kind == "reminder":
         message = db.get(Message, identifier)
         item = db.get(Reminder, identifier)

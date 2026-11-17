@@ -62,8 +62,12 @@ export function PlanDialog({
       existing && existing.frequency !== "none" && !existing.series_date,
     ),
   });
-  const [deleteScope, setDeleteScope] = useState(deleting);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteScope, setDeleteScope] = useState(
+    deleting && existing?.frequency !== "none",
+  );
+  const [confirmDelete, setConfirmDelete] = useState(
+    deleting && existing?.frequency === "none",
+  );
   const [error, setError] = useState<string | null>(null);
   function change<K extends keyof PlanFields>(key: K, value: PlanFields[K]) {
     setFields((current) => ({ ...current, [key]: value }));

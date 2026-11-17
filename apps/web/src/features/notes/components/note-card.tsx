@@ -1,3 +1,15 @@
+import { useRef } from "react";
+import {
+  Bell,
+  AlarmClock,
+  Check,
+  Copy,
+  Image as ImageIcon,
+} from "lucide-react";
+import { ContextMenu } from "../../../components/ui/context-menu";
+import { MenuItem } from "../../../components/ui/menu";
+import { copyText, copyPicture } from "../../../lib/clipboard";
+import { useNoteReminder } from "../hooks/use-note-reminder";
 import {
   ChevronRight,
   Download,
@@ -55,6 +67,8 @@ export function NoteCard({
   onAskAi,
   preview,
 }: NoteCardProps) {
+  const element = useRef<HTMLElement>(null);
+  const remind = useNoteReminder(note, channelName);
   const createdAt = new Date(note.created_at);
   const hasText = Boolean(note.content.trim());
   const hasFiles = note.attachments.length > 0;
@@ -100,117 +114,224 @@ export function NoteCard({
     </>
   );
 
-  return (
-    <article
-      className={`note ${editing ? "note-editing" : ""}`}
-      id={`note-${note.id}`}
-      aria-label={`Note from ${createdAt.toLocaleString()}`}
-      tabIndex={0}
-    >
-      <time
-        className="note-time"
-        dateTime={note.created_at}
-        title={createdAt.toLocaleString()}
-      >
-        {createdAt.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })}
-      </time>
-      <div className="note-main">
-        {note.ai_generated && (
-          <span className="note-ai-tag" title="Written by the assistant">
-            <Sparkles size={11} />
-            Assistant
-          </span>
-        )}
-        {note.reminder ? (
-          <ReminderMessage note={note} channelName={channelName}>
-            {content}
-          </ReminderMessage>
-        ) : (
-          content
-        )}
-      </div>
-
-      {!editing && (
-        <div className="note-actions">
-          <button
-            className="icon-button"
-            aria-label="Edit note"
-            onClick={onEdit}
-          >
-            <Pencil size={14} />
-          </button>
-          <CopyNoteButton
-            content={note.content}
-            imageUrl={
-              image
-                ? (image.original_url ??
-                  `/api/v1/attachments/${image.id}/original`)
-                : undefined
-            }
-          />
-          {onAskAi && hasAiInput && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Ask AI"
-              title="Ask AI"
-              onClick={(event) => onAskAi(event.currentTarget)}
-            >
-              <Sparkles size={14} />
-            </button>
-          )}
-          {onOpenThread && !note.thread_root_id && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Open thread"
-              onClick={onOpenThread}
-            >
-              <MessageSquare size={14} />
-            </button>
-          )}
-          {sharing && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Share note"
-              title="Share"
-              onClick={() => void shareNote(note, "all")}
-            >
-              <Share2 size={14} />
-            </button>
-          )}
-          {hasFiles && (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={
-                note.attachments.length === 1
-                  ? "Download file"
-                  : `Download ${note.attachments.length} files`
-              }
-              title="Download"
-              onClick={() => downloadAttachments(note.attachments)}
-            >
-              <Download size={14} />
-            </button>
-          )}
-          {wasEdited && <EditHistory note={note} />}
-          <button
-            type="button"
-            className="icon-button note-delete"
-            aria-label="Delete note"
-            title="Delete"
-            onClick={onDelete}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
+  const actions = (
+    <>
+      {onOpenThread && (
+        <MenuItem onSelect={onOpenThread}>
+          <MessageSquare size={14} />
+          Reply in thread
+        </MenuItem>
       )}
-    </article>
+      {hasText && (
+        <MenuItem onSelect={() => void copyText(note.content)}>
+          <Copy size={14} />
+          Copy text
+        </MenuItem>
+      )}
+      {image && (
+        <MenuItem
+          onSelect={() =>
+            void copyPicture(
+              image.original_url ?? `/api/v1/attachments/${image.id}/original`,
+            )
+          }
+        >
+          <ImageIcon size={14} />
+          Copy image
+        </MenuItem>
+      )}
+      <MenuItem onSelect={onEdit}>
+        <Pencil size={14} />
+        Edit note
+      </MenuItem>
+      {!note.thread_root_id && (
+        <MenuItem onSelect={remind.open}>
+          <Bell size={14} />
+          {note.reminder ? "Change reminder time" : "Remind me"}
+        </MenuItem>
+      )}
+      {note.reminder && (
+        <>
+          <MenuItem
+            disabled={remind.pending}
+            onSelect={() =>
+              remind.act(note.reminder!.status === "done" ? "restore" : "done")
+            }
+          >
+            <Check size={14} />
+            {note.reminder.status === "done"
+              ? "Restore reminder"
+              : "Complete reminder"}
+          </MenuItem>
+          {note.reminder.status !== "done" && (
+            <MenuItem
+              disabled={remind.pending}
+              onSelect={() => remind.act("snooze")}
+            >
+              <AlarmClock size={14} />
+              Snooze reminder
+            </MenuItem>
+          )}
+        </>
+      )}
+      {onAskAi && hasAiInput && (
+        <MenuItem onSelect={() => element.current && onAskAi(element.current)}>
+          <Sparkles size={14} />
+          Ask AI
+        </MenuItem>
+      )}
+      {sharing && (
+        <MenuItem onSelect={() => void shareNote(note, "all")}>
+          <Share2 size={14} />
+          Share note
+        </MenuItem>
+      )}
+      {hasFiles && (
+        <MenuItem onSelect={() => downloadAttachments(note.attachments)}>
+          <Download size={14} />
+          Download attachments
+        </MenuItem>
+      )}
+      <MenuItem danger onSelect={onDelete}>
+        <Trash2 size={14} />
+        Delete note
+      </MenuItem>
+    </>
+  );
+  return (
+    <>
+      <ContextMenu
+        disabled={editing || Boolean(preview)}
+        label="Message actions"
+        menu={actions}
+      >
+        <article
+          ref={element}
+          className={`note ${editing ? "note-editing" : ""}`}
+          id={`note-${note.id}`}
+          aria-label={`Note from ${createdAt.toLocaleString()}`}
+          tabIndex={0}
+        >
+          <time
+            className="note-time"
+            dateTime={note.created_at}
+            title={createdAt.toLocaleString()}
+          >
+            {createdAt.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })}
+          </time>
+          <div className="note-main">
+            {note.ai_generated && (
+              <span className="note-ai-tag" title="Written by the assistant">
+                <Sparkles size={11} />
+                Assistant
+              </span>
+            )}
+            {note.reminder ? (
+              <ReminderMessage note={note} channelName={channelName}>
+                {content}
+              </ReminderMessage>
+            ) : (
+              content
+            )}
+          </div>
+
+          {!editing && (
+            <div className="note-actions">
+              {onOpenThread && !note.thread_root_id && (
+                <button
+                  type="button"
+                  className="icon-button note-thread-action"
+                  aria-label="Reply in thread"
+                  onClick={onOpenThread}
+                >
+                  <MessageSquare size={14} />
+                  <span>Reply in thread</span>
+                </button>
+              )}
+
+              {!note.thread_root_id && (
+                <button
+                  className="icon-button"
+                  aria-label={
+                    note.reminder ? "Change reminder time" : "Remind me"
+                  }
+                  onClick={remind.open}
+                >
+                  <Bell size={14} />
+                </button>
+              )}
+              <button
+                className="icon-button"
+                aria-label="Edit note"
+                onClick={onEdit}
+              >
+                <Pencil size={14} />
+              </button>
+              <CopyNoteButton
+                content={note.content}
+                imageUrl={
+                  image
+                    ? (image.original_url ??
+                      `/api/v1/attachments/${image.id}/original`)
+                    : undefined
+                }
+              />
+              {onAskAi && hasAiInput && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Ask AI"
+                  title="Ask AI"
+                  onClick={(event) => onAskAi(event.currentTarget)}
+                >
+                  <Sparkles size={14} />
+                </button>
+              )}
+              {sharing && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Share note"
+                  title="Share"
+                  onClick={() => void shareNote(note, "all")}
+                >
+                  <Share2 size={14} />
+                </button>
+              )}
+              {hasFiles && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={
+                    note.attachments.length === 1
+                      ? "Download file"
+                      : `Download ${note.attachments.length} files`
+                  }
+                  title="Download"
+                  onClick={() => downloadAttachments(note.attachments)}
+                >
+                  <Download size={14} />
+                </button>
+              )}
+              {wasEdited && <EditHistory note={note} />}
+              <button
+                type="button"
+                className="icon-button note-delete"
+                aria-label="Delete note"
+                title="Delete"
+                onClick={onDelete}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
+        </article>
+      </ContextMenu>
+      {remind.dialog}
+    </>
   );
 }

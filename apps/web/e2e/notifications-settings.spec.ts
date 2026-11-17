@@ -24,7 +24,7 @@ test("skipped Android setup can be completed in settings and unlocks phone contr
     .fill("browser-test-password-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  const dialog = page.locator(".settings-destination, .settings-dialog");
   await dialog
     .getByRole("button", { name: "Notifications", exact: true })
     .click();

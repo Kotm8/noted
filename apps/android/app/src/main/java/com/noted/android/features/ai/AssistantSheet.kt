@@ -273,14 +273,15 @@ private fun AssistantConversation(repository: NativeRepository, open: Boolean, m
             "start_minute" to (preferences?.optInt("start_minute", 480) ?: 480), "end_minute" to (preferences?.optInt("end_minute", 1320) ?: 1320))
         val body = applyBody ?: limits.copy().put("explanation", proposal.text("explanation")).put("request_id", UUID.randomUUID().toString())
             .put("turn_id", if (posts.isEmpty() && deletions.isEmpty()) turnId else JSONObject.NULL).apply {
-                listOf("plans", "habits", "meals").forEach { group -> put(group, JSONArray(proposal.rows(group).filterIndexed { index, _ -> "$group-$index" in selected })) }
+                listOf("plans", "habits", "meals", "finance").forEach { group -> put(group, JSONArray(proposal.rows(group).filterIndexed { index, _ -> "$group-$index" in selected })) }
+                put("confirmed_finance", confirmed)
             }.also { applyBody = it }
         applying = true; error = null
         scope.launch {
             try {
                 if (!regularSaved) {
                     applyAssistantRewrites(repository, context, proposal.rows("rewrites").filterIndexed { index, _ -> "rewrites-$index" in selected }, originals)
-                    if (listOf("plans", "habits", "meals").any { body.rows(it).isNotEmpty() } || (posts.isEmpty() && deletions.isEmpty())) repository.mutate("/ai/assistant/apply", body = body)
+                    if (listOf("plans", "habits", "meals", "finance").any { body.rows(it).isNotEmpty() } || (posts.isEmpty() && deletions.isEmpty())) repository.mutate("/ai/assistant/apply", body = body)
                     regularSaved = true
                 }
                 if (posts.isNotEmpty() || deletions.isNotEmpty()) {
@@ -373,6 +374,12 @@ private fun AssistantConversation(repository: NativeRepository, open: Boolean, m
                         selected = if (checked) selected + key else selected - key
                     }
                 } }
+                proposal.rows("finance").forEachIndexed { index, change ->
+                    val key = "finance-$index"
+                    FinanceChangeCard(change, key in selected, !locked && !applied && applyBody == null) { checked ->
+                        selected = if (checked) selected + key else selected - key
+                    }
+                }
                 AssistantWritingReview(proposal, originals, selected, !locked && !applied && applyBody == null,
                     { selected = it }, { clipboard.setText(AnnotatedString(it)) }) { posted ->
                     close(); navigate(channelRoute(posted.text("channel_id"), ChannelLocation(posted.text("message_id"), posted.text("thread_root_id"))))
@@ -382,7 +389,7 @@ private fun AssistantConversation(repository: NativeRepository, open: Boolean, m
                 else if (selected.isNotEmpty()) PillButton(enabled = !locked && proposal.rows("deletions").withIndex().none { (index, item) ->
                     "deletions-$index" in selected && item.text("kind") == "plan" && item.optJSONObject("target")?.text("frequency") != "none" && item.text("scope").isBlank()
                 }, modifier = Modifier.fillMaxWidth(), primary = true, onClick = {
-                    if (proposal.rows("deletions").indices.any { "deletions-$it" in selected }) confirmActions = true else applyProposal(proposal, false)
+                    if (proposal.rows("deletions").indices.any { "deletions-$it" in selected } || proposal.rows("finance").withIndex().any { (index, item) -> "finance-$index" in selected && item.text("operation") == "delete" }) confirmActions = true else applyProposal(proposal, false)
                 }) { Text(if (applying) "Saving..." else if (applyBody != null) "Retry saving" else "Apply ${selected.size} changes") }
                 actionResults.forEach { item ->
                     if (item.optBoolean("ok")) {
@@ -430,6 +437,9 @@ private fun AssistantConversation(repository: NativeRepository, open: Boolean, m
     if (confirmActions) DesignSheet({ confirmActions = false }, "Confirm deletions") {
         result?.rows("deletions")?.forEachIndexed { index, item -> if ("deletions-$index" in selected) {
             Text("${item.optJSONObject("target")?.text("title").orEmpty()} (${if (item.text("scope") == "occurrence") item.text("occurrence_date") else if (item.text("kind") == "plan") "entire series" else item.text("kind")})", Modifier.padding(vertical = 8.dp))
+        } }
+        result?.rows("finance")?.forEachIndexed { index, item -> if ("finance-$index" in selected && item.text("operation") == "delete") {
+            Text("Finance: ${item.text("title", item.text("entity"))}", Modifier.padding(vertical = 8.dp))
         } }
         PillButton({ confirmActions = false; result?.let { applyProposal(it, true) } }, primary = true) { Text("Confirm and apply") }
     }

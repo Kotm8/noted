@@ -1,5 +1,6 @@
 import { Globe, LoaderCircle, Minus, Plus } from "lucide-react";
 import { photoUrl } from "./api";
+import { PictureMenu } from "../../components/ui/picture-menu";
 import type { Confidence } from "./types";
 import { kcal } from "./types";
 import type { RunState } from "./use-nutrition-run";
@@ -98,14 +99,16 @@ export function ConfidenceTag({ level }: { level: Confidence }) {
 
 export function MealPhoto({ id, size = 44 }: { id: string; size?: number }) {
   return (
-    <img
-      className="nutrition-photo"
-      src={photoUrl(id)}
-      alt="Meal photo"
-      width={size}
-      height={size}
-      loading="lazy"
-    />
+    <PictureMenu url={photoUrl(id)} name="meal.webp">
+      <img
+        className="nutrition-photo"
+        src={photoUrl(id)}
+        alt="Meal photo"
+        width={size}
+        height={size}
+        loading="lazy"
+      />
+    </PictureMenu>
   );
 }
 

@@ -99,7 +99,7 @@ fn preparation_result(code: u32) -> Result<(), String> {
         34 => Err("An existing Noted installation was found. Connect to it, or retry with exactly the original setup details. Nothing was replaced.".into()),
         35 => Err("Port 80 or 443 is already in use. Resolve that conflict before installing; existing services were kept.".into()),
         36 => Err("Install iproute2 on the VPS so setup can check occupied ports.".into()),
-        37 => Err("Docker exists but its Compose plugin is missing. Install the plugin before continuing.".into()),
+        37 => Err("Could not install or verify Docker Compose. Check package repositories and access to GitHub downloads, then retry.".into()),
         38 => Err("Docker exists but is not running. Start it before continuing.".into()),
         39 => Err("Free at least 2 GiB on the VPS before installing.".into()),
         _ => Err("Server preparation failed. Check the package repositories and available disk space, then retry.".into()),

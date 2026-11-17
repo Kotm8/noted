@@ -10,6 +10,7 @@ import { isAndroidApp } from "../notifications/android";
 interface WatchSettings {
   face: "W07" | "W16" | "W24";
   accent: string;
+  accent_source: "app" | "custom";
   text_scale: number;
   schedule_hours: 2 | 4 | 6 | 8;
   hide_contents: boolean;
@@ -117,14 +118,33 @@ export function WatchAppearancePanel() {
         <>
           <fieldset className="settings-fieldset" disabled={save.isPending}>
             <legend>Watch face content</legend>
+            <label>
+              Accent source
+              <Select
+                label="Watch accent source"
+                value={value.accent_source}
+                options={[
+                  { value: "app", label: "Follow app accent" },
+                  { value: "custom", label: "Custom watch accent" },
+                ]}
+                onChange={(source) =>
+                  update({ accent_source: source as "app" | "custom" })
+                }
+              />
+            </label>
             <label className="color-control">
               <span>Accent</span>
               <input
                 aria-label="Watch accent"
                 type="color"
                 value={value.accent}
-                disabled={save.isPending}
-                onChange={(event) => update({ accent: event.target.value })}
+                disabled={save.isPending || value.accent_source === "app"}
+                onChange={(event) =>
+                  update({
+                    accent: event.target.value,
+                    accent_source: "custom",
+                  })
+                }
               />
             </label>
             <label>

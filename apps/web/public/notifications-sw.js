@@ -84,21 +84,25 @@ worker.addEventListener("push", (event) => {
                   : `reminder-${data.messageId}`,
         data,
         actions:
-          data.kind === "habit"
-            ? [{ action: "open-habit", title: "View habit" }]
-            : data.kind === "diagnostic"
-              ? []
-              : data.kind === "plan"
-                ? [{ action: "open-plan", title: "View activity" }]
-                : data.kind === "writing"
-                  ? [{ action: "open-channel", title: "Write in channel" }]
-                  : [
-                      { action: "done", title: "Done" },
-                      {
-                        action: "snooze",
-                        title: `Snooze ${data.snoozeMinutes}m`,
-                      },
-                    ],
+          data.kind === "document"
+            ? [{ action: "open-document", title: "Open note" }]
+            : data.kind === "finance"
+              ? [{ action: "open-finance", title: "Review payment" }]
+              : data.kind === "habit"
+                ? [{ action: "open-habit", title: "View habit" }]
+                : data.kind === "diagnostic"
+                  ? []
+                  : data.kind === "plan"
+                    ? [{ action: "open-plan", title: "View activity" }]
+                    : data.kind === "writing"
+                      ? [{ action: "open-channel", title: "Write in channel" }]
+                      : [
+                          { action: "done", title: "Done" },
+                          {
+                            action: "snooze",
+                            title: `Snooze ${data.snoozeMinutes}m`,
+                          },
+                        ],
       });
     })(),
   );
@@ -114,6 +118,8 @@ worker.addEventListener("notificationclick", (event) => {
     data.kind !== "plan" &&
     data.kind !== "writing" &&
     data.kind !== "habit" &&
+    data.kind !== "finance" &&
+    data.kind !== "document" &&
     (event.action === "done" || event.action === "snooze")
   ) {
     url.searchParams.set("reminderAction", event.action);

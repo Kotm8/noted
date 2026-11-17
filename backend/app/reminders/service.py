@@ -58,6 +58,23 @@ class ReminderService:
         return reminder
 
     def schedule(self, message_id: UUID, owner_id: UUID, data: ReminderSchedule) -> Reminder:
+        message = self.db.scalar(
+            select(Message)
+            .where(
+                Message.id == message_id,
+                Message.author_id == owner_id,
+                Message.deleted_at.is_(None),
+            )
+            .with_for_update()
+        )
+        if message is None:
+            raise NotFoundError("Note not found")
+        if message.thread_root_id is not None:
+            raise ValidationError("Schedule reminders on channel notes")
+        if message.reminder is None:
+            attach_reminder(self.db, message, data)
+            self.db.commit()
+            return self.get(message_id, owner_id)
         reminder = self.get(message_id, owner_id)
         if data.due_at <= utc_now():
             raise ValidationError("Choose a reminder time in the future.")

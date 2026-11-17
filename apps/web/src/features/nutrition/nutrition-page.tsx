@@ -1,3 +1,4 @@
+import { ComicHalftone } from "../../components/ui/comic-halftone";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
@@ -9,6 +10,8 @@ import {
   Menu,
   Settings2,
 } from "lucide-react";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { SavedFoods } from "./saved-foods/saved-foods";
 import { Button } from "../../components/ui/button";
 import { AssistantButton } from "../ai/assistant/assistant-button";
 import { Notice } from "../../components/ui/notice";
@@ -37,6 +40,20 @@ export function NutritionPage() {
   const [day, setDay] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
   const [setup, setSetup] = useState(false);
+  const savedTab = params.get("tab") === "saved";
+  const [foodDirty, setFoodDirty] = useState(false);
+  const [foodBusy, setFoodBusy] = useState(false);
+  const [pendingTab, setPendingTab] = useState<"diary" | "saved" | null>(null);
+  function switchTab(tab: "diary" | "saved") {
+    if (foodDirty) {
+      setPendingTab(tab);
+      return;
+    }
+    const next = new URLSearchParams(params);
+    if (tab === "saved") next.set("tab", "saved");
+    else next.delete("tab");
+    setParams(next, { replace: true });
+  }
   // Settings › Nutrition sends people here with ?setup=1 to recalculate.
   useEffect(() => {
     if (!params.get("setup")) return;
@@ -68,6 +85,7 @@ export function NutritionPage() {
 
   const header = (
     <header className="channel-header">
+      <ComicHalftone />
       <button
         className="icon-button mobile-menu"
         aria-label="Open navigation"
@@ -207,99 +225,166 @@ export function NutritionPage() {
   return (
     <>
       {header}
-      <div className="nutrition-scroll">
-        <div className="nutrition-layout">
-          <div className="nutrition-main">
-            <div className="nutrition-day-nav">
-              <button
-                className="icon-button"
-                aria-label="Previous day"
-                onClick={() => setDay(addDays(shown, -1))}
-              >
-                <ChevronLeft size={17} />
-              </button>
-              <button
-                className="icon-button"
-                aria-label="Next day"
-                disabled={shown >= today}
-                onClick={() => setDay(addDays(shown, 1))}
-              >
-                <ChevronRight size={17} />
-              </button>
-              {shown !== today && (
-                <Button
-                  variant="ghost"
-                  size="small"
-                  onClick={() => setDay(null)}
-                >
-                  Today
-                </Button>
-              )}
-            </div>
-            <div className="nutrition-summary">
-              <Ring eaten={eaten.kcal} target={target.kcal} />
-              <div className="summary-text">
-                <h2>
-                  {shown === today
-                    ? "Today"
-                    : dayLabel(shown, { weekday: "long" })}
-                </h2>
-                <p>
-                  <strong>{kcal(eaten.kcal)}</strong> eaten of{" "}
-                  {kcal(target.kcal)} kcal
-                </p>
-                <MacroBars eaten={eaten} target={target} />
-              </div>
-            </div>
-            {meals.isError && (
-              <Notice tone="error">{meals.error.message}</Notice>
-            )}
-            <div className="nutrition-slots">
-              {SLOTS.map((slot) => {
-                const inSlot = list.filter((meal) => meal.slot === slot);
-                return (
-                  <section key={slot} className="nutrition-slot">
-                    <div className="slot-head">
-                      <h3>{slot === "Snack" ? "Snacks" : slot}</h3>
-                      {inSlot.length > 0 && (
-                        <small>
-                          {kcal(
-                            totals(inSlot.flatMap((meal) => meal.items)).kcal,
-                          )}{" "}
-                          kcal
-                        </small>
-                      )}
-                    </div>
-                    {inSlot.length ? (
-                      inSlot.map((meal) => (
-                        <MealCard
-                          key={meal.id}
-                          meal={meal}
-                          open={open === meal.id}
-                          onToggle={() =>
-                            setOpen(open === meal.id ? null : meal.id)
-                          }
-                          savedNames={data.saved_meals.map((item) => item.name)}
-                          logDay={today}
-                          nowMinute={nowMinute}
-                        />
-                      ))
-                    ) : (
-                      <p className="slot-empty">Nothing yet</p>
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-          <SidePanels
-            state={data}
-            week={days.data ?? []}
-            onRecalculate={() => setSetup(true)}
+      <div
+        className="nutrition-tabs"
+        role="tablist"
+        aria-label="Nutrition views"
+      >
+        <button
+          role="tab"
+          id="nutrition-diary-tab"
+          aria-controls="nutrition-diary-panel"
+          aria-selected={!savedTab}
+          disabled={foodBusy}
+          onClick={() => switchTab("diary")}
+        >
+          Diary
+        </button>
+        <button
+          role="tab"
+          id="nutrition-saved-tab"
+          aria-controls="nutrition-saved-panel"
+          aria-selected={savedTab}
+          disabled={foodBusy}
+          onClick={() => switchTab("saved")}
+        >
+          Saved foods
+        </button>
+      </div>
+      {savedTab && (
+        <div
+          id="nutrition-saved-panel"
+          className="nutrition-scroll"
+          role="tabpanel"
+          aria-labelledby="nutrition-saved-tab"
+        >
+          <SavedFoods
+            foods={data.saved_meals}
+            day={shown}
+            minute={nowMinute}
+            onDirty={setFoodDirty}
+            onBusy={setFoodBusy}
           />
         </div>
+      )}
+      <div className="nutrition-diary-view" hidden={savedTab}>
+        <div
+          id="nutrition-diary-panel"
+          className="nutrition-scroll"
+          role="tabpanel"
+          aria-labelledby="nutrition-diary-tab"
+        >
+          <div className="nutrition-layout">
+            <div className="nutrition-main">
+              <div className="nutrition-day-nav">
+                <button
+                  className="icon-button"
+                  aria-label="Previous day"
+                  onClick={() => setDay(addDays(shown, -1))}
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label="Next day"
+                  disabled={shown >= today}
+                  onClick={() => setDay(addDays(shown, 1))}
+                >
+                  <ChevronRight size={17} />
+                </button>
+                {shown !== today && (
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setDay(null)}
+                  >
+                    Today
+                  </Button>
+                )}
+              </div>
+              <div className="nutrition-summary">
+                <Ring eaten={eaten.kcal} target={target.kcal} />
+                <div className="summary-text">
+                  <h2>
+                    {shown === today
+                      ? "Today"
+                      : dayLabel(shown, { weekday: "long" })}
+                  </h2>
+                  <p>
+                    <strong>{kcal(eaten.kcal)}</strong> eaten of{" "}
+                    {kcal(target.kcal)} kcal
+                  </p>
+                  <MacroBars eaten={eaten} target={target} />
+                </div>
+              </div>
+              {meals.isError && (
+                <Notice tone="error">{meals.error.message}</Notice>
+              )}
+              <div className="nutrition-slots">
+                {SLOTS.map((slot) => {
+                  const inSlot = list.filter((meal) => meal.slot === slot);
+                  return (
+                    <section key={slot} className="nutrition-slot">
+                      <div className="slot-head">
+                        <h3>{slot === "Snack" ? "Snacks" : slot}</h3>
+                        {inSlot.length > 0 && (
+                          <small>
+                            {kcal(
+                              totals(inSlot.flatMap((meal) => meal.items)).kcal,
+                            )}{" "}
+                            kcal
+                          </small>
+                        )}
+                      </div>
+                      {inSlot.length ? (
+                        inSlot.map((meal) => (
+                          <MealCard
+                            key={meal.id}
+                            meal={meal}
+                            open={open === meal.id}
+                            onToggle={() =>
+                              setOpen(open === meal.id ? null : meal.id)
+                            }
+                            savedNames={data.saved_meals.map(
+                              (item) => item.name,
+                            )}
+                            logDay={today}
+                            nowMinute={nowMinute}
+                          />
+                        ))
+                      ) : (
+                        <p className="slot-empty">Nothing yet</p>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
+            <SidePanels
+              state={data}
+              week={days.data ?? []}
+              onRecalculate={() => setSetup(true)}
+            />
+          </div>
+        </div>
+        <LogDock state={data} day={shown} nowMinute={nowMinute} />
       </div>
-      <LogDock state={data} day={shown} nowMinute={nowMinute} />
+      <ConfirmDialog
+        open={pendingTab !== null}
+        title="Discard unsaved food changes?"
+        description="Your saved food will stay as it was."
+        keepLabel="Keep editing"
+        confirmLabel="Discard changes"
+        onClose={() => setPendingTab(null)}
+        onConfirm={() => {
+          const next = new URLSearchParams(params);
+          if (pendingTab === "saved") next.set("tab", "saved");
+          else next.delete("tab");
+          setFoodDirty(false);
+          setPendingTab(null);
+          setParams(next, { replace: true });
+        }}
+      />
     </>
   );
 }

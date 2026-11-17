@@ -1,3 +1,5 @@
+import { ContextMenu } from "../../../components/ui/context-menu";
+import { MenuItem } from "../../../components/ui/menu";
 import { Flag, Info, Play, Repeat2 } from "lucide-react";
 import { memo, type CSSProperties } from "react";
 import {
@@ -71,6 +73,8 @@ export interface GridProps {
   now: number;
   onPlan: (plan: PlanOccurrence, block: DOMRect) => void;
   onSession: (session: TimeSession) => void;
+  onRemovePlan?: (plan: PlanOccurrence) => void;
+  onRemoveSession?: (session: TimeSession) => void;
   onReminder: (flag: ReminderFlag) => void;
   onDay: (day: string) => void;
   onStart: (id: string) => void;
@@ -318,60 +322,96 @@ function CalendarTracks(
               start < preferences.start_minute ||
               end > preferences.end_minute;
             return (
-              <button
-                type="button"
+              <ContextMenu
                 key={`${plan.id}-${plan.occurrence_date}`}
-                className={`schedule-block planned-block ${plan.frequency !== "none" ? "recurring-block" : ""}${proposal ? " ai-proposal-block" : ""}${proposal && !proposal.selected ? " excluded" : ""}${proposal && props.proposalConflicts?.has(plan.id) && proposal.selected ? " has-conflict" : ""}`}
-                style={
-                  {
-                    ...position(start, end, preferences),
-                    "--activity": activity?.color ?? "var(--accent)",
-                    top: row * 54,
-                  } as CSSProperties
-                }
-                data-plan={`${plan.id}~${plan.occurrence_date}`}
-                data-drag-disabled={dragDisabled || undefined}
-                data-start={start}
-                data-end={end}
-                data-date={date}
-                data-activity={plan.activity_id}
-                aria-label={`Edit plan: ${plan.title}, ${minuteLabel(start)} to ${minuteLabel(end)}`}
-                title={`${plan.title} · ${minuteLabel(start)}–${minuteLabel(end)}${plan.frequency !== "none" ? " · Repeats" : ""}${plan.is_override ? " · Edited occurrence" : ""}`}
-                onClick={(event) =>
-                  props.onPlan(
-                    plan,
-                    event.currentTarget.getBoundingClientRect(),
-                  )
+                label={`Actions for plan ${plan.title}`}
+                menu={
+                  <>
+                    <MenuItem
+                      onSelect={() => {
+                        const element = document.querySelector(
+                          `[data-plan="${plan.id}~${plan.occurrence_date}"]`,
+                        );
+                        if (element)
+                          props.onPlan(plan, element.getBoundingClientRect());
+                      }}
+                    >
+                      Edit plan
+                    </MenuItem>
+                    {plan.activity_id && !proposal && (
+                      <MenuItem
+                        onSelect={() => props.onStart(plan.activity_id!)}
+                      >
+                        Start activity
+                      </MenuItem>
+                    )}
+                    {!proposal && props.onRemovePlan && (
+                      <MenuItem
+                        danger
+                        onSelect={() => props.onRemovePlan!(plan)}
+                      >
+                        Delete plan
+                      </MenuItem>
+                    )}
+                  </>
                 }
               >
-                {!dragDisabled && (
-                  <span
-                    className="schedule-resize resize-start"
-                    data-resize="start"
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="schedule-block-title">
-                  {plan.frequency !== "none" ? (
-                    <Repeat2 size={13} />
-                  ) : (
-                    <ActivityGlyphIcon name={activity?.icon ?? "Activity"} />
+                <button
+                  type="button"
+                  className={`schedule-block planned-block ${plan.frequency !== "none" ? "recurring-block" : ""}${proposal ? " ai-proposal-block" : ""}${proposal && !proposal.selected ? " excluded" : ""}${proposal && props.proposalConflicts?.has(plan.id) && proposal.selected ? " has-conflict" : ""}`}
+                  style={
+                    {
+                      ...position(start, end, preferences),
+                      "--activity": activity?.color ?? "var(--accent)",
+                      top: row * 54,
+                    } as CSSProperties
+                  }
+                  data-plan={`${plan.id}~${plan.occurrence_date}`}
+                  data-drag-disabled={dragDisabled || undefined}
+                  data-start={start}
+                  data-end={end}
+                  data-date={date}
+                  data-activity={plan.activity_id}
+                  aria-label={`Edit plan: ${plan.title}, ${minuteLabel(start)} to ${minuteLabel(end)}`}
+                  title={`${plan.title} · ${minuteLabel(start)}–${minuteLabel(end)}${plan.frequency !== "none" ? " · Repeats" : ""}${plan.is_override ? " · Edited occurrence" : ""}`}
+                  onClick={(event) =>
+                    props.onPlan(
+                      plan,
+                      event.currentTarget.getBoundingClientRect(),
+                    )
+                  }
+                >
+                  {!dragDisabled && (
+                    <span
+                      className="schedule-resize resize-start"
+                      data-resize="start"
+                      aria-hidden="true"
+                    />
                   )}
-                  <strong>{plan.title}</strong>
-                  {plan.is_override && <i className="schedule-exception-dot" />}
-                </span>
-                <span className="schedule-block-time">
-                  {minuteLabel(start)}–{minuteLabel(end)}
-                  {plan.frequency !== "none" ? " · Repeats" : ""}
-                </span>
-                {!dragDisabled && (
-                  <span
-                    className="schedule-resize resize-end"
-                    data-resize="end"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
+                  <span className="schedule-block-title">
+                    {plan.frequency !== "none" ? (
+                      <Repeat2 size={13} />
+                    ) : (
+                      <ActivityGlyphIcon name={activity?.icon ?? "Activity"} />
+                    )}
+                    <strong>{plan.title}</strong>
+                    {plan.is_override && (
+                      <i className="schedule-exception-dot" />
+                    )}
+                  </span>
+                  <span className="schedule-block-time">
+                    {minuteLabel(start)}–{minuteLabel(end)}
+                    {plan.frequency !== "none" ? " · Repeats" : ""}
+                  </span>
+                  {!dragDisabled && (
+                    <span
+                      className="schedule-resize resize-end"
+                      data-resize="end"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              </ContextMenu>
             );
           })}
         {draft && (
@@ -408,24 +448,45 @@ function CalendarTracks(
         {sessionSegments
           .filter((item) => visible(item.start, item.end))
           .map(({ session, start, end }) => (
-            <button
+            <ContextMenu
               key={session.id}
-              className={`schedule-actual-block ${!session.ended_at ? "live-block" : ""}`}
-              style={
-                {
-                  ...position(start, end, preferences),
-                  "--activity":
-                    getActivity(session.activity_id)?.color ?? "var(--accent)",
-                } as CSSProperties
+              disabled={!session.ended_at}
+              label="Tracked session actions"
+              menu={
+                <>
+                  <MenuItem onSelect={() => props.onSession(session)}>
+                    Edit session
+                  </MenuItem>
+                  {props.onRemoveSession && (
+                    <MenuItem
+                      danger
+                      onSelect={() => props.onRemoveSession!(session)}
+                    >
+                      Delete session
+                    </MenuItem>
+                  )}
+                </>
               }
-              onClick={() => {
-                if (session.ended_at) props.onSession(session);
-              }}
-              aria-label={`${session.ended_at ? "Edit session" : "Currently tracking"}: ${getActivity(session.activity_id)?.name}, ${minuteLabel(start)} to ${minuteLabel(end)}`}
-              title={`${getActivity(session.activity_id)?.name} · ${minuteLabel(start)}–${minuteLabel(end)}`}
             >
-              <span>{getActivity(session.activity_id)?.name}</span>
-            </button>
+              <button
+                className={`schedule-actual-block ${!session.ended_at ? "live-block" : ""}`}
+                style={
+                  {
+                    ...position(start, end, preferences),
+                    "--activity":
+                      getActivity(session.activity_id)?.color ??
+                      "var(--accent)",
+                  } as CSSProperties
+                }
+                onClick={() => {
+                  if (session.ended_at) props.onSession(session);
+                }}
+                aria-label={`${session.ended_at ? "Edit session" : "Currently tracking"}: ${getActivity(session.activity_id)?.name}, ${minuteLabel(start)} to ${minuteLabel(end)}`}
+                title={`${getActivity(session.activity_id)?.name} · ${minuteLabel(start)}–${minuteLabel(end)}`}
+              >
+                <span>{getActivity(session.activity_id)?.name}</span>
+              </button>
+            </ContextMenu>
           ))}
         {!sessionSegments.length && (
           <span className="schedule-no-actual">No tracked time</span>

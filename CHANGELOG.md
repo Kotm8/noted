@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.4
+
+- Open desktop Settings as a dedicated destination with live message previews, semantic color editing, CSV import/export and four customizable Dark/Light profiles: Modern, Comic, Snow and Stars.
+- Customize reading density, text/code fonts, line height and reading width; save named themes and import/export theme JSON. Android reads the shared semantic colors and reading preferences, and the watch can follow the app accent or keep a custom override.
+- Home uses the selected timeline layout with shared tracking, reminders, habits, nutrition and pinned channels. Project names appear beneath their rail icons, and pinned channels stay available across pages.
+- Nutrition includes Diary and Saved foods tabs with inline editing, portions and retained photos. Saved photos survive deleting the original diary meal and are included in portable backups.
+- Finance adds monthly profit/loss tracking, accounts and transfers, savings, paydays, recurring payments and planned purchases. The assistant can review Finance changes and import spending screenshots, with duplicate checks and import Undo.
+- Use `/remind Reminder name` in Notes documents to schedule a reminder linked to the document. Completed tasks and reminders use crossed-out text across supported views.
+- Right-click messages, media, navigation items, plans and other actionable records to use their existing actions. Text fields retain normal Copy/Paste menus.
+- Attach images, files and videos to thread replies on web, desktop and Android. Web replies support paste and queued file retries; attachment filenames are searchable and reply attachments survive backup restoration.
+- Messages and replies enter a persistent outbox before sending, appear immediately and retain their client IDs through reloads and retries to prevent duplicate posts.
+- Browse Files & links inside a chat channel, including thread files and links, and open the source message using the existing media viewer and download controls.
+- Portable backups support ZIP64 and actual disk/memory capacity checks, with format 16 adding personal preferences, saved AI prompts, channel pins, archived habits and retained AI-chat photos. Restoring personal preferences is optional; credentials and server configuration stay excluded.
+- Asking AI about a message or thread starts a fresh conversation with that context while keeping earlier chats available.
+- VPS setup and transfer repair a missing Docker Compose plugin without replacing an existing Docker engine. A working plugin is preserved; fallback downloads are checksum-verified.
+
 ## 0.4.3
 
 - Ask AI is available in the top-right header on Home, Calendar, Habits, Nutrition and every channel type.

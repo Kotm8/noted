@@ -29,6 +29,8 @@ data class NotedPalette(
     val hover: Color = Color(0xFF2A2D2E),
     val selected: Color = Color(0xFF37373D),
     val text: Color = Color(0xFFCCCCCC),
+    val headings: Color = Color(0xFFDDDDDD),
+    val projectIcons: Color = Color(0xFF45443F),
     val secondary: Color = Color(0xFFB5B5B5),
     val muted: Color = Color(0xFFA3A3A3),
     val faint: Color = Color(0xFF939393),
@@ -41,6 +43,8 @@ data class NotedPalette(
     val danger: Color = Color(0xFFDF9D96),
     val success: Color = Color(0xFF9FC28A),
 )
+
+val LocalAppearancePreferences = staticCompositionLocalOf<JSONObject?> { null }
 
 private val LocalNotedPalette = staticCompositionLocalOf { NotedPalette() }
 object NotedStyle {
@@ -57,8 +61,9 @@ fun appearancePalette(appearance: JSONObject?): NotedPalette {
     val sidebar = color(appearance?.optString("sidebar").orEmpty(), defaults.sidebar)
     val text = color(appearance?.optString("text").orEmpty(), defaults.text)
     val accent = color(appearance?.optString("accent").orEmpty(), defaults.accent)
-    val custom = background != defaults.main || sidebar != defaults.sidebar || text != defaults.text
-    return defaults.copy(main = background, sidebar = sidebar, text = text, accent = accent,
+    val overrides = appearance?.optJSONObject("colors")
+    val custom = (overrides == null || overrides.length() == 0) && (background != defaults.main || sidebar != defaults.sidebar || text != defaults.text)
+    val base = defaults.copy(main = background, sidebar = sidebar, text = text, accent = accent,
         header = if (custom) lerp(background, sidebar, .35f) else defaults.header,
         rail = if (custom) lerp(background, Color.Black, .28f) else defaults.rail,
         input = if (custom) lerp(background, text, .07f) else defaults.input,
@@ -73,6 +78,22 @@ fun appearancePalette(appearance: JSONObject?): NotedPalette {
         subtle = if (custom) lerp(background, text, .10f) else defaults.subtle,
         border = if (custom) lerp(background, text, .20f) else defaults.border,
         accentText = if (accent.luminance() > .35f) Color(0xFF201E1A) else Color(0xFFF4F4EF))
+    fun token(key: String, fallback: Color) = color(overrides?.optString(key).orEmpty(), fallback)
+    val light = appearance?.optString("mode") == "light"
+    val palette = base.copy(
+        header = token("header", base.header), rail = token("rail", base.rail),
+        input = token("input", base.input), floating = token("floating", base.floating),
+        hover = token("hover", base.hover), selected = token("selected", base.selected),
+        headings = token("headings", text), projectIcons = token("projectIcons", base.projectIcons),
+        secondary = token("textSecondary", base.secondary), muted = token("textMuted", base.muted),
+        faint = token("textFaint", base.faint), border = token("border", base.border),
+        subtle = token("borderSubtle", base.subtle),
+        code = lerp(background, Color.Black, if (light) .06f else .19f),
+        danger = if (light) Color(0xFFA3342C) else base.danger,
+        success = if (light) Color(0xFF4F7A3A) else base.success,
+    )
+    return if (appearance?.optBoolean("highContrast") == true) palette.copy(border = palette.secondary, subtle = palette.muted) else palette
+
 }
 
 @Composable
@@ -96,16 +117,19 @@ fun NotedTheme(appearance: JSONObject? = null, content: @Composable () -> Unit) 
             }
         }
     }
+    val family = when (appearance?.optString("font")) { "serif" -> FontFamily.Serif; "mono" -> FontFamily.Monospace; else -> FontFamily.SansSerif }
+    val lineHeight = (appearance?.optDouble("lineHeight", 1.6) ?: 1.6).toFloat().coerceIn(1.2f, 2f)
     fun style(size: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontSize = (size * scale).sp, lineHeight = (size * scale * 1.45f).sp,
+        fontFamily = family, fontSize = (size * scale).sp, lineHeight = (size * scale * lineHeight).sp,
         fontWeight = weight, letterSpacing = 0.sp)
+    fun heading(size: Int, weight: FontWeight = FontWeight.Normal) = style(size, weight).copy(color = palette.headings)
     val type = Typography(
-        displayLarge = style(28), displayMedium = style(26), displaySmall = style(24),
-        headlineLarge = style(24, FontWeight.SemiBold), headlineMedium = style(22, FontWeight.SemiBold), headlineSmall = style(20, FontWeight.SemiBold),
-        titleLarge = style(18, FontWeight.SemiBold), titleMedium = style(15, FontWeight.SemiBold), titleSmall = style(14, FontWeight.Medium),
+        displayLarge = heading(28), displayMedium = heading(26), displaySmall = heading(24),
+        headlineLarge = heading(24, FontWeight.SemiBold), headlineMedium = heading(22, FontWeight.SemiBold), headlineSmall = heading(20, FontWeight.SemiBold),
+        titleLarge = heading(18, FontWeight.SemiBold), titleMedium = heading(15, FontWeight.SemiBold), titleSmall = heading(14, FontWeight.Medium),
         bodyLarge = style(15), bodyMedium = style(14), bodySmall = style(12),
         labelLarge = style(13, FontWeight.Medium), labelMedium = style(12), labelSmall = style(11))
-    CompositionLocalProvider(LocalNotedPalette provides palette,
+    CompositionLocalProvider(LocalNotedPalette provides palette, LocalAppearancePreferences provides appearance,
         LocalDensity provides Density(density.density * zoom, density.fontScale)) {
         MaterialTheme(colorScheme = darkColorScheme(
             primary = accent, onPrimary = palette.accentText, primaryContainer = palette.selected, onPrimaryContainer = text,

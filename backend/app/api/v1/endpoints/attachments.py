@@ -25,6 +25,7 @@ from app.notes.services.playback import PlaybackService
 from app.reminders.schemas import ReminderSchedule
 from app.storage.base import FileStorage
 from app.storage.media import IMAGE_TYPES
+from app.threads.service import ThreadService
 
 router = APIRouter(tags=["attachments"])
 
@@ -38,6 +39,31 @@ async def upload_message(
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
     storage: FileStorage = Depends(get_storage),
+) -> Message:
+    return await receive_upload(channel_id, request, db, current, storage)
+
+
+@router.post(
+    "/messages/{message_id}/thread/with-files", response_model=MessageResponse, status_code=201
+)
+async def upload_reply(
+    message_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+    storage: FileStorage = Depends(get_storage),
+) -> Message:
+    root = ThreadService(db).root(message_id, current.user.id)
+    return await receive_upload(root.channel_id, request, db, current, storage, message_id)
+
+
+async def receive_upload(
+    channel_id: UUID,
+    request: Request,
+    db: Session,
+    current: AuthenticatedSession,
+    storage: FileStorage,
+    thread_root_id: UUID | None = None,
 ) -> Message:
     async with request.form(max_files=MAX_FILES, max_fields=3, max_part_size=160000) as form:
         content = form.get("content", "")
@@ -65,6 +91,7 @@ async def upload_message(
             [file for file in files if isinstance(file, UploadFile)],
             reminder,
             client_id,
+            thread_root_id,
         )
 
 

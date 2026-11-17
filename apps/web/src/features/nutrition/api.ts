@@ -38,14 +38,26 @@ export const nutritionApi = {
       `/nutrition/meals/${meal.id}?revision=${meal.revision}`,
       "DELETE",
     ),
-  addSaved: (name: string, items: MealItem[]) =>
-    request<SavedMeal>("/nutrition/saved-meals", "POST", { name, items }),
+  addSaved: (name: string, items: MealItem[], photo_ids: string[] = []) =>
+    request<SavedMeal>("/nutrition/saved-meals", "POST", {
+      name,
+      items,
+      photo_ids,
+    }),
   editSaved: (
     id: string,
-    saved: { name: string; items: MealItem[]; revision: number },
+    saved: {
+      name: string;
+      items: MealItem[];
+      revision: number;
+      photo_ids?: string[];
+    },
   ) => request<SavedMeal>(`/nutrition/saved-meals/${id}`, "PUT", saved),
-  removeSaved: (id: string) =>
-    request<void>(`/nutrition/saved-meals/${id}`, "DELETE"),
+  removeSaved: (id: string, revision?: number) =>
+    request<void>(
+      `/nutrition/saved-meals/${id}${revision ? `?revision=${revision}` : ""}`,
+      "DELETE",
+    ),
   weighIn: (day: string, weight_kg: number) =>
     request<WeighIn>("/nutrition/weigh-ins", "PUT", { day, weight_kg }),
   makePicture: (mealId: string) =>

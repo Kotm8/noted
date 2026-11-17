@@ -8,6 +8,20 @@ from tests.conftest import API
 from tests.test_time_schedule import activity
 
 
+def test_watch_follows_app_accent_and_preserves_a_custom_override(owner: TestClient) -> None:
+    owner.put(f"{API}/settings/appearance", json={"accent": "#abcdef"})
+    settings = owner.get(f"{API}/wear/settings").json()
+    assert settings["accent_source"] == "app" and settings["accent"] == "#abcdef"
+    changed = owner.put(f"{API}/wear/settings", json={"accent": "#123456"}).json()
+    assert changed["accent_source"] == "custom" and changed["accent"] == "#123456"
+    owner.put(f"{API}/settings/appearance", json={"accent": "#654321"})
+    assert owner.get(f"{API}/wear/settings").json()["accent"] == "#123456"
+    assert (
+        owner.put(f"{API}/wear/settings", json={**changed, "accent_source": "app"}).json()["accent"]
+        == "#654321"
+    )
+
+
 def pair(owner: TestClient) -> dict:
     response = owner.post(f"{API}/wear/pairings")
     assert response.status_code == 201, response.text
@@ -70,6 +84,7 @@ def test_watch_controls_share_tracker_and_reject_stale_actions(owner: TestClient
 
 def test_watch_settings_and_overdue_reminders(owner: TestClient, channel: dict) -> None:
     value = {
+        "accent_source": "app",
         "face": "W24",
         "accent": "#e2c15a",
         "text_scale": 1.15,

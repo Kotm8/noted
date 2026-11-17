@@ -13,7 +13,7 @@ from app.habits.service import next_reminder
 def validate_habits(data: BackupContent) -> None:
     if (data.habits or data.habit_entries) and data.version < 10:
         raise ValidationError("Habits require a version 10 backup")
-    if len(data.habits) > 100:
+    if sum(not item.archived for item in data.habits) > 100:
         raise ValidationError("Keep up to 100 habits")
     activities = {item.id for item in data.activities}
     habits = {item.id for item in data.habits}
@@ -27,17 +27,19 @@ def validate_habits(data: BackupContent) -> None:
 
 
 def restore_habits(db: Session, owner_id: UUID, data: BackupContent, ids: dict[UUID, UUID]) -> None:
-    if len(HabitRepository(db).all(owner_id)) + len(data.habits) > 100:
+    if (
+        len(HabitRepository(db).all(owner_id)) + sum(not item.archived for item in data.habits)
+        > 100
+    ):
         raise ValidationError("Import exceeds the habit limit. Use Replace instead.")
     for item in data.habits:
         habit = Habit(
             id=ids[item.id],
             owner_id=owner_id,
-            archived=False,
             **item.model_dump(exclude={"id", "activity_id"}),
             activity_id=ids[item.activity_id] if item.activity_id else None,
         )
-        habit.next_reminder_at = next_reminder(habit, utc_now())
+        habit.next_reminder_at = None if habit.archived else next_reminder(habit, utc_now())
         db.add(habit)
     db.flush()
     for entry in data.habit_entries:

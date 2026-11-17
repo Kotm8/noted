@@ -358,10 +358,12 @@ class RunService:
             tools = knowledge.tools()
             if prepared.place == "assistant":
                 from app.ai.assistant.chats import AssistantTools
+                from app.finance.assistant import FinanceTools
 
                 tools += AssistantTools(
                     self.engine, prepared.owner_id, prepared.chat_id, prepared.memory
                 ).tools()
+                tools += FinanceTools(self.engine, prepared.owner_id, self.storage).tools()
         return Agent(
             self.model(prepared),
             output_type=output,

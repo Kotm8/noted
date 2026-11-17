@@ -29,7 +29,7 @@ test("watch preferences persist and show a matching preview without requiring Fi
   });
   expect(reset.ok()).toBe(true);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  let dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  let dialog = page.locator(".settings-destination, .settings-dialog");
   await dialog
     .getByRole("button", { name: "Watch appearance", exact: true })
     .click();
@@ -57,7 +57,7 @@ test("watch preferences persist and show a matching preview without requiring Fi
   ).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  dialog = page.locator(".settings-destination, .settings-dialog");
   await dialog
     .getByRole("button", { name: "Watch appearance", exact: true })
     .click();

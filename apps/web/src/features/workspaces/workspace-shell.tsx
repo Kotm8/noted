@@ -1,7 +1,8 @@
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { useAssistant } from "../ai/assistant/context";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { isMobileLayout } from "../../lib/layout";
+import { isMobileLayout, useMobileLayout } from "../../lib/layout";
 import {
   syncAndroidRoute,
   useAndroidBackLayer,
@@ -41,12 +42,18 @@ const LINKED_SETTINGS: readonly SettingsSection[] = [
   "ai-prompts",
   "ai-history",
   "nutrition",
+  "finance",
   "saved-meals",
   "backups",
   "devices",
   "tracking",
 ];
 
+const SettingsWorkspace = lazy(() =>
+  import("../settings/components/settings-workspace").then((module) => ({
+    default: module.SettingsWorkspace,
+  })),
+);
 const SettingsDialog = lazy(() =>
   import("../settings/components/settings-dialog").then((module) => ({
     default: module.SettingsDialog,
@@ -82,8 +89,13 @@ function initialWriting(): WritingPanel | null {
 }
 
 /** Layout around every signed-in page: navigation, search, panels and dialogs. */
-export function WorkspaceShell() {
+export function WorkspaceShell({
+  settingsPath,
+}: {
+  settingsPath: string | null;
+}) {
   const assistant = useAssistant();
+  const mobileLayout = useMobileLayout();
   useLiveUpdates();
   useOutboxSender();
   useNotifications();
@@ -99,6 +111,7 @@ export function WorkspaceShell() {
       navigation.isSchedule ||
       navigation.isHabits ||
       navigation.isNutrition ||
+      navigation.isFinance ||
       Boolean(navigation.channel) ||
       !navigation.workspaces.length ||
       Boolean(navigation.workspace && !navigation.channels.length));
@@ -106,6 +119,17 @@ export function WorkspaceShell() {
     if (initialPageReady || navigation.error) finishStartup();
   }, [initialPageReady, navigation.error]);
 
+  const [pendingSettingsNavigation, setPendingSettingsNavigation] = useState<
+    (() => void) | null
+  >(null);
+  const desktopSettings = Boolean(settingsPath) && !mobileLayout;
+  function guardSettingsNavigation(action: () => void) {
+    const event = new Event("noted:before-settings-navigation", {
+      cancelable: true,
+    });
+    if (window.dispatchEvent(event)) action();
+    else setPendingSettingsNavigation(() => action);
+  }
   const [management, setManagement] = useState<ManagementAction | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [templateSettings, setTemplateSettings] = useState(false);
@@ -149,6 +173,25 @@ export function WorkspaceShell() {
   }, []);
   const [trackingSection, setTrackingSection] =
     useState<TrackingSection | null>(null);
+  const requestedSettings =
+    linkedSettings ??
+    (aiSettings
+      ? "ai"
+      : templateSettings
+        ? "templates"
+        : trackingSection
+          ? "tracking"
+          : "appearance");
+  useEffect(() => {
+    if (settingsOpen && !mobileLayout) {
+      assistant.setOpen(false);
+      navigate(`/settings/${requestedSettings}`);
+      setSettingsOpen(false);
+      setAiSettings(false);
+      setTemplateSettings(false);
+      setLinkedSettings(null);
+    }
+  }, [settingsOpen, requestedSettings, navigate, assistant, mobileLayout]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [channelScheduling, setChannelScheduling] = useState<{
@@ -252,11 +295,27 @@ export function WorkspaceShell() {
     });
   }
 
-  function openNote({ workspaceId, channelId, noteId }: NoteTarget) {
-    void channelNavigation.open({ workspaceId, channelId, noteId }, () => {
-      openPage(`/w/${workspaceId}/c/${channelId}?note=${noteId}`);
-      setTargetNote({ channelId, id: noteId });
-    });
+  function openNote({
+    workspaceId,
+    channelId,
+    noteId,
+    threadId,
+    replyId,
+  }: NoteTarget) {
+    void channelNavigation.open(
+      { workspaceId, channelId, noteId, threadId, replyId },
+      () => {
+        openPage(`/w/${workspaceId}/c/${channelId}?note=${noteId}`);
+        setTargetNote({ channelId, id: noteId });
+        if (threadId)
+          setWriting({
+            kind: "thread",
+            id: threadId,
+            targetId: replyId,
+            channelId,
+          });
+      },
+    );
   }
 
   function openTracking(tab: TrackingSection | null) {
@@ -345,7 +404,7 @@ export function WorkspaceShell() {
     <MentionContext.Provider value={mentions}>
       <div
         ref={sidebarSwipeRef}
-        className={`app-shell ${assistant.open ? "assistant-open" : ""} ${mobileNavigationOpen ? "mobile-nav-open" : ""} ${searchOpen ? "search-open" : ""} ${activeWriting ? "writing-open" : ""}`}
+        className={`app-shell ${desktopSettings ? "settings-active" : ""} ${!desktopSettings && assistant.open ? "assistant-open" : ""} ${mobileNavigationOpen ? "mobile-nav-open" : ""} ${!desktopSettings && searchOpen ? "search-open" : ""} ${!desktopSettings && activeWriting ? "writing-open" : ""}`}
       >
         {mobileNavigationOpen && (
           <button
@@ -359,8 +418,15 @@ export function WorkspaceShell() {
           workspaces={navigation.workspaces}
           selectedId={navigation.workspace?.id}
           pendingId={channelNavigation.pending?.workspaceId}
-          onSelect={selectWorkspace}
+          onSelect={(workspace) =>
+            guardSettingsNavigation(() => selectWorkspace(workspace))
+          }
           onCreate={() => setManagement({ kind: "workspace" })}
+          onManage={setManagement}
+          onSettings={() => {
+            if (!desktopSettings) openTracking(null);
+          }}
+          settingsActive={desktopSettings}
         />
         <ChannelSidebar
           workspace={navigation.workspace}
@@ -368,34 +434,59 @@ export function WorkspaceShell() {
           channels={navigation.channels}
           selectedChannelId={navigation.channel?.id}
           pendingChannelId={channelNavigation.pending?.channelId}
-          isLoading={navigation.isCategoriesLoading}
+          isLoading={navigation.isLoading || navigation.isCategoriesLoading}
           error={navigation.error}
           onRetry={navigation.retry}
           onSelect={(channel) => openChannel(channel.workspace_id, channel.id)}
           onManage={setManagement}
-          onOpenSettings={() => openTracking(null)}
           scheduleActive={navigation.isSchedule}
           habitsActive={navigation.isHabits}
           onHabits={() => openPage("/habits")}
           nutritionActive={navigation.isNutrition}
           onNutrition={() => openPage("/nutrition")}
+          financeActive={navigation.isFinance}
+          onFinance={() => openPage("/finance")}
           homeActive={navigation.isHome}
           onHome={() => openPage("/")}
           workspaces={navigation.workspaces}
-          onWorkspace={selectWorkspace}
           onSchedule={() => openPage("/schedule")}
           onTrackingSettings={() => openTracking("activities")}
           trackerRequest={trackerRequest}
         />
 
-        <main className="main-panel">
+        {desktopSettings && (
+          <Suspense fallback={null}>
+            <SettingsWorkspace
+              path={settingsPath!}
+              trackingSection={trackingSection ?? undefined}
+              onNavigate={(section) =>
+                guardSettingsNavigation(() => {
+                  setTrackingSection(null);
+                  navigate(`/settings/${section}`);
+                })
+              }
+              onClose={() =>
+                guardSettingsNavigation(() =>
+                  navigate(
+                    `${location.pathname}${location.search}${location.hash}`,
+                  ),
+                )
+              }
+            />
+          </Suspense>
+        )}
+        <main
+          className={`main-panel ${desktopSettings ? "saved-page" : ""}`}
+          inert={desktopSettings || undefined}
+        >
           <NotificationPrompt />
           <Suspense fallback={null}>
             <Outlet context={shell} />
           </Suspense>
         </main>
 
-        {activeWriting &&
+        {!desktopSettings &&
+          activeWriting &&
           navigation.channel &&
           (activeWriting.kind === "thread" ? (
             <ThreadSidebar
@@ -428,7 +519,7 @@ export function WorkspaceShell() {
             onClose={() => setManagement(null)}
           />
         )}
-        {searchOpen && (
+        {!desktopSettings && searchOpen && (
           <SearchSidebar
             inputRef={searchInputRef}
             query={searchQuery}
@@ -438,6 +529,19 @@ export function WorkspaceShell() {
             onSelect={selectResult}
           />
         )}
+        <ConfirmDialog
+          open={pendingSettingsNavigation !== null}
+          title="Discard unsaved template changes?"
+          description="Your saved template will stay as it was."
+          keepLabel="Keep editing"
+          confirmLabel="Discard changes"
+          onClose={() => setPendingSettingsNavigation(null)}
+          onConfirm={() => {
+            const action = pendingSettingsNavigation;
+            setPendingSettingsNavigation(null);
+            action?.();
+          }}
+        />
         <StartupPrompt />
         <Suspense fallback={null}>
           {channelScheduling && (
@@ -447,9 +551,10 @@ export function WorkspaceShell() {
               onClose={() => setChannelScheduling(null)}
             />
           )}
-          {settingsOpen && (
+          {mobileLayout && (settingsOpen || settingsPath) && (
             <SettingsDialog
               initialTab={
+                (settingsPath?.split("/")[2] as SettingsSection | undefined) ??
                 linkedSettings ??
                 (aiSettings
                   ? "ai"
@@ -461,6 +566,8 @@ export function WorkspaceShell() {
               }
               trackingSection={trackingSection ?? undefined}
               onClose={() => {
+                if (settingsPath)
+                  navigate(`${location.pathname}${location.search}`);
                 setSettingsOpen(false);
                 setAiSettings(false);
                 setLinkedSettings(null);

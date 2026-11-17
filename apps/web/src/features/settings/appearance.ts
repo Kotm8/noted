@@ -33,6 +33,147 @@ export const appearancePresets = {
 
 export type AppearancePreset = keyof typeof appearancePresets;
 
+export type PaletteStyle = "modern" | "comic" | "snow" | "stars";
+export type PaletteMode = "dark" | "light";
+
+export const colorTokens = [
+  ["background", "Background", "--surface-main"],
+  ["sidebar", "Sidebar", "--surface-sidebar"],
+  ["rail", "Project rail", "--surface-rail"],
+  ["header", "Header", "--surface-header"],
+  ["floating", "Panels", "--surface-floating"],
+  ["input", "Inputs", "--surface-input"],
+  ["hover", "Hover", "--surface-hover"],
+  ["selected", "Selected", "--surface-selected"],
+  ["projectIcons", "Project icons", "--avatar-background"],
+  ["text", "Text", "--text-primary"],
+  ["headings", "Headings", "--text-heading"],
+  ["textSecondary", "Secondary text", "--text-secondary"],
+  ["textMuted", "Muted text", "--text-muted"],
+  ["textFaint", "Faint text", "--text-faint"],
+  ["border", "Borders", "--border-default"],
+  ["borderSubtle", "Dividers", "--border-subtle"],
+] as const;
+
+export type ColorToken = (typeof colorTokens)[number][0];
+/** Colors stored outside the legacy top-level fields that Android also reads. */
+export type ExtraColorToken = Exclude<
+  ColorToken,
+  "background" | "sidebar" | "text"
+>;
+export type PaletteColors = Record<ColorToken, string>;
+
+const modernDark: PaletteColors = {
+  background: "#1f1f1f",
+  sidebar: "#181818",
+  rail: "#181818",
+  header: "#181818",
+  floating: "#222222",
+  input: "#313131",
+  hover: "#2a2d2e",
+  selected: "#37373d",
+  text: "#cccccc",
+  headings: "#dddddd",
+  projectIcons: "#45443f",
+  textSecondary: "#b5b5b5",
+  textMuted: "#a3a3a3",
+  textFaint: "#939393",
+  border: "#3c3c3c",
+  borderSubtle: "#2b2b2b",
+};
+
+export const palettes = {
+  modern: {
+    label: "Modern",
+    halftone: false,
+    dark: { accent: "#e2c15a", colors: modernDark },
+    light: {
+      accent: "#8d6a00",
+      colors: {
+        background: "#faf9f6",
+        sidebar: "#f0efeb",
+        rail: "#ebe9e4",
+        header: "#f0efeb",
+        floating: "#ffffff",
+        input: "#eeede9",
+        hover: "#e7e5df",
+        selected: "#e2dfd7",
+        text: "#343331",
+        headings: "#222220",
+        projectIcons: "#dddad1",
+        textSecondary: "#4a4844",
+        textMuted: "#64615b",
+        textFaint: "#706c64",
+        border: "#ccc9c0",
+        borderSubtle: "#e0ded6",
+      },
+    },
+  },
+  comic: {
+    label: "Comic",
+    halftone: true,
+    dark: { accent: "#e2c15a", colors: modernDark },
+    light: {
+      accent: "#b33c34",
+      colors: {
+        background: "#f5e8c9",
+        sidebar: "#ead6aa",
+        rail: "#e3cc9b",
+        header: "#ead6aa",
+        floating: "#fff4d9",
+        input: "#efddb3",
+        hover: "#e3cb94",
+        selected: "#dbc28c",
+        text: "#302b27",
+        headings: "#211e1c",
+        projectIcons: "#d6ba7d",
+        textSecondary: "#4a3f33",
+        textMuted: "#65543e",
+        textFaint: "#756246",
+        border: "#8e7b57",
+        borderSubtle: "#ceba8e",
+      },
+    },
+  },
+} as Record<
+  PaletteStyle,
+  { label: string; halftone: boolean } & Record<
+    PaletteMode,
+    { accent: string; colors: PaletteColors }
+  >
+>;
+
+palettes.snow = {
+  label: "Snow",
+  halftone: false,
+  dark: { accent: "#91b6d0", colors: { ...palettes.modern.dark.colors } },
+  light: { accent: "#476b87", colors: { ...palettes.modern.light.colors } },
+};
+palettes.stars = {
+  label: "Stars",
+  halftone: false,
+  dark: { accent: "#b2a3d5", colors: { ...palettes.modern.dark.colors } },
+  light: { accent: "#755398", colors: { ...palettes.modern.light.colors } },
+};
+
+const statusColors: Record<PaletteMode, Record<string, string>> = {
+  dark: {
+    "--danger": "#df9d96",
+    "--success": "#9fc28a",
+    "--danger-surface": "#402c2a",
+  },
+  light: {
+    "--danger": "#a3342c",
+    "--success": "#4f7a3a",
+    "--danger-surface": "#f6dcd8",
+  },
+};
+
+/** The palette colors for a style and mode, before any personal edits. */
+export function paletteDefaults(style: PaletteStyle, mode: PaletteMode) {
+  return palettes[style][mode];
+}
+
 export function paletteColors(preset: AppearancePreset) {
   const { background, sidebar, text, accent } = appearancePresets[preset];
   return { background, sidebar, text, accent };
@@ -61,8 +202,14 @@ export const messageLayouts = {
 
 export type MessageLayout = keyof typeof messageLayouts;
 
-export interface AppearancePreferences {
+export interface AppearanceTheme {
   preset: AppearancePreset;
+  style: PaletteStyle;
+  mode: PaletteMode;
+  colors: Partial<Record<ExtraColorToken, string>>;
+  profiles: Partial<
+    Record<`${PaletteStyle}-${PaletteMode}`, Partial<PaletteColors>>
+  >;
   background: string;
   sidebar: string;
   text: string;
@@ -71,15 +218,38 @@ export interface AppearancePreferences {
   zoom: number;
   messageLayout: MessageLayout;
   messageGroupMinutes: number;
+  density: "compact" | "comfortable" | "spacious";
+  font: "system" | "sans" | "serif" | "mono";
+  codeFont: "system" | "consolas" | "courier";
+  lineHeight: number;
+  readingWidth: number;
+  reducedMotion: boolean;
+  highContrast: boolean;
+}
+
+export interface AppearancePreferences extends AppearanceTheme {
+  savedThemes: Record<string, AppearanceTheme>;
 }
 
 export const defaultAppearance: AppearancePreferences = {
   preset: "modern",
+  style: "modern",
+  mode: "dark",
+  colors: {},
+  profiles: {},
   ...paletteColors("modern"),
   textSize: 15,
   zoom: 100,
   messageLayout: "minute",
   messageGroupMinutes: 2,
+  density: "comfortable",
+  font: "system",
+  codeFont: "system",
+  lineHeight: 1.6,
+  readingWidth: 960,
+  reducedMotion: false,
+  highContrast: false,
+  savedThemes: {},
 };
 
 export const APPEARANCE_KEY = "noted.appearance.v1";
@@ -97,6 +267,46 @@ export function readAppearance(): AppearancePreferences {
     }
     if (value.preset && Object.hasOwn(appearancePresets, value.preset))
       result.preset = value.preset;
+    if (value.style && Object.hasOwn(palettes, value.style))
+      result.style = value.style;
+    if (value.mode === "dark" || value.mode === "light")
+      result.mode = value.mode;
+    if (value.colors && typeof value.colors === "object") {
+      const colors: AppearancePreferences["colors"] = {};
+      for (const [key] of colorTokens) {
+        const color = (value.colors as Record<string, unknown>)[key];
+        if (
+          key !== "background" &&
+          key !== "sidebar" &&
+          key !== "text" &&
+          typeof color === "string" &&
+          /^#[0-9a-f]{6}$/i.test(color)
+        )
+          colors[key] = color;
+      }
+      result.colors = colors;
+    }
+    if (value.profiles && typeof value.profiles === "object") {
+      result.profiles = {};
+      for (const [key, saved] of Object.entries(value.profiles)) {
+        if (
+          !/^(modern|comic|snow|stars)-(dark|light)$/.test(key) ||
+          !saved ||
+          typeof saved !== "object"
+        )
+          continue;
+        result.profiles[key as keyof typeof result.profiles] =
+          Object.fromEntries(
+            colorTokens
+              .filter(
+                ([token]) =>
+                  typeof saved[token] === "string" &&
+                  /^#[0-9a-f]{6}$/i.test(saved[token]!),
+              )
+              .map(([token]) => [token, saved[token]]),
+          );
+      }
+    }
     if (
       value.version === undefined &&
       value.preset === "charcoal" &&
@@ -123,6 +333,20 @@ export function readAppearance(): AppearancePreferences {
         30,
         Math.max(1, value.messageGroupMinutes),
       );
+    if (["compact", "comfortable", "spacious"].includes(value.density ?? ""))
+      result.density = value.density!;
+    if (["system", "sans", "serif", "mono"].includes(value.font ?? ""))
+      result.font = value.font!;
+    if (["system", "consolas", "courier"].includes(value.codeFont ?? ""))
+      result.codeFont = value.codeFont!;
+    if (typeof value.lineHeight === "number")
+      result.lineHeight = Math.min(2, Math.max(1.2, value.lineHeight));
+    if (typeof value.readingWidth === "number")
+      result.readingWidth = Math.min(1600, Math.max(480, value.readingWidth));
+    result.reducedMotion = value.reducedMotion === true;
+    result.highContrast = value.highContrast === true;
+    if (value.savedThemes && typeof value.savedThemes === "object")
+      result.savedThemes = value.savedThemes;
     return result;
   } catch {
     return defaultAppearance;
@@ -144,58 +368,110 @@ export function contrastRatio(first: string, second: string): number {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
+/**
+ * Every color the interface uses. Background, sidebar and text live in the
+ * legacy fields so the phone app keeps working; the rest come from personal
+ * edits or the palette. When an older client changed the legacy fields without
+ * saving any other colors, the remaining surfaces are mixed from them as before
+ * so its presets still look coherent.
+ */
+export function resolveColors(
+  preferences: AppearancePreferences,
+): PaletteColors {
+  const palette = palettes[preferences.style][preferences.mode].colors;
+  const { background, sidebar, text } = preferences;
+  const legacy =
+    !Object.keys(preferences.colors).length &&
+    (background !== palette.background ||
+      sidebar !== palette.sidebar ||
+      text !== palette.text);
+  const mix = (first: string, amount: number, second: string) => {
+    const other = second === "black" ? "#000000" : second;
+    return `#${[1, 3, 5]
+      .map((start) =>
+        Math.round(
+          (parseInt(first.slice(start, start + 2), 16) * amount) / 100 +
+            (parseInt(other.slice(start, start + 2), 16) * (100 - amount)) /
+              100,
+        )
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")}`;
+  };
+  const base: PaletteColors = legacy
+    ? {
+        background,
+        sidebar,
+        text,
+        headings: text,
+        projectIcons: mix(sidebar, 85, preferences.accent),
+        rail: mix(background, 72, "black"),
+        header: mix(background, 65, sidebar),
+        floating: mix(sidebar, 96, text),
+        input: mix(background, 93, text),
+        hover: mix(sidebar, 94, text),
+        selected: mix(sidebar, 89, text),
+        textSecondary: mix(text, 77, background),
+        textMuted: mix(text, 66, background),
+        textFaint: mix(text, 56, background),
+        border: mix(background, 80, text),
+        borderSubtle: mix(background, 90, text),
+      }
+    : { ...palette, background, sidebar, text };
+  return { ...base, ...preferences.colors };
+}
+
 export function applyAppearance(preferences: AppearancePreferences) {
-  const { background, sidebar, text, accent } = preferences;
+  const { accent, mode } = preferences;
+  const colors = resolveColors(preferences);
   const mix = (first: string, amount: number, second: string) =>
     `color-mix(in srgb, ${first} ${amount}%, ${second})`;
   const tokens: Record<string, string> = {
-    "--surface-main": background,
-    "--surface-sidebar": sidebar,
-    "--surface-header": mix(background, 65, sidebar),
-    "--surface-rail": mix(background, 72, "black"),
-    "--surface-input": mix(background, 93, text),
-    "--surface-floating": mix(sidebar, 96, text),
-    "--surface-hover": mix(sidebar, 94, text),
-    "--surface-selected": mix(sidebar, 89, text),
-    "--surface-code": mix(background, 81, "black"),
-    "--border-subtle": mix(background, 90, text),
-    "--border-default": mix(background, 80, text),
-    "--text-primary": text,
-    "--text-secondary": mix(text, 77, background),
-    "--text-muted": mix(text, 66, background),
-    "--text-faint": mix(text, 56, background),
+    ...Object.fromEntries(
+      colorTokens.map(([key, , variable]) => [variable, colors[key]]),
+    ),
+    ...statusColors[mode],
+    "--surface-code": mix(
+      colors.background,
+      mode === "dark" ? 81 : 94,
+      "black",
+    ),
     "--accent": accent,
-    "--accent-hover": mix(accent, 86, text),
+    "--accent-hover": mix(accent, 86, colors.text),
     "--accent-text": luminance(accent) > 0.35 ? "#201e1a" : "#f4f4ef",
-    "--link": mix(accent, 88, text),
-    "--avatar-background": mix(sidebar, 85, accent),
-    "--avatar-text": text,
+    "--link": mix(accent, 88, colors.text),
+    "--avatar-background": colors.projectIcons,
+    "--avatar-text": colors.text,
     "--text-scale": String(preferences.textSize / 15),
     "--ui-zoom": String(preferences.zoom / 100),
+    "--app-font": {
+      system: '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
+      sans: "Arial, Helvetica, sans-serif",
+      serif: 'Georgia, "Times New Roman", serif',
+      mono: "Consolas, monospace",
+    }[preferences.font ?? "system"],
+    "--code-font": {
+      system: '"Cascadia Code", "SFMono-Regular", Consolas, monospace',
+      consolas: "Consolas, monospace",
+      courier: '"Courier New", monospace',
+    }[preferences.codeFont ?? "system"],
+    "--message-line-height": String(preferences.lineHeight ?? 1.6),
+    "--reading-width": `${preferences.readingWidth ?? 960}px`,
+    "--note-padding": `${{ compact: 4, comfortable: 8, spacious: 12 }[preferences.density ?? "comfortable"]}px`,
   };
-
-  if (
-    (["background", "sidebar", "text"] as const).every(
-      (key) => preferences[key] === appearancePresets.modern[key],
-    )
-  ) {
-    Object.assign(tokens, {
-      "--surface-header": "#181818",
-      "--surface-rail": "#181818",
-      "--surface-input": "#313131",
-      "--surface-floating": "#222222",
-      "--surface-hover": "#2a2d2e",
-      "--surface-selected": "#37373d",
-      "--surface-code": "#181818",
-      "--border-subtle": "#2b2b2b",
-      "--border-default": "#3c3c3c",
-      "--text-secondary": "#b5b5b5",
-      "--text-muted": "#a3a3a3",
-      "--text-faint": "#939393",
-    });
+  if (preferences.highContrast) {
+    tokens["--border-default"] = colors.textSecondary;
+    tokens["--border-subtle"] = colors.textMuted;
   }
-
+  const root = document.documentElement;
   for (const [name, value] of Object.entries(tokens))
-    document.documentElement.style.setProperty(name, value);
-  document.documentElement.style.zoom = String(preferences.zoom / 100);
+    root.style.setProperty(name, value);
+  root.style.colorScheme = mode;
+  root.dataset.backgroundProfile = preferences.style;
+  root.dataset.appearanceMode = mode;
+  root.dataset.reducedMotion = String(preferences.reducedMotion ?? false);
+  root.dataset.highContrast = String(preferences.highContrast ?? false);
+  root.dataset.halftone = String(palettes[preferences.style].halftone);
+  root.style.zoom = String(preferences.zoom / 100);
 }

@@ -4,8 +4,12 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from app.backup.preferences import BackupPreferences
 from app.core.storage_limits import MAX_FILE_SIZE, MAX_ICON_SIZE
+from app.finance.schemas import AccountFields, EntryFields
+from app.finance.schemas import ProfileFields as FinanceProfileFields
 from app.habits.schemas import HabitFields
+from app.notes.documents.reminders.schemas import DocumentReminderCreate
 from app.nutrition.schemas import MealItem, ProfileFields, Slot, Source
 from app.publishing.schemas import ScheduledFields, WritingFields
 from app.reminders.schemas import ReminderSchedule
@@ -51,6 +55,7 @@ class BackupCategory(BackupRecord):
 
 
 class BackupChannel(BackupCategory):
+    pinned_at: AwareDatetime | None = None
     kind: ChannelKind = "note"
     category_id: UUID | None
     created_at: AwareDatetime
@@ -178,6 +183,7 @@ class BackupNoteTemplate(NoteTemplateFields, BackupRecord):
 
 
 class BackupHabit(HabitFields, BackupRecord):
+    archived: bool = False
     id: UUID
     revision: int = Field(ge=1)
 
@@ -210,6 +216,7 @@ class BackupSavedMeal(BackupRecord):
     name: str = Field(min_length=1, max_length=80)
     items: list[MealItem] = Field(min_length=1, max_length=40)
     uses: int = Field(default=0, ge=0)
+    photos: list[BackupBlob] = Field(default_factory=list, max_length=4)
 
 
 class BackupMeal(BackupRecord):
@@ -231,6 +238,8 @@ class BackupWeighIn(BackupRecord):
 
 
 class BackupAssistantTurn(BaseModel):
+    photo_ids: list[UUID] = Field(default_factory=list, max_length=4)
+    attached: dict[str, Any] | None = None
     role: Literal["user", "assistant"]
     content: str = Field(max_length=250000)
     proposal: dict[str, Any] | None = None
@@ -244,7 +253,15 @@ class BackupAssistantChat(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     created_at: AwareDatetime
     updated_at: AwareDatetime
-    turns: list[BackupAssistantTurn] = Field(default_factory=list, max_length=2000)
+    turns: list[BackupAssistantTurn] = Field(default_factory=list)
+
+
+class BackupChatPhoto(BackupRecord):
+    id: UUID
+    width: int = Field(gt=0, le=16000)
+    height: int = Field(gt=0, le=16000)
+    created_at: AwareDatetime
+    file: BackupBlob
 
 
 class BackupMemory(BaseModel):
@@ -252,11 +269,84 @@ class BackupMemory(BaseModel):
     created_at: AwareDatetime
 
 
+class BackupFinanceAccount(AccountFields):
+    id: UUID
+    revision: int = Field(ge=1)
+
+
+class BackupFinanceEntry(EntryFields):
+    id: UUID
+    revision: int = Field(ge=1)
+    deleted: bool = False
+    import_id: UUID | None = None
+    occurrence_id: UUID | None = None
+    created_at: AwareDatetime
+
+
+class BackupFinanceItem(BackupRecord):
+    id: UUID
+    kind: Literal["purchase", "reservation", "payment", "occurrence", "import"]
+    fields: dict[str, Any]
+    revision: int = Field(ge=1)
+    deleted: bool = False
+    created_at: AwareDatetime
+
+
+class BackupFinanceAsset(BackupRecord):
+    id: UUID
+    filename: str = Field(max_length=200)
+    content_type: Literal["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"]
+    file: BackupBlob
+    created_at: AwareDatetime
+
+
+class BackupFinance(BackupRecord):
+    settings: FinanceProfileFields
+    settings_revision: int = Field(default=1, ge=1)
+    accounts: list[BackupFinanceAccount] = Field(default_factory=list, max_length=1000)
+    entries: list[BackupFinanceEntry] = Field(default_factory=list)
+    items: list[BackupFinanceItem] = Field(default_factory=list)
+    assets: list[BackupFinanceAsset] = Field(default_factory=list, max_length=5000)
+
+
+class BackupDocumentReminder(DocumentReminderCreate):
+    model_config = ConfigDict(extra="forbid")
+    channel_id: UUID
+    status: Literal["active", "done", "cancelled"]
+    revision: int = Field(ge=1)
+    scheduled_at: AwareDatetime
+    created_at: AwareDatetime
+
+
+class BackupWritingRun(BackupRecord):
+    id: UUID
+    conversation_id: UUID | None
+    created_at: AwareDatetime
+    prompt_name: str = Field(max_length=80)
+    instructions: str
+    kind: str = Field(max_length=16)
+    place: str = Field(max_length=16)
+    channel_id: UUID | None
+    where: str = Field(max_length=200)
+    model: str = Field(max_length=80)
+    input: list[dict[str, Any]]
+    output: Any = None
+    outcome: str = Field(max_length=16)
+    error: str | None = None
+    usage: dict[str, Any] | None = None
+
+
 class BackupContent(BackupRecord):
+    writing_runs: list[BackupWritingRun] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    assistant_photos: list[BackupChatPhoto] = Field(default_factory=list)
+    preferences: BackupPreferences | None = None
+    document_reminders: list[BackupDocumentReminder] = Field(default_factory=list)
+    finance: BackupFinance | None = None
     habits: list[BackupHabit] = Field(default_factory=list)
     habit_entries: list[BackupHabitEntry] = Field(default_factory=list)
     format: Literal["noted-content-backup"] = "noted-content-backup"
-    version: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] = 1
+    version: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] = 1
     created_at: AwareDatetime
     workspaces: list[BackupWorkspace]
     categories: list[BackupCategory]
@@ -284,6 +374,7 @@ class BackupContent(BackupRecord):
 
 
 class BackupCounts(BaseModel):
+    finance_entries: int = 0
     assistant_chats: int = 0
     meals: int = 0
     habits: int = 0
@@ -304,6 +395,8 @@ class BackupCounts(BaseModel):
 
 
 class BackupPreview(BaseModel):
+    warnings: list[str] = Field(default_factory=list)
+    has_preferences: bool = False
     token: UUID
     created_at: datetime
     expires_at: datetime
@@ -313,6 +406,7 @@ class BackupPreview(BaseModel):
 
 
 class ImportBackup(BackupRecord):
+    restore_preferences: bool | None = None
     token: UUID
     mode: Literal["merge", "replace"] = "merge"
     confirmation: str = ""

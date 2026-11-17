@@ -1,6 +1,27 @@
 #!/bin/sh
 set -eu
 umask 077
+
+ensure_compose() (
+    docker compose version >/dev/null 2>&1 && return 0
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq || return 37
+    if apt-get install -y --no-remove --no-upgrade --no-install-recommends docker-compose-plugin; then
+        docker compose version >/dev/null 2>&1 && return 0
+    fi
+    apt-get install -y --no-remove --no-upgrade --no-install-recommends ca-certificates curl || return 37
+    compose_download=$(mktemp -d) || return 37
+    trap 'rm -f "$compose_download/docker-compose-linux-x86_64" "$compose_download/docker-compose-linux-x86_64.sha256"; rmdir "$compose_download"' EXIT
+    compose_release=https://github.com/docker/compose/releases/download/v5.6.0
+    for compose_asset in docker-compose-linux-x86_64 docker-compose-linux-x86_64.sha256; do
+        curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 "$compose_release/$compose_asset" -o "$compose_download/$compose_asset" || return 37
+    done
+    cd "$compose_download" || return 37
+    sha256sum --check docker-compose-linux-x86_64.sha256 || return 37
+    install -m 0755 -d /usr/local/lib/docker/cli-plugins || return 37
+    install -m 0755 docker-compose-linux-x86_64 /usr/local/lib/docker/cli-plugins/docker-compose || return 37
+    docker compose version >/dev/null 2>&1 || return 37
+)
 test "$(id -u)" = 0
 test "$(uname -m)" = x86_64
 test ! -e /opt/noted
@@ -34,6 +55,6 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 apt-get install -y python3 openssh-client
 python3 -c 'import shutil, sys; assert sys.version_info >= (3,11); assert shutil.disk_usage("/opt").free > 2147483648'
-docker compose version >/dev/null
+ensure_compose || exit 37
 systemctl is-active --quiet docker
 mkdir -m 700 /opt/noted

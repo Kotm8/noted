@@ -13,6 +13,9 @@ import { useJournalDraft } from "./use-journal-draft";
 import type { JournalEntry } from "./types";
 import { useAiWriting } from "../ai/writing/use-ai-writing";
 import { AiWritingSurface } from "../ai/writing/ai-writing-surface";
+import { ContextMenu } from "../../components/ui/context-menu";
+import { MenuItem } from "../../components/ui/menu";
+import { copyText } from "../../lib/clipboard";
 
 export function JournalEditor({
   entry,
@@ -137,36 +140,62 @@ export function JournalEditor({
           </div>
         </div>
       )}
-      <div
-        className={`journal-page${ai.connected ? " ai-writing-enabled" : ""}`}
+      <ContextMenu
+        disabled={ai.previewing}
+        label="Journal entry actions"
+        menu={
+          <>
+            <MenuItem
+              onSelect={() =>
+                void copyText(`${model.draft.title}\n\n${model.draft.content}`)
+              }
+            >
+              Copy text
+            </MenuItem>
+            <MenuItem onSelect={() => setEditing(!editing)}>
+              {editing ? "Preview entry" : "Edit entry"}
+            </MenuItem>
+            <MenuItem
+              danger
+              disabled={model.saving || model.dirty}
+              onSelect={() => setConfirm("delete")}
+            >
+              Delete entry
+            </MenuItem>
+          </>
+        }
       >
-        <time className="journal-date" dateTime={entry.created_at}>
-          {new Date(entry.created_at).toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </time>
-        <input
-          className="journal-entry-title"
-          aria-label="Entry title"
-          value={model.draft.title}
-          maxLength={120}
-          disabled={ai.previewing}
-          onChange={(event) => model.setDraft({ title: event.target.value })}
-        />
-        <AiWritingSurface controller={ai}>
-          <MarkdownWritingArea
-            content={model.draft.content}
-            onChange={(content) => model.setDraft({ content })}
-            editing={editing}
-            pending={model.saving}
-            label="Entry contents"
-            onEdit={() => setEditing(true)}
-            onSelection={ai.onEditorSelection}
+        <div
+          className={`journal-page${ai.connected ? " ai-writing-enabled" : ""}`}
+        >
+          <time className="journal-date" dateTime={entry.created_at}>
+            {new Date(entry.created_at).toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </time>
+          <input
+            className="journal-entry-title"
+            aria-label="Entry title"
+            value={model.draft.title}
+            maxLength={120}
+            disabled={ai.previewing}
+            onChange={(event) => model.setDraft({ title: event.target.value })}
           />
-        </AiWritingSurface>
-      </div>
+          <AiWritingSurface controller={ai}>
+            <MarkdownWritingArea
+              content={model.draft.content}
+              onChange={(content) => model.setDraft({ content })}
+              editing={editing}
+              pending={model.saving}
+              label="Entry contents"
+              onEdit={() => setEditing(true)}
+              onSelection={ai.onEditorSelection}
+            />
+          </AiWritingSurface>
+        </div>
+      </ContextMenu>
       <Modal
         open={confirm !== null}
         onOpenChange={(open) => {

@@ -9,12 +9,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.backup.capacity import require_memory, require_space
+from app.backup.preferences import export_preferences
 from app.backup.repository import BackupRepository
 from app.backup.schemas import BackupContent
-from app.backup.services.archive import MAX_METADATA
 from app.backup.services.tracking import tracking_document
 from app.core.errors import ConflictError, ContentTooLargeError
-from app.core.storage_limits import MAX_ARCHIVE
 from app.storage.base import FileStorage
 
 
@@ -27,6 +27,7 @@ class BackupExporter:
         with Session(self.db.get_bind()) as snapshot:
             snapshot.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
             rows = BackupRepository(snapshot).content(owner_id)
+            preferences = export_preferences(snapshot, owner_id)
         document: dict[str, Any] = {
             "format": "noted-content-backup",
             "version": 1,
@@ -37,7 +38,7 @@ class BackupExporter:
             "messages": [],
             "attachments": [],
         }
-        with zipfile.ZipFile(destination, "w", allowZip64=False) as archive:
+        with zipfile.ZipFile(destination, "w", allowZip64=True) as archive:
             for row in rows["workspaces"]:
                 image = None
                 if row["icon_storage_key"]:
@@ -220,22 +221,87 @@ class BackupExporter:
                 rows, lambda key, size: self.add_file(archive, key, size, destination)
             )
             if nutrition:
-                document["version"] = NUTRITION_VERSION
+                document["version"] = (
+                    13
+                    if any(item["photos"] for item in nutrition["saved_meals"])
+                    else NUTRITION_VERSION
+                )
                 document.update(nutrition)
             from app.backup.services.assistant import ASSISTANT_VERSION, assistant_document
 
             assistant = assistant_document(rows)
             if assistant:
-                document["version"] = ASSISTANT_VERSION
+                document["version"] = max(document["version"], ASSISTANT_VERSION)
                 document.update(assistant)
+            from app.backup.services.finance import finance_document
+
+            finance = await finance_document(
+                rows, lambda key, size: self.add_file(archive, key, size, destination)
+            )
+            if finance:
+                document["version"] = max(document["version"], 14)
+                document.update(finance)
+            if rows["document_reminders"]:
+                from app.backup.schemas import BackupDocumentReminder
+
+                document["version"] = 15
+                document["document_reminders"] = [
+                    {key: row[key] for key in BackupDocumentReminder.model_fields}
+                    for row in rows["document_reminders"]
+                ]
+            if preferences is not None:
+                document["preferences"] = preferences
+                document["version"] = max(document["version"], 16)
+            pins = {row["id"]: row["pinned_at"] for row in rows["channels"] if row["pinned_at"]}
+            if pins:
+                document["version"] = max(document["version"], 16)
+                for channel in document["channels"]:
+                    if channel["id"] in pins:
+                        channel["pinned_at"] = pins[channel["id"]]
+            wanted_photos = {
+                UUID(identifier)
+                for row in rows["assistant_turns"]
+                for identifier in (row["photo_ids"] or [])
+            }
+            if any(row["attached"] is not None for row in rows["assistant_turns"]):
+                document["version"] = max(document["version"], 16)
+            if rows["writing_runs"]:
+                document["version"] = max(document["version"], 16)
+            if wanted_photos:
+                document["version"] = max(document["version"], 16)
+                photos = {row["id"]: row for row in rows["meal_photos"]}
+                if not wanted_photos.issubset(photos):
+                    missing = wanted_photos - photos.keys()
+                    document["warnings"] = [
+                        f"{len(missing)} old AI chat photo(s) had expired before this backup."
+                    ]
+                    for chat in document.get("assistant_chats", []):
+                        for turn in chat["turns"]:
+                            turn["photo_ids"] = [
+                                item for item in turn["photo_ids"] if UUID(item) not in missing
+                            ]
+                    wanted_photos -= missing
+                document["assistant_photos"] = []
+                for identifier in sorted(wanted_photos):
+                    photo = photos[identifier]
+                    document["assistant_photos"].append(
+                        {
+                            **{
+                                name: photo[name]
+                                for name in ("id", "width", "height", "created_at")
+                            },
+                            "file": await self.add_file(
+                                archive, photo["storage_key"], photo["size"], destination
+                            ),
+                        }
+                    )
             raw = json.dumps(document, default=str, ensure_ascii=False).encode()
-            if len(raw) > MAX_METADATA:
-                raise ContentTooLargeError("The content metadata exceeds the 16 MB backup limit.")
+            require_memory(len(raw) * 8)
+            require_space(destination, len(raw))
             archive.writestr(
                 "content.json", raw, compress_type=zipfile.ZIP_DEFLATED, compresslevel=3
             )
-        if destination.stat().st_size > MAX_ARCHIVE:
-            raise ContentTooLargeError("This backup exceeds the 1 GB ZIP limit.")
+
         return BackupContent.model_validate_json(raw)
 
     async def add_file(
@@ -248,10 +314,11 @@ class BackupExporter:
             with archive.open(name, "w") as destination:
                 async for chunk in self.storage.read(key):
                     size += len(chunk)
-                    if size > expected or path.stat().st_size + len(chunk) > MAX_ARCHIVE:
+                    if size > expected:
                         raise ContentTooLargeError(
                             "This backup exceeds its file or archive limits."
                         )
+                    require_space(path, len(chunk))
                     digest.update(chunk)
                     destination.write(chunk)
         except FileNotFoundError:

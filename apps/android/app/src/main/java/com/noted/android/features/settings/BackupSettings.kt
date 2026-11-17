@@ -30,6 +30,7 @@ fun BackupSettings(repository: NativeRepository) {
     var imported by remember { mutableStateOf<JSONObject?>(null) }
     var mode by remember { mutableStateOf("merge") }
     var confirmation by remember { mutableStateOf("") }
+    var restorePreferences by remember { mutableStateOf(false) }
     val destination = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         val item = backup
         if (uri != null && item != null) actions.run {
@@ -49,18 +50,16 @@ fun BackupSettings(repository: NativeRepository) {
                 override fun contentType() = "application/zip".toMediaType()
                 override fun writeTo(sink: BufferedSink) {
                     context.contentResolver.openInputStream(uri)?.source()?.use { source ->
-                        var total = 0L
                         while (true) {
                             val count = source.read(sink.buffer, 65536)
                             if (count < 0) break
-                            total += count
-                            require(total <= 1024L * 1024 * 1024) { "Backups must be at most 1 GB." }
                             sink.emitCompleteSegments()
                         }
                     } ?: error("Choose the ZIP file again.")
                 }
             }
             imported = JSONObject(repository.api.send("/backups/preview", "POST", body, transfer = true))
+            restorePreferences = false
         }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -77,12 +76,15 @@ fun BackupSettings(repository: NativeRepository) {
                 if (counts.optInt(key) > 0) Text("${key.replace('_', ' ')}: ${counts.optInt(key)}")
             } }
             Choice("Import mode", mode, listOf("merge" to "Merge with existing content", "replace" to "Replace all existing content")) { mode = it }
+            if (preview.optBoolean("has_preferences")) {
+                Toggle("Restore personal settings and AI prompts", restorePreferences) { restorePreferences = it }
+            }
             if (mode == "replace") {
                 Text("This deletes existing content before restoring the backup.", color = MaterialTheme.colorScheme.error)
                 Field("Type REPLACE MY NOTES", confirmation, { confirmation = it })
             }
             NotedButton(enabled = !actions.busy && (mode != "replace" || confirmation == "REPLACE MY NOTES"), onClick = { actions.run {
-                repository.mutate("/backups/import", body = json("token" to preview.text("token"), "mode" to mode, "confirmation" to confirmation))
+                repository.mutate("/backups/import", body = json("token" to preview.text("token"), "mode" to mode, "confirmation" to confirmation, "restore_preferences" to restorePreferences))
                 imported = null
             } }, modifier = Modifier.fillMaxWidth()) { Text("Import backup") }
         }

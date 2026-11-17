@@ -9,6 +9,7 @@ import { HostPanel } from "../../host/components/host-panel";
 import { ServerAddressPanel } from "../../desktop/server-address-panel";
 import { SwitchServerButton } from "../../desktop/switch-server-button";
 import { isAndroidApp } from "../../notifications/android";
+import { version as clientVersion } from "../../../../package.json";
 
 export function ServerPanel() {
   return (
@@ -24,6 +25,8 @@ function ServerContent() {
   const query = useQuery({
     queryKey: ["server-settings"],
     queryFn: settingsApi.getServer,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   if (query.isPending) return <p role="status">Loading instance details...</p>;
@@ -39,6 +42,10 @@ function ServerContent() {
     <>
       <dl className="server-details">
         <div>
+          <dt>Client version</dt>
+          <dd>{clientVersion}</dd>
+        </div>
+        <div>
           <dt>Name</dt>
           <dd>{query.data.server_name}</dd>
         </div>
@@ -51,7 +58,7 @@ function ServerContent() {
           <dd>{query.data.database_ready ? "Ready" : "Needs attention"}</dd>
         </div>
         <div>
-          <dt>Version</dt>
+          <dt>Server version</dt>
           <dd>{query.data.version}</dd>
         </div>
         <div>

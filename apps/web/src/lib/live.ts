@@ -43,6 +43,7 @@ export function liveQueryKeys(event: LiveEvent): QueryKey[] {
       return [["templates"]];
     case "notes":
       return [
+        scoped("channel-library", event.channel),
         scoped("notes", event.channel),
         scoped("thread", event.thread),
         ["home-activity"],
@@ -55,7 +56,11 @@ export function liveQueryKeys(event: LiveEvent): QueryKey[] {
         ["search"],
       ];
     case "document":
-      return [scoped("channel-document", event.channel), ["search"]];
+      return [
+        scoped("channel-document", event.channel),
+        scoped("document-reminders", event.channel),
+        ["search"],
+      ];
     case "structure":
       return [
         ["workspaces"],
@@ -80,6 +85,8 @@ export function liveQueryKeys(event: LiveEvent): QueryKey[] {
       ];
     case "nutrition":
       return [["nutrition"]];
+    case "finance":
+      return [["finance"]];
     case "habits":
       return [["habits"], ["home-activity"]];
     case "schedule":
@@ -99,7 +106,7 @@ export function liveQueryKeys(event: LiveEvent): QueryKey[] {
       return [["publishing"], ["home-activity"]];
     case "settings": {
       const keys: Record<string, string[]> = {
-        appearance: ["appearance"],
+        appearance: ["appearance", "watch-settings"],
         notifications: [
           "notification-settings",
           "android-server-configuration",

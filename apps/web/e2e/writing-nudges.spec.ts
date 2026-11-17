@@ -54,7 +54,7 @@ test("writing nudges save activity defaults, open the channel, and clear after w
   await page
     .getByRole("button", { name: "Manage activities", exact: true })
     .click();
-  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  const settings = page.locator(".settings-destination, .settings-dialog");
   await settings
     .getByRole("button", { name: "New activity", exact: true })
     .click();
@@ -80,7 +80,7 @@ test("writing nudges save activity defaults, open the channel, and clear after w
   expect(activity.writing_nudge.interval_minutes).toBe(15);
   expect(activity.writing_nudge.channel_id).toBe(channel.id);
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   const state = await api(page, "/time-tracking/tracker");
   await api(page, "/time-tracking/tracker", "POST", {

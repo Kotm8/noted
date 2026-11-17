@@ -60,7 +60,7 @@ def connect(
 
 @router.get("/settings", response_model=WatchSettings)
 def read_settings(current: AuthenticatedSession = Depends(get_current_session)) -> WatchSettings:
-    return WatchSettings.model_validate(current.user.watch_preferences or {})
+    return service.watch_settings(current.user)
 
 
 @router.put("/settings", response_model=WatchSettings)
@@ -71,7 +71,7 @@ def update_settings(
 ) -> WatchSettings:
     current.user.watch_preferences = data.model_dump(mode="json")
     db.commit()
-    return data
+    return service.watch_settings(current.user)
 
 
 @router.get("/snapshot", response_model=WatchSnapshot)

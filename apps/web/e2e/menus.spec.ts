@@ -62,7 +62,7 @@ test("channel menus stay beside their trigger at every supported zoom", async ({
         await saved;
       }
       await page
-        .getByRole("button", { name: "Close dialog", exact: true })
+        .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
         .click();
       const trigger = page.getByRole("button", {
         name: "Options for position-check",
@@ -90,6 +90,28 @@ test("channel menus stay beside their trigger at every supported zoom", async ({
       expect(
         Math.abs(menu.x + menu.width - anchor.x - anchor.width),
       ).toBeLessThan(18);
+      await page.keyboard.press("Escape");
+      const row = page
+        .locator(".channel-row")
+        .filter({ hasText: "position-check" });
+      const bounds = (await row.boundingBox())!;
+      await row.click({
+        button: "right",
+        position: { x: 40, y: bounds.height / 2 },
+      });
+      const context = page.getByRole("menu", {
+        name: "Actions for channel position-check",
+        exact: true,
+      });
+      await expect(context).toBeVisible();
+      const placed = (await context.boundingBox())!;
+      expect(Math.abs(placed.y - bounds.y - bounds.height / 2)).toBeLessThan(
+        18,
+      );
+      expect(placed.x).toBeGreaterThanOrEqual(0);
+      expect(placed.x + placed.width).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
+      );
       await page.keyboard.press("Escape");
     }
   } finally {

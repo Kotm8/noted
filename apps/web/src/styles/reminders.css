@@ -345,6 +345,7 @@
 }
 .reminder-snooze {
   display: flex;
+  align-self: end;
   align-items: stretch;
   margin-top: 1px;
 }

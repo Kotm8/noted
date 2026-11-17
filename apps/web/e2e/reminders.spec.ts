@@ -156,7 +156,9 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
   );
   await page.getByLabel("Default snooze (minutes)").fill("25");
   await snoozeSaved;
-  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await page
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
+    .click();
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Snooze 25m", exact: true }),
@@ -215,4 +217,67 @@ test("reminders persist, support keyboard scheduling, snooze, custom pickers and
   await expect(page.locator(".note")).toHaveCount(2);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("a named reminder opens scheduling before it is saved", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Username", { exact: true }).fill("ilya");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("browser-test-password-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".app-shell")).toBeVisible();
+  const project = await api(page, "/workspaces", "POST", { name: "Personal" });
+  const channel = await api(
+    page,
+    `/workspaces/${project.id}/channels`,
+    "POST",
+    {
+      name: "thoughts",
+      kind: "note",
+    },
+  );
+  const path = `/w/${project.id}/c/${channel.id}`;
+  await page.goto(path);
+  const input = page.getByRole("textbox", {
+    name: "Message thoughts",
+    exact: true,
+  });
+  await input.fill("/remind Call the dentist");
+  await input.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Remind me", exact: true });
+  await expect(dialog.locator(".reminder-context")).toHaveText(
+    "Call the dentist",
+  );
+  expect(
+    (await api(page, `/channels/${channel.id}/messages`)).items,
+  ).toHaveLength(0);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(input).toHaveValue("/remind Call the dentist");
+  await input.press("Enter");
+  await dialog.getByRole("button", { name: "In 3 hours", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Send reminder", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(input).toHaveValue("");
+  const messages = await api(page, `/channels/${channel.id}/messages`);
+  expect(messages.items).toHaveLength(1);
+  const note = messages.items[0];
+  expect(note.content).toBe("Call the dentist");
+  expect(note.reminder.status).toBe("active");
+  expect(new Date(note.reminder.due_at).getTime() - Date.now()).toBeGreaterThan(
+    175 * 60000,
+  );
+  await page.goto(`${path}?note=${note.id}`);
+  await expect(page.locator(`#note-${note.id}`)).toHaveAttribute(
+    "data-highlighted",
+    "true",
+  );
+  await expect(page.locator(`#note-${note.id}`)).toContainText(
+    "Call the dentist",
+  );
 });

@@ -15,6 +15,7 @@ from app.nutrition.models import (
     NutritionProfile,
     NutritionTarget,
     SavedMeal,
+    SavedMealPhoto,
     WeighIn,
 )
 from app.nutrition.service import MAX_SAVED_MEALS
@@ -23,7 +24,6 @@ NUTRITION_VERSION = 11
 
 
 def nutrition_queries(owner_id: UUID) -> dict[str, Any]:
-    meals = select(Meal.id).where(Meal.owner_id == owner_id)
     return {
         "nutrition_profiles": select(NutritionProfile.__table__).where(
             NutritionProfile.owner_id == owner_id
@@ -34,8 +34,11 @@ def nutrition_queries(owner_id: UUID) -> dict[str, Any]:
         "saved_meals": select(SavedMeal.__table__).where(SavedMeal.owner_id == owner_id),
         "meals": select(Meal.__table__).where(Meal.owner_id == owner_id),
         "meal_photos": select(MealPhoto.__table__)
-        .where(MealPhoto.meal_id.in_(meals))
+        .where(MealPhoto.owner_id == owner_id)
         .order_by(MealPhoto.created_at),
+        "saved_meal_photos": select(SavedMealPhoto.__table__)
+        .where(SavedMealPhoto.owner_id == owner_id)
+        .order_by(SavedMealPhoto.position),
         "weigh_ins": select(WeighIn.__table__).where(WeighIn.owner_id == owner_id),
     }
 
@@ -50,8 +53,16 @@ async def nutrition_document(
     ):
         return None
     photos: dict[UUID, list[dict[str, Any]]] = {}
+    saved_photos: dict[UUID, list[dict[str, Any]]] = {}
+    by_id = {photo["id"]: photo for photo in rows["meal_photos"]}
     for photo in rows["meal_photos"]:
-        photos.setdefault(photo["meal_id"], []).append(
+        if photo["meal_id"] is not None:
+            photos.setdefault(photo["meal_id"], []).append(
+                await add_file(photo["storage_key"], photo["size"])
+            )
+    for link in rows["saved_meal_photos"]:
+        photo = by_id[link["photo_id"]]
+        saved_photos.setdefault(link["saved_meal_id"], []).append(
             await add_file(photo["storage_key"], photo["size"])
         )
     profile = rows["nutrition_profiles"][0] if rows["nutrition_profiles"] else None
@@ -87,7 +98,10 @@ async def nutrition_document(
             for row in rows["nutrition_targets"]
         ],
         "saved_meals": [
-            {key: row[key] for key in ("id", "name", "items", "uses")}
+            {
+                **{key: row[key] for key in ("id", "name", "items", "uses")},
+                "photos": saved_photos.get(row["id"], []),
+            }
             for row in rows["saved_meals"]
         ],
         "meals": [
@@ -126,6 +140,8 @@ def validate_nutrition(data: Any) -> None:
         return
     if data.version < NUTRITION_VERSION:
         raise ValidationError("Nutrition requires a version 11 backup.")
+    if data.version < 13 and any(item.photos for item in data.saved_meals):
+        raise ValidationError("Saved food photos require a version 13 backup.")
     if len(data.saved_meals) > MAX_SAVED_MEALS:
         raise ValidationError(f"Keep up to {MAX_SAVED_MEALS} saved meals.")
     saved = {item.id for item in data.saved_meals}
@@ -147,7 +163,7 @@ def restore_nutrition(
     db: Session, owner_id: UUID, data: Any, keys: dict[str, str], replace: bool
 ) -> None:
     """Merges by default: existing targets and weigh-ins on the same day are kept."""
-    if not (
+    if not replace and not (
         data.nutrition_profile
         or data.nutrition_targets
         or data.meals
@@ -201,6 +217,27 @@ def restore_nutrition(
                 uses=item.uses,
             )
         )
+    db.flush()
+    for item in data.saved_meals:
+        for position, blob in enumerate(item.photos):
+            photo = MealPhoto(
+                id=uuid4(),
+                owner_id=owner_id,
+                storage_key=keys[blob.path],
+                size=blob.size,
+                width=0,
+                height=0,
+            )
+            db.add(photo)
+            db.flush()
+            db.add(
+                SavedMealPhoto(
+                    saved_meal_id=saved_ids[item.id],
+                    photo_id=photo.id,
+                    owner_id=owner_id,
+                    position=position,
+                )
+            )
     db.flush()
     for item in data.meals:
         meal = Meal(

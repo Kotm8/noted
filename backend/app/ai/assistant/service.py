@@ -22,6 +22,9 @@ from app.ai.runs import Prepared
 from app.auth.models import User
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.security import utc_now
+from app.finance.assistant import INSTRUCTIONS as FINANCE_INSTRUCTIONS
+from app.finance.assistant import apply_finance
+from app.finance.assistant import context as finance_context
 from app.habits.repository import HabitRepository
 from app.habits.schemas import HabitResponse, HabitUpdate
 from app.habits.service import HabitService
@@ -33,6 +36,7 @@ from app.schedule.service import ScheduleService
 from app.time_tracking.repository import TrackingRepository
 
 INSTRUCTIONS = (
+    FINANCE_INSTRUCTIONS + "\n\n"
     "You are the owner's shared Noted assistant for habits, calendar plans and the meals "
     "in their Nutrition log. "
     "Answer normally when no changes are needed, returning empty habits and plans. "
@@ -103,6 +107,7 @@ def prepare_assistant(db: Session, owner_id: UUID, data: AssistantRequest) -> Pr
         request = "\n\n".join(filter(None, [attached.prompt_instructions, request]))
     payload = {
         "scope": data.model_dump(mode="json", exclude={"history", "instructions"}),
+        "finance": finance_context(db, owner_id),
         "activities": [{"id": str(item.id), "name": item.name} for item in activities],
         "habits": [
             HabitResponse.model_validate(item).model_dump(mode="json")
@@ -190,7 +195,7 @@ def apply_changes(db: Session, owner_id: UUID, data: AssistantApply) -> dict[str
         if existing.owner_id != owner_id or existing.fingerprint != fingerprint:
             raise ConflictError("This request was already applied differently")
         return existing.result
-    if not data.habits and not data.plans and not data.meals:
+    if not data.habits and not data.plans and not data.meals and not data.finance:
         # Message rewrites are saved by the app as ordinary edits; this only records them.
         if data.turn_id is None:
             raise ValidationError("Select a change to apply")
@@ -258,6 +263,9 @@ def apply_changes(db: Session, owner_id: UUID, data: AssistantApply) -> dict[str
         db.flush()
         result["plans"].append(str(plan_item.id))
     apply_meals(db, owner_id, data, result)
+    if any(change.operation == "delete" for change in data.finance) and not data.confirmed_finance:
+        raise ValidationError("Confirm the listed Finance deletions before applying")
+    result["finance"] = apply_finance(db, owner_id, data.request_id, data.finance)
     mark_applied(db, owner_id, data.turn_id)
     board = context_board(db, owner_id, data)
     changed = set(result["plans"])

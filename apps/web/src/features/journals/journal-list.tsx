@@ -1,3 +1,9 @@
+import { ContextMenu } from "../../components/ui/context-menu";
+import { MenuItem } from "../../components/ui/menu";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { copyText } from "../../lib/clipboard";
+import { toast } from "sonner";
+import type { JournalEntry } from "./types";
 import { useState, type MouseEvent } from "react";
 import {
   useInfiniteQuery,
@@ -23,6 +29,7 @@ export function JournalList({
   onSelect: (id: string, editing?: boolean) => void;
 }) {
   const client = useQueryClient();
+  const [removing, setRemoving] = useState<JournalEntry | null>(null);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const query = useInfiniteQuery(journalsQuery(channel.id));
@@ -35,6 +42,16 @@ export function JournalList({
       setTitle("");
       onSelect(entry.id, true);
     },
+  });
+  const remove = useMutation({
+    mutationFn: (entry: JournalEntry) =>
+      journalsApi.remove(entry.id, entry.revision),
+    onSuccess: async () => {
+      setRemoving(null);
+      await client.invalidateQueries({ queryKey: ["journals", channel.id] });
+      await client.invalidateQueries({ queryKey: ["search"] });
+    },
+    onError: (error) => toast.error(error.message),
   });
   const entries = query.data?.pages.flat() ?? [];
   const ai = useJournalLookBack({ channel, entries, onSelect });
@@ -68,33 +85,70 @@ export function JournalList({
           </p>
         )}
         {entries.map((entry) => (
-          <button
-            type="button"
+          <ContextMenu
             key={entry.id}
-            className={`journal-entry-row${ai.marked.has(entry.id) ? " ai-entry-selected" : ""}`}
-            aria-current={selectedId === entry.id ? "page" : undefined}
-            onClick={() => {
-              if (!ai.toggle(entry.id)) onSelect(entry.id);
-            }}
-          >
-            <span>
-              {ai.picking && (
-                <span
-                  role="checkbox"
-                  aria-label={`Include ${entry.title}`}
-                  aria-checked={ai.marked.has(entry.id)}
-                  className="ai-entry-checkbox"
+            label={`Actions for journal ${entry.title}`}
+            menu={
+              <>
+                <MenuItem onSelect={() => onSelect(entry.id)}>
+                  Open entry
+                </MenuItem>
+                <MenuItem onSelect={() => onSelect(entry.id, true)}>
+                  Edit entry
+                </MenuItem>
+                <MenuItem
+                  onSelect={() =>
+                    void journalsApi
+                      .get(entry.id)
+                      .then((full) =>
+                        copyText(`${full.title}\n\n${full.content}`),
+                      )
+                      .catch((error: Error) => toast.error(error.message))
+                  }
                 >
-                  {ai.marked.has(entry.id) && <Check size={12} />}
-                </span>
-              )}
-              <FileText size={15} />
-              {entry.title}
-            </span>
-            <time dateTime={entry.created_at}>
-              {new Date(entry.created_at).toLocaleDateString()}
-            </time>
-          </button>
+                  Copy text
+                </MenuItem>
+                <MenuItem
+                  danger
+                  onSelect={() =>
+                    void journalsApi
+                      .get(entry.id)
+                      .then(setRemoving)
+                      .catch((error: Error) => toast.error(error.message))
+                  }
+                >
+                  Delete entry
+                </MenuItem>
+              </>
+            }
+          >
+            <button
+              type="button"
+              className={`journal-entry-row${ai.marked.has(entry.id) ? " ai-entry-selected" : ""}`}
+              aria-current={selectedId === entry.id ? "page" : undefined}
+              onClick={() => {
+                if (!ai.toggle(entry.id)) onSelect(entry.id);
+              }}
+            >
+              <span>
+                {ai.picking && (
+                  <span
+                    role="checkbox"
+                    aria-label={`Include ${entry.title}`}
+                    aria-checked={ai.marked.has(entry.id)}
+                    className="ai-entry-checkbox"
+                  >
+                    {ai.marked.has(entry.id) && <Check size={12} />}
+                  </span>
+                )}
+                <FileText size={15} />
+                {entry.title}
+              </span>
+              <time dateTime={entry.created_at}>
+                {new Date(entry.created_at).toLocaleDateString()}
+              </time>
+            </button>
+          </ContextMenu>
         ))}
         {query.hasNextPage && (
           <Button
@@ -108,6 +162,16 @@ export function JournalList({
           </Button>
         )}
       </div>
+      <ConfirmDialog
+        open={removing !== null}
+        pending={remove.isPending}
+        title="Delete journal entry"
+        description={`Permanently delete ${removing?.title ?? "this entry"}?`}
+        keepLabel="Keep entry"
+        confirmLabel="Delete entry"
+        onClose={() => setRemoving(null)}
+        onConfirm={() => removing && remove.mutate(removing)}
+      />
       <Modal
         open={creating}
         onOpenChange={(open) => {

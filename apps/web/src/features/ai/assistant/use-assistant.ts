@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { request, ApiError } from "../../../lib/http";
@@ -31,6 +31,7 @@ const hasChanges = (proposal: AssistantProposal | null | undefined) =>
   Boolean(
     proposal &&
       (proposal.habits?.length ?? 0) +
+        (proposal.finance?.length ?? 0) +
         (proposal.plans?.length ?? 0) +
         (proposal.meals?.length ?? 0) +
         (proposal.rewrites?.length ?? 0) +
@@ -39,6 +40,7 @@ const hasChanges = (proposal: AssistantProposal | null | undefined) =>
   );
 const allSelected = (proposal: AssistantProposal) =>
   new Set([
+    ...(proposal.finance ?? []).map((_, i) => `finance-${i}`),
     ...proposal.habits.map((_, i) => `habit-${i}`),
     ...proposal.plans.map((_, i) => `plan-${i}`),
     ...proposal.meals.map((_, i) => `meal-${i}`),
@@ -51,6 +53,7 @@ const normalized = (proposal: AssistantProposal) => ({
   habits: Array.isArray(proposal.habits) ? proposal.habits : [],
   plans: Array.isArray(proposal.plans) ? proposal.plans : [],
   meals: Array.isArray(proposal.meals) ? proposal.meals : [],
+  finance: Array.isArray(proposal.finance) ? proposal.finance : [],
   rewrites: Array.isArray(proposal.rewrites) ? proposal.rewrites : [],
   posts: Array.isArray(proposal.posts) ? proposal.posts : [],
   deletions: Array.isArray(proposal.deletions) ? proposal.deletions : [],
@@ -171,6 +174,38 @@ export function useSharedAssistant() {
   ]);
   const generation = useRef(0);
   const inFlight = useRef(false);
+  const cancel = useCallback(() => {
+    abort.current?.abort();
+    generation.current++;
+    inFlight.current = false;
+    setBusy(false);
+    setStage("");
+  }, []);
+  const newChat = useCallback(() => {
+    cancel();
+    attempt.current = { key: "", id: "" };
+    setChatId(null);
+    setTurns([]);
+    setProposal(null);
+    setTurnId(null);
+    setApplied(false);
+    setSources([]);
+    setError("");
+    setAttached(null);
+    setActionResults([]);
+    setRecordsApplied(false);
+    restored.current = true;
+    setLoadingChat(false);
+    setSelected(new Set());
+    setRetryPending(false);
+    setPrompt("");
+    originals.current.clear();
+    setPictures((current) => {
+      current.forEach((picture) => URL.revokeObjectURL(picture.preview));
+      return [];
+    });
+  }, [cancel]);
+
   const board = useQuery({
     queryKey: [
       "schedule",
@@ -246,6 +281,7 @@ export function useSharedAssistant() {
     };
     const attach = (event: Event) => {
       const detail = (event as CustomEvent<AttachedMessages>).detail;
+      newChat();
       for (const note of detail.notes)
         originals.current.set(note.id, note.content);
       setAttached(detail);
@@ -258,7 +294,7 @@ export function useSharedAssistant() {
       window.removeEventListener("noted:assistant-open", reveal);
       window.removeEventListener("noted:assistant-attach", attach);
     };
-  }, [tracking.tracker.data?.preferences]);
+  }, [tracking.tracker.data?.preferences, newChat]);
   const preview = useMemo(() => {
     const shown = new Map<string, { text: string; done: boolean }>();
     if (!proposal || applied) return shown;
@@ -270,6 +306,7 @@ export function useSharedAssistant() {
   }, [proposal, applied, selected]);
   async function openChat(id: string) {
     cancel();
+    const currentGeneration = generation.current;
     attempt.current = { key: "", id: "" };
     setLoadingChat(true);
     setError("");
@@ -277,6 +314,7 @@ export function useSharedAssistant() {
       const loaded = await request<(ChatTurn & { id: string })[]>(
         `/ai/assistant/chats/${id}`,
       );
+      if (currentGeneration !== generation.current) return;
       setChatId(id);
       setTurns(loaded);
       const last = loaded.at(-1);
@@ -292,24 +330,11 @@ export function useSharedAssistant() {
       setRecordsApplied(false);
       setSources(last?.role === "assistant" ? (last.sources ?? []) : []);
     } catch (error) {
-      setError((error as Error).message);
+      if (currentGeneration === generation.current)
+        setError((error as Error).message);
     } finally {
-      setLoadingChat(false);
+      if (currentGeneration === generation.current) setLoadingChat(false);
     }
-  }
-  function newChat() {
-    cancel();
-    attempt.current = { key: "", id: "" };
-    setChatId(null);
-    setTurns([]);
-    setProposal(null);
-    setTurnId(null);
-    setApplied(false);
-    setSources([]);
-    setError("");
-    setAttached(null);
-    setActionResults([]);
-    setRecordsApplied(false);
   }
   async function deleteChat(id: string) {
     try {
@@ -413,6 +438,9 @@ export function useSharedAssistant() {
           habits: proposal.habits.filter((_, i) => selected.has(`habit-${i}`)),
           plans: proposal.plans.filter((_, i) => selected.has(`plan-${i}`)),
           meals: proposal.meals.filter((_, i) => selected.has(`meal-${i}`)),
+          finance: (proposal.finance ?? []).filter((_, i) =>
+            selected.has(`finance-${i}`),
+          ),
           posts: (proposal.posts ?? []).filter((_, i) =>
             selected.has(`post-${i}`),
           ),
@@ -600,13 +628,6 @@ export function useSharedAssistant() {
       }
     }
   }
-  function cancel() {
-    abort.current?.abort();
-    generation.current++;
-    inFlight.current = false;
-    setBusy(false);
-    setStage("");
-  }
   async function apply(confirmed = false) {
     if (
       !proposal ||
@@ -625,6 +646,10 @@ export function useSharedAssistant() {
       habits: proposal.habits.filter((_, i) => selected.has(`habit-${i}`)),
       plans: proposal.plans.filter((_, i) => selected.has(`plan-${i}`)),
       meals: proposal.meals.filter((_, i) => selected.has(`meal-${i}`)),
+      finance: (proposal.finance ?? []).filter((_, i) =>
+        selected.has(`finance-${i}`),
+      ),
+      confirmed_finance: confirmed,
     };
     const posts = (proposal.posts ?? [])
       .map((item, i) => ({ ...item, key: `post-${i}` }))
@@ -632,7 +657,11 @@ export function useSharedAssistant() {
     const deletions = (proposal.deletions ?? [])
       .map((item, i) => ({ ...item, key: `delete-${i}` }))
       .filter((item) => selected.has(item.key));
-    const records = body.habits.length + body.plans.length + body.meals.length;
+    const records =
+      body.habits.length +
+      body.plans.length +
+      body.meals.length +
+      body.finance.length;
     const key = JSON.stringify({ body, posts, deletions });
     if (attempt.current.key !== key)
       attempt.current = { key, id: crypto.randomUUID() };
@@ -715,6 +744,7 @@ export function useSharedAssistant() {
         client.invalidateQueries({ queryKey: ["schedule"] }),
         client.invalidateQueries({ queryKey: ["schedule-plan"] }),
         client.invalidateQueries({ queryKey: ["nutrition"] }),
+        client.invalidateQueries({ queryKey: ["finance"] }),
         client.invalidateQueries({ queryKey: ["notes"] }),
         client.invalidateQueries({ queryKey: ["journals"] }),
         client.invalidateQueries({ queryKey: ["search"] }),

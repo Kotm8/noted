@@ -4,6 +4,7 @@ import { Select } from "../../../components/ui/select";
 import { DatePicker } from "../../../components/ui/date-picker";
 import { minuteLabel } from "../../schedule/dates";
 import type { useSharedAssistant } from "./use-assistant";
+import { FinanceProposals } from "../../finance/assistant-proposals";
 
 export function ActionProposals({
   assistant: a,
@@ -20,6 +21,14 @@ export function ActionProposals({
     });
   return (
     <>
+      {Boolean(a.proposal?.finance?.length) && (
+        <FinanceProposals
+          changes={a.proposal?.finance ?? []}
+          selected={a.selected}
+          disabled={disabled}
+          onToggle={toggle}
+        />
+      )}
       {a.recordsApplied &&
         !a.applied &&
         a.proposal &&

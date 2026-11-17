@@ -14,6 +14,9 @@ export function MarkdownWritingArea({
   label,
   onEdit,
   onSelection,
+  onRemindCommand,
+  onReminder,
+  completedReminders,
 }: {
   content: string;
   onChange: (content: string) => void;
@@ -25,6 +28,9 @@ export function MarkdownWritingArea({
     range: { start: number; end: number },
     input: HTMLTextAreaElement,
   ) => void;
+  onRemindCommand?: (text: string, start: number, end: number) => boolean;
+  onReminder?: (id: string) => void;
+  completedReminders?: ReadonlySet<string>;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const { channels } = useMentionDirectory();
@@ -72,6 +78,28 @@ export function MarkdownWritingArea({
               if (mentions.onKeyDown(event) || formatting.onKeyDown(event))
                 return;
               const input = event.currentTarget;
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.nativeEvent.isComposing &&
+                !event.repeat &&
+                onRemindCommand?.(
+                  toStored(input.value, mentions.refs.current),
+                  toStored(
+                    input.value.slice(0, input.selectionStart),
+                    mentions.refs.current,
+                  ).length,
+                  toStored(
+                    input.value.slice(0, input.selectionEnd),
+                    mentions.refs.current,
+                  ).length,
+                )
+              ) {
+                event.preventDefault();
+                return;
+              }
               const edit =
                 event.key === "Enter" && !event.nativeEvent.isComposing
                   ? listEnter(
@@ -92,6 +120,8 @@ export function MarkdownWritingArea({
             content={content}
             pending={pending}
             onContentChange={onChange}
+            onReminder={onReminder}
+            completedReminders={completedReminders}
           />
           {!content && (
             <button className="journal-start-writing" onClick={onEdit}>

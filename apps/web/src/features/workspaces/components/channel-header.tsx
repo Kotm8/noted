@@ -1,8 +1,11 @@
+import { ComicHalftone } from "../../../components/ui/comic-halftone";
 import { Menu as MenuIcon, MoreHorizontal, Search } from "lucide-react";
 import { AssistantButton } from "../../ai/assistant/assistant-button";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import { ChannelIcon } from "./channel-icon";
 import type { Channel, OpenManagement, Workspace } from "../types";
+import { ContextMenu } from "../../../components/ui/context-menu";
+import { ChannelActions } from "./channel-actions";
 
 interface ChannelHeaderProps {
   workspace?: Workspace;
@@ -24,80 +27,87 @@ export function ChannelHeader({
   onScheduling,
 }: ChannelHeaderProps) {
   return (
-    <header className="channel-header">
-      <button
-        className="icon-button mobile-menu"
-        aria-label="Open navigation"
-        onClick={onOpenNavigation}
-      >
-        <MenuIcon size={20} />
-      </button>
-      <div className="channel-heading">
-        {channel ? (
-          <>
-            <ChannelIcon kind={channel.kind} size={21} />
-            <h1>{channel.name}</h1>
-          </>
-        ) : (
-          <>
-            <h1>{workspace?.name ?? "Noted"}</h1>
-          </>
-        )}
-      </div>
-
-      <div className="header-actions">
-        <AssistantButton />
+    <ContextMenu
+      disabled={!channel}
+      label="Channel actions"
+      menu={channel && <ChannelActions channel={channel} onManage={onManage} />}
+    >
+      <header className="channel-header">
+        <ComicHalftone />
         <button
-          className="icon-button"
-          aria-label="Open search"
-          aria-expanded={searchOpen}
-          onClick={onOpenSearch}
+          className="icon-button mobile-menu"
+          aria-label="Open navigation"
+          onClick={onOpenNavigation}
         >
-          <Search size={18} />
+          <MenuIcon size={20} />
         </button>
-        {channel && (
-          <Menu
-            trigger={
-              <button className="icon-button" aria-label="Channel options">
-                <MoreHorizontal size={21} />
-              </button>
-            }
+        <div className="channel-heading">
+          {channel ? (
+            <>
+              <ChannelIcon kind={channel.kind} size={21} />
+              <h1>{channel.name}</h1>
+            </>
+          ) : (
+            <>
+              <h1>{workspace?.name ?? "Noted"}</h1>
+            </>
+          )}
+        </div>
+
+        <div className="header-actions">
+          <AssistantButton />
+          <button
+            className="icon-button"
+            aria-label="Open search"
+            aria-expanded={searchOpen}
+            onClick={onOpenSearch}
           >
-            {channel.kind === "note" && (
-              <MenuItem onSelect={() => onScheduling("messages")}>
-                Scheduled messages
+            <Search size={18} />
+          </button>
+          {channel && (
+            <Menu
+              trigger={
+                <button className="icon-button" aria-label="Channel options">
+                  <MoreHorizontal size={21} />
+                </button>
+              }
+            >
+              {channel.kind === "note" && (
+                <MenuItem onSelect={() => onScheduling("messages")}>
+                  Scheduled messages
+                </MenuItem>
+              )}
+              <MenuItem onSelect={() => onScheduling("writing")}>
+                Writing prompt
               </MenuItem>
-            )}
-            <MenuItem onSelect={() => onScheduling("writing")}>
-              Writing prompt
-            </MenuItem>
-            <MenuItem
-              onSelect={() =>
-                onManage({
-                  kind: "channel",
-                  workspaceId: channel.workspace_id,
-                  item: channel,
-                })
-              }
-            >
-              Edit channel
-            </MenuItem>
-            <MenuItem
-              danger
-              onSelect={() =>
-                onManage({
-                  kind: "channel",
-                  workspaceId: channel.workspace_id,
-                  item: channel,
-                  deleting: true,
-                })
-              }
-            >
-              Delete channel
-            </MenuItem>
-          </Menu>
-        )}
-      </div>
-    </header>
+              <MenuItem
+                onSelect={() =>
+                  onManage({
+                    kind: "channel",
+                    workspaceId: channel.workspace_id,
+                    item: channel,
+                  })
+                }
+              >
+                Edit channel
+              </MenuItem>
+              <MenuItem
+                danger
+                onSelect={() =>
+                  onManage({
+                    kind: "channel",
+                    workspaceId: channel.workspace_id,
+                    item: channel,
+                    deleting: true,
+                  })
+                }
+              >
+                Delete channel
+              </MenuItem>
+            </Menu>
+          )}
+        </div>
+      </header>
+    </ContextMenu>
   );
 }

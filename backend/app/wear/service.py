@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import LoginSession, User
 from app.auth.repository import SessionRepository
+from app.auth.schemas import AppearancePreferences
 from app.auth.services.sessions import AuthenticatedSession
 from app.core.config import Settings
 from app.core.errors import AuthenticationError, ConflictError, RateLimitError
@@ -56,6 +57,13 @@ def begin_pairing(db: Session, current: AuthenticatedSession) -> PairingResponse
     )
     db.commit()
     return PairingResponse(ticket=ticket, expires_at=expires)
+
+
+def watch_settings(user: User) -> WatchSettings:
+    value = WatchSettings.model_validate(user.watch_preferences or {})
+    if value.accent_source == "app":
+        value.accent = AppearancePreferences.model_validate(user.appearance or {}).accent
+    return value
 
 
 def finish_pairing(db: Session, data: WatchPairingInput, settings: Settings) -> WatchCredentials:
@@ -170,7 +178,7 @@ def snapshot(db: Session, current: AuthenticatedSession, settings: Settings) -> 
         ],
         board=board,
         prompts=[PromptResponse.model_validate(item) for item in due_prompts(db, current.user.id)],
-        settings=WatchSettings.model_validate(current.user.watch_preferences or {}),
+        settings=watch_settings(current.user),
         notifications=NotificationSettings.model_validate(
             current.user.notification_preferences or {}
         ),

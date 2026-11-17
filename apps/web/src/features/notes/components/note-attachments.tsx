@@ -5,6 +5,7 @@ import { ImageViewer } from "../images/image-viewer";
 import { formatFileSize } from "../../../lib/format";
 import type { Attachment } from "../types";
 import { VideoAttachment } from "./video-attachment";
+import { AttachmentMenu } from "./attachment-menu";
 
 export function NoteAttachments({
   attachments,
@@ -28,19 +29,21 @@ export function NoteAttachments({
             }
           />
         ) : (
-          <a
-            className="file-attachment"
-            key={file.id}
-            href={file.download_url}
-            download={file.original_filename}
-          >
-            <FileText size={23} />
-            <span>
-              <strong>{file.original_filename}</strong>
-              <small>{formatFileSize(file.size)}</small>
-            </span>
-            <Download size={16} />
-          </a>
+          <AttachmentMenu file={file} key={file.id}>
+            <a
+              className="file-attachment"
+              key={file.id}
+              href={file.download_url}
+              download={file.original_filename}
+            >
+              <FileText size={23} />
+              <span>
+                <strong>{file.original_filename}</strong>
+                <small>{formatFileSize(file.size)}</small>
+              </span>
+              <Download size={16} />
+            </a>
+          </AttachmentMenu>
         ),
       )}
       {viewing !== null && (

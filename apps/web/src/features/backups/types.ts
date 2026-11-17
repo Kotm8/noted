@@ -1,4 +1,5 @@
 export interface BackupCounts {
+  finance_entries?: number;
   habits: number;
   meals?: number;
   assistant_chats?: number;
@@ -19,6 +20,8 @@ export interface BackupCounts {
 }
 
 export interface BackupPreview {
+  warnings?: string[];
+  has_preferences?: boolean;
   token: string;
   created_at: string;
   expires_at: string;

@@ -55,7 +55,7 @@ fun JournalScreen(repository: NativeRepository, channel: JSONObject, initialEntr
 
 @Composable
 fun DocumentScreen(repository: NativeRepository, channel: JSONObject) {
-    MarkdownEditor(repository, "/channels/${channel.text("id")}/document", false)
+    MarkdownEditor(repository, "/channels/${channel.text("id")}/document", false, documentChannel = channel.text("id"))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,8 +67,10 @@ private fun EntrySheet(repository: NativeRepository, path: String, journal: Bool
 }
 
 @Composable
-private fun MarkdownEditor(repository: NativeRepository, path: String, journal: Boolean, close: (() -> Unit)? = null) {
+private fun MarkdownEditor(repository: NativeRepository, path: String, journal: Boolean, close: (() -> Unit)? = null, documentChannel: String? = null) {
     val resource = rememberResource(repository, path)
+    val reminders = rememberResource(repository, documentChannel?.let { "/channels/$it/document/reminders" })
+    val completedReminders = reminders.rows.filter { it.text("status") == "done" }.map { it.text("id") }.toSet()
     val remote = resource.obj
     val session by repository.session.collectAsStateWithLifecycle()
     val account = session?.partition ?: return
@@ -80,6 +82,8 @@ private fun MarkdownEditor(repository: NativeRepository, path: String, journal: 
     var restored by remember(path) { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var templates by remember { mutableStateOf(false) }
+    var reminderCommand by remember(path) { mutableStateOf<DocumentReminderCommand?>(null) }
+    var reminderError by remember(path) { mutableStateOf<String?>(null) }
     val actions = rememberActions()
     LaunchedEffect(path) {
         val draft = repository.drafts.read(account, "editor:$path")
@@ -116,13 +120,41 @@ private fun MarkdownEditor(repository: NativeRepository, path: String, journal: 
             } }) { Text("Save") }
         }
         if (journal) Field("Title", title, { title = it; dirty = true })
+        if (documentChannel != null) DocumentReminderPanel(repository, reminders)
+        reminderError?.let { Text(it, color = NotedStyle.colors.danger) }
         if (remote != null || revision >= 0) {
             if (preview) LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(vertical = 16.dp)) {
-                item { Markdown(content, change = { content = it; dirty = true }) }
-            } else NotedTextField(content, { content = continueTask(content, it); dirty = true },
+                item { Markdown(content, completedReminders = completedReminders, change = { content = it; dirty = true }) }
+            } else NotedTextField(content, { next ->
+                val command = if (documentChannel != null) documentReminderChange(content, next) else null
+                if (command != null && (command.reminder.content.isBlank() || command.reminder.content.length > 500)) {
+                    reminderError = "Write a reminder name after /remind, up to 500 characters."
+                } else if (command != null) {
+                    reminderError = null
+                    reminderCommand = command
+                } else { content = continueTask(content, next); dirty = true; reminderError = null }
+            },
                 Modifier.weight(1f).fillMaxWidth().padding(vertical = 12.dp), placeholder = { Text("Start writing. Markdown works here.") })
         }
     }
+    reminderCommand?.let { command -> ReminderEditor(timezone = java.time.ZoneId.systemDefault().id,
+        close = { reminderCommand = null }, confirm = "Set reminder", content = command.reminder.content,
+        delayMinutes = command.reminder.delayMinutes) { schedule ->
+        val linked = command.linkedContent()
+        require(content == command.source || content == linked) { "The note changed. Enter the reminder command again." }
+        if (content == command.source) {
+            val saved = JSONObject(repository.mutate(path, "PUT", json("content" to content, "revision" to revision)))
+            revision = saved.optInt("revision")
+            schedule.put("id", command.id).put("name", command.reminder.content.trim())
+            repository.mutate("/channels/$documentChannel/document/reminders", body = schedule)
+            content = linked
+            dirty = true
+        }
+        val updated = JSONObject(repository.mutate(path, "PUT", json("content" to content, "revision" to revision)))
+        revision = updated.optInt("revision")
+        dirty = false
+        repository.drafts.save(account, "editor:$path", "")
+    } }
     if (deleting) ConfirmDelete("Delete this entry?", { deleting = false }) {
         repository.mutate("$path?revision=$revision", "DELETE")
         repository.drafts.save(account, "editor:$path", "")

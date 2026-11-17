@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * The pieces the phone design (docs/design/phone/home-tiles-stories.html) is drawn with: pill
+ * The pieces the phone design (design-previews/design/phone/home-tiles-stories.html) is drawn with: pill
  * buttons and chips, uppercase section labels and the rounded bottom sheet. Phone screens use these
  * so they match the mockups exactly; the sizes and colours are the mockup's CSS values.
  */

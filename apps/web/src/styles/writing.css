@@ -1,8 +1,13 @@
 .app-shell.writing-open {
-  grid-template-columns: 64px 244px minmax(240px, 1fr) clamp(
+  grid-template-columns:
+    var(--workspace-rail-width) var(--channel-sidebar-width)
+    minmax(240px, 1fr) clamp(
       320px,
       var(--writing-width, 420px),
-      calc(100vw / var(--ui-zoom, 1) - 548px)
+      calc(
+        100vw / var(--ui-zoom, 1) - var(--workspace-rail-width) -
+          var(--channel-sidebar-width) - 240px
+      )
     );
 }
 .writing-sidebar {
@@ -114,6 +119,11 @@
 }
 .thread-composer:focus-within {
   border-color: var(--accent);
+}
+.thread-composer .pending-files {
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 0;
 }
 .thread-composer textarea {
   flex: 1;
@@ -359,7 +369,9 @@
   justify-content: flex-start;
 }
 .app-shell.writing-open[data-writing-overlay="true"] {
-  grid-template-columns: 64px 244px minmax(0, 1fr);
+  grid-template-columns:
+    var(--workspace-rail-width) var(--channel-sidebar-width)
+    minmax(0, 1fr);
 }
 .app-shell[data-writing-overlay="true"] .writing-sidebar {
   position: fixed;
@@ -372,7 +384,9 @@
 }
 @media (max-width: 1100px) {
   .app-shell.writing-open[data-writing-overlay="true"] {
-    grid-template-columns: 60px 220px minmax(0, 1fr);
+    grid-template-columns:
+      var(--workspace-rail-width) var(--channel-sidebar-width)
+      minmax(0, 1fr);
   }
 }
 @media (max-width: 760px) {

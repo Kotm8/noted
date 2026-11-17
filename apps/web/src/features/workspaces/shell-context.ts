@@ -16,6 +16,8 @@ export interface NoteTarget {
   workspaceId: string;
   channelId: string;
   noteId: string;
+  threadId?: string;
+  replyId?: string;
 }
 
 /** What routed pages can ask of the surrounding workspace layout. */

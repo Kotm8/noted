@@ -137,7 +137,7 @@ test("Settings › AI connects with a pasted auth.json and edits saved prompts",
     .fill("browser-test-password-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  const dialog = page.locator(".settings-destination, .settings-dialog");
   await dialog.getByRole("button", { name: "AI", exact: true }).click();
   await expect(
     dialog.getByText("Connect ChatGPT to use AI in Noted"),
@@ -211,6 +211,8 @@ test("Ask AI on one message drafts, and asking in a thread posts the reply there
     content: "hello wrld",
   });
   interface Sent {
+    chat_id?: string | null;
+    history?: unknown[];
     context: {
       message_ids: string[];
       thread_root_id?: string | null;
@@ -278,7 +280,9 @@ test("Ask AI on one message drafts, and asking in a thread posts the reply there
 
   const root = page.locator(`#note-${first.id}`);
   await root.hover();
-  await root.getByRole("button", { name: "Open thread", exact: true }).click();
+  await root
+    .getByRole("button", { name: "Reply in thread", exact: true })
+    .click();
   const thread = page.locator(".writing-sidebar");
   await thread
     .getByRole("button", { name: "Ask AI in this thread", exact: true })
@@ -287,6 +291,8 @@ test("Ask AI on one message drafts, and asking in a thread posts the reply there
   await panel
     .getByRole("button", { name: "Ideas for this", exact: true })
     .click();
+  expect(requests[1].chat_id).toBeNull();
+  expect(requests[1].history ?? []).toEqual([]);
   expect(requests[1].context).toMatchObject({
     thread_root_id: first.id,
     message_ids: [first.id],

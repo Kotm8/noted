@@ -99,7 +99,9 @@ test("server updates require an explicit install and reconnect to the existing j
     page.getByText("Waiting for the server update worker."),
   ).toBeVisible();
   expect(installs).toBe(1);
-  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await page
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
+    .click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Server", exact: true }).click();
   await expect(

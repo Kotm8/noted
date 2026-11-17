@@ -41,6 +41,7 @@ export interface Meal extends Omit<MealFields, "remember"> {
 
 export interface SavedMeal {
   id: string;
+  photo_ids: string[];
   name: string;
   items: MealItem[];
   uses: number;

@@ -33,6 +33,9 @@
     "0028_work_schedule",
     "0029_habits",
     "0030_nutrition",
-    "0031_assistant_chats"
+    "0031_assistant_chats",
+    "0032_saved_food_photos",
+    "0033_finance",
+    "0034_document_reminders"
   ]
 }

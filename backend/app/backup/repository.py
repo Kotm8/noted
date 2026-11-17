@@ -4,10 +4,11 @@ from uuid import UUID
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import ContentTooLargeError
+from app.backup.capacity import require_memory
 from app.habits.models import Habit, HabitEntry
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
+from app.notes.documents.reminders.models import DocumentReminder
 from app.notes.models import Attachment, Message
 from app.notes.versions.models import MessageVersion
 from app.publishing.models import ScheduledMessage, WritingPrompt
@@ -17,8 +18,6 @@ from app.schedule.prompts.models import PlanPromptEvent
 from app.templates.models import DayTemplate, NoteTemplate
 from app.time_tracking.models import Activity, TimeSession
 from app.workspaces.models import Category, Channel, Workspace
-
-MAX_RECORDS = 50000
 
 
 class BackupRepository:
@@ -65,13 +64,15 @@ class BackupRepository:
                 )
                 or 0
             )
-        if text_size > 16 * 1024 * 1024:
-            raise ContentTooLargeError("The message text exceeds the 16 MB content backup limit.")
+        require_memory(text_size * 8)
         plans = select(SchedulePlan.id).where(
             SchedulePlan.owner_id == owner_id, SchedulePlan.deleted_at.is_(None)
         )
-        habit_ids = select(Habit.id).where(Habit.owner_id == owner_id, Habit.archived.is_(False))
+        habit_ids = select(Habit.id).where(Habit.owner_id == owner_id)
         queries = {
+            "document_reminders": select(DocumentReminder.__table__).where(
+                DocumentReminder.channel_id.in_(channels)
+            ),
             "habits": select(Habit.__table__).where(Habit.id.in_(habit_ids)),
             "habit_entries": select(HabitEntry.__table__).where(HabitEntry.habit_id.in_(habit_ids)),
             "day_templates": select(DayTemplate.__table__).where(DayTemplate.owner_id == owner_id),
@@ -113,13 +114,15 @@ class BackupRepository:
         from app.backup.services.assistant import assistant_queries
 
         queries.update(assistant_queries(owner_id))
+        from app.backup.services.finance import finance_queries
+
+        queries.update(finance_queries(owner_id))
         result: dict[str, list[dict[str, Any]]] = {}
         total = 0
         for name, query in queries.items():
-            rows = self.db.execute(query.limit(MAX_RECORDS + 1)).mappings().all()
+            rows = self.db.execute(query).mappings().all()
             total += len(rows)
-            if total > MAX_RECORDS:
-                raise ContentTooLargeError("This content backup exceeds the 50,000 record limit.")
+            require_memory(total * 1024)
             result[name] = [dict(row) for row in rows]
         return result
 

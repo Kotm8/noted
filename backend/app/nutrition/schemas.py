@@ -58,6 +58,7 @@ class MealResponse(BaseModel):
 class SavedMealFields(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     items: list[MealItem] = Field(min_length=1, max_length=40)
+    photo_ids: list[uuid.UUID] = Field(default_factory=list, max_length=4)
 
 
 class SavedMealUpdate(SavedMealFields):

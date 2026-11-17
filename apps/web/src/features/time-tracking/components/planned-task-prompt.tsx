@@ -19,14 +19,16 @@ export function PlannedTaskPrompt({
   activities,
   timezone,
   close,
+  initialMode = "main",
 }: {
   prompt: PlanPrompt;
   together?: PlanPrompt[];
   activities: Activity[];
   timezone: string;
   close: () => void;
+  initialMode?: "main" | "delay";
 }) {
-  const [mode, setMode] = useState<"main" | "delay" | "other">("main");
+  const [mode, setMode] = useState<"main" | "delay" | "other">(initialMode);
   const [minutes, setMinutes] = useState(5);
   const [reason, setReason] = useState("Finishing up current task");
   const [custom, setCustom] = useState("");

@@ -102,6 +102,19 @@ class WeighIn(Base):
     weight_kg: Mapped[float]
 
 
+class SavedMealPhoto(Base):
+    __tablename__ = "saved_meal_photos"
+    __table_args__ = (Index("ix_saved_meal_photos_photo", "photo_id"),)
+    saved_meal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("saved_meals.id", ondelete="CASCADE"), primary_key=True
+    )
+    photo_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("meal_photos.id", ondelete="CASCADE"), primary_key=True
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    position: Mapped[int]
+
+
 class MealPhoto(Base):
     """A WebP copy of a meal photo; photos never saved to a meal are removed after a day."""
 

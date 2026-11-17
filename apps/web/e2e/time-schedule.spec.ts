@@ -57,7 +57,7 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await page
     .getByRole("button", { name: "Manage activities", exact: true })
     .click();
-  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  const settings = page.locator(".settings-destination, .settings-dialog");
   await settings
     .getByRole("button", { name: "New activity", exact: true })
     .click();
@@ -88,7 +88,7 @@ test("global tracker and horizontal schedule persist plans, preferences, and rem
   await choose(page, "Schedule timezone", "Europe/Moscow");
   await scheduleSaved;
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   await page
     .getByRole("button", { name: "Choose current activity", exact: true })

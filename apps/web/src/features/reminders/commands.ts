@@ -1,8 +1,8 @@
 export const noteCommands = [
   {
     name: "/remind",
-    description: "Send a note with a reminder",
-    example: "/remind 10m Take a break",
+    description: "Write a reminder, then choose when it rings",
+    example: "/remind Take a break",
   },
 ];
 

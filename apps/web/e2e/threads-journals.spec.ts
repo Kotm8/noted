@@ -1,5 +1,115 @@
 import { expect, test, type Page } from "./fixtures";
 
+test("thread attachments support picker, paste and queued file retries", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Username", { exact: true }).fill("ilya");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("browser-test-password-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".app-shell")).toBeVisible();
+  const project = await api(page, "/workspaces", "POST", {
+    name: "Thread files",
+  });
+  const channel = await api(
+    page,
+    `/workspaces/${project.id}/channels`,
+    "POST",
+    { name: "media" },
+  );
+  const root = await api(page, `/channels/${channel.id}/messages`, "POST", {
+    content: "Root message",
+  });
+  await page.goto(`/w/${project.id}/c/${channel.id}`);
+  const rootNote = page.locator(`#note-${root.id}`);
+  await rootNote.hover();
+  await rootNote
+    .getByRole("button", { name: "Reply in thread", exact: true })
+    .click();
+  const thread = page.locator(".writing-sidebar");
+  const input = thread.getByRole("textbox", { name: "Thread reply" });
+  await expect(input).toHaveAttribute("placeholder", "Reply in thread");
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 24;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "red";
+    context.fillRect(0, 0, 32, 24);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await thread.getByLabel("Attach reply files").setInputFiles({
+    name: "thread.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(png, "base64"),
+  });
+  await input.fill("Picture reply");
+  await input.press("Enter");
+  const picture = thread.locator(".note").filter({ hasText: "Picture reply" });
+  await expect(picture.locator(".image-attachment")).toBeVisible();
+  await expect(picture.locator("img")).toBeVisible();
+  await page.screenshot({
+    path: "../../.local/release-0.4.4/thread-media.png",
+  });
+  await input.evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["Pasted reply file"], "pasted.txt", { type: "text/plain" }),
+    );
+    element.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: transfer,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+  await expect(thread.locator(".pending-file")).toContainText("pasted.txt");
+  await thread.getByRole("button", { name: "Send reply" }).click();
+  await expect(thread.locator(".file-attachment")).toContainText("pasted.txt");
+  await thread.locator(".thread-composer").evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["Dropped bytes"], "dropped.txt", { type: "text/plain" }),
+    );
+    element.dispatchEvent(
+      new DragEvent("drop", {
+        dataTransfer: transfer,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+  await thread.getByRole("button", { name: "Send reply" }).click();
+  await expect(
+    thread.locator(".file-attachment").filter({ hasText: "dropped.txt" }),
+  ).toBeVisible();
+  const endpoint = `**/messages/${root.id}/thread/with-files`;
+  await page.route(endpoint, (route) => route.abort());
+  await thread.getByLabel("Attach reply files").setInputFiles({
+    name: "queued.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Queued bytes"),
+  });
+  await input.fill("Queued attachment");
+  await input.press("Enter");
+  await expect(thread.locator(".outgoing-note")).toContainText(
+    "Queued attachment",
+  );
+  await page.unroute(endpoint);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(
+    thread.locator(".note").filter({ hasText: "Queued attachment" }),
+  ).toHaveCount(1);
+  const saved = await api(page, `/messages/${root.id}/thread`);
+  expect(saved.replies.items).toHaveLength(4);
+  expect(saved.replies.items[3].attachments[0].original_filename).toBe(
+    "queued.txt",
+  );
+});
+
 async function api(page: Page, path: string, method = "GET", body?: unknown) {
   return page.evaluate(
     async ({ path, method, body }) => {
@@ -72,7 +182,9 @@ test("checkboxes, T01 threads, and J01 journal entries persist without losing dr
     page.getByRole("checkbox", { name: "Pack charger" }),
   ).toBeChecked();
   await page.locator(".main-panel .note").hover();
-  await page.getByRole("button", { name: "Open thread", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Reply in thread", exact: true })
+    .click();
   const pane = page.getByRole("complementary", { name: "Thread · #thoughts" });
   await expect(pane).toBeVisible();
   await expect(pane.getByText("Replies stay in this thread")).toHaveCount(0);

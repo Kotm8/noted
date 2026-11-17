@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { ImageOff, RotateCw } from "lucide-react";
 import type { Attachment } from "../types";
 import { ImagePlaceholder } from "./image-placeholder";
+import { AttachmentMenu } from "../components/attachment-menu";
 import "./images.css";
 
 export function ImageThumbnail({
@@ -19,55 +20,57 @@ export function ImageThumbnail({
   const displayWidth = Math.min(480, width, (360 * width) / height);
   const src = `${file.preview_url}${attempt ? `${file.preview_url!.includes("?") ? "&" : "?"}retry=${attempt}` : ""}`;
   return (
-    <div
-      className="image-attachment"
-      style={
-        {
-          width: `min(${displayWidth}px, 100%)`,
-          aspectRatio: `${width} / ${height}`,
-        } as CSSProperties
-      }
-    >
-      <button
-        type="button"
-        className="image-open"
-        aria-label={`Open image ${file.original_filename}`}
-        onClick={onOpen}
-        disabled={failed}
-        aria-busy={!loaded && !failed}
+    <AttachmentMenu file={file} onOpen={onOpen}>
+      <div
+        className="image-attachment"
+        style={
+          {
+            width: `min(${displayWidth}px, 100%)`,
+            aspectRatio: `${width} / ${height}`,
+          } as CSSProperties
+        }
       >
-        <img
-          key={src}
-          src={src}
-          alt={file.original_filename}
-          loading="lazy"
-          decoding="async"
-          className={loaded ? "is-loaded" : ""}
-          onLoad={() => {
-            setLoaded(true);
-            setFailed(false);
-          }}
-          onError={() => setFailed(true)}
-        />
-        {!loaded && !failed && <ImagePlaceholder />}
-      </button>
-      {failed && (
-        <div className="image-load-error" role="status">
-          <ImageOff size={20} />
-          <span>Couldn't load image</span>
-          <button
-            type="button"
-            onClick={() => {
+        <button
+          type="button"
+          className="image-open"
+          aria-label={`Open image ${file.original_filename}`}
+          onClick={onOpen}
+          disabled={failed}
+          aria-busy={!loaded && !failed}
+        >
+          <img
+            key={src}
+            src={src}
+            alt={file.original_filename}
+            loading="lazy"
+            decoding="async"
+            className={loaded ? "is-loaded" : ""}
+            onLoad={() => {
+              setLoaded(true);
               setFailed(false);
-              setLoaded(false);
-              setAttempt((value) => value + 1);
             }}
-          >
-            <RotateCw size={13} />
-            Retry
-          </button>
-        </div>
-      )}
-    </div>
+            onError={() => setFailed(true)}
+          />
+          {!loaded && !failed && <ImagePlaceholder />}
+        </button>
+        {failed && (
+          <div className="image-load-error" role="status">
+            <ImageOff size={20} />
+            <span>Couldn't load image</span>
+            <button
+              type="button"
+              onClick={() => {
+                setFailed(false);
+                setLoaded(false);
+                setAttempt((value) => value + 1);
+              }}
+            >
+              <RotateCw size={13} />
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
+    </AttachmentMenu>
   );
 }

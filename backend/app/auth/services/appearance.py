@@ -24,7 +24,10 @@ class AppearanceService:
         if initialize and current is not None:
             return current
         values = (current or AppearancePreferences()).model_dump(by_alias=True)
-        values.update(changes.model_dump(exclude_unset=True, by_alias=True))
+        patch = changes.model_dump(exclude_unset=True, by_alias=True)
+        if patch.get("profiles"):
+            patch["profiles"] = {**values.get("profiles", {}), **patch["profiles"]}
+        values.update(patch)
         updated = AppearancePreferences.model_validate(values)
         locked.appearance = updated.model_dump(by_alias=True)
         self.db.commit()

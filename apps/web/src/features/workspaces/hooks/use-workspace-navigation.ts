@@ -10,6 +10,7 @@ export function useWorkspaceNavigation() {
   const workspaceRoute = useMatch("/w/:workspaceId");
   const isHabits = useMatch("/habits") !== null;
   const isNutrition = useMatch("/nutrition") !== null;
+  const isFinance = useMatch("/finance") !== null;
   const isSchedule = useMatch("/schedule") !== null;
   const homeRoute = useMatch("/home");
   const rootRoute = useMatch("/");
@@ -22,9 +23,15 @@ export function useWorkspaceNavigation() {
     queryKey: ["workspaces"],
     queryFn: workspaceApi.list,
   });
-  const workspace = workspacesQuery.data?.find(
-    (item) => item.id === workspaceId,
-  );
+  const globalPage =
+    isHome || isSchedule || isHabits || isNutrition || isFinance;
+  const rememberedWorkspaceId =
+    readStoredValue("noted.navigation")?.split("/")[2];
+  const workspace = globalPage
+    ? (workspacesQuery.data?.find(
+        (item) => item.id === rememberedWorkspaceId,
+      ) ?? workspacesQuery.data?.[0])
+    : workspacesQuery.data?.find((item) => item.id === workspaceId);
   const selectedWorkspaceId = workspace?.id ?? "";
 
   const categoriesQuery = useQuery({
@@ -40,7 +47,7 @@ export function useWorkspaceNavigation() {
   const channel = channelsQuery.data?.find((item) => item.id === channelId);
 
   useEffect(() => {
-    if (isSchedule || isHome || isHabits || isNutrition) return;
+    if (isSchedule || isHome || isHabits || isNutrition || isFinance) return;
     if (!workspacesQuery.data?.length || workspace) {
       return;
     }
@@ -61,10 +68,11 @@ export function useWorkspaceNavigation() {
     isHome,
     isHabits,
     isNutrition,
+    isFinance,
   ]);
 
   useEffect(() => {
-    if (isSchedule || isHome || isHabits || isNutrition) return;
+    if (isSchedule || isHome || isHabits || isNutrition || isFinance) return;
     if (!workspace || !channelsQuery.data || channel) {
       return;
     }
@@ -90,9 +98,14 @@ export function useWorkspaceNavigation() {
     isHome,
     isHabits,
     isNutrition,
+    isFinance,
   ]);
 
   useEffect(() => {
+    if (isFinance) {
+      document.title = "Finance · Noted";
+      return;
+    }
     if (isHabits) {
       document.title = "Habits \u00b7 Noted";
       return;
@@ -115,7 +128,15 @@ export function useWorkspaceNavigation() {
     writeStoredValue("noted.navigation", `/w/${workspace.id}${channelPath}`);
     if (channel) writeStoredValue(`noted.channel.${workspace.id}`, channel.id);
     document.title = `${channel ? `#${channel.name}` : workspace.name} · Noted`;
-  }, [workspace, channel, isSchedule, isHome, isHabits, isNutrition]);
+  }, [
+    workspace,
+    channel,
+    isSchedule,
+    isHome,
+    isHabits,
+    isNutrition,
+    isFinance,
+  ]);
 
   function retry() {
     void workspacesQuery.refetch();
@@ -126,6 +147,7 @@ export function useWorkspaceNavigation() {
   }
 
   return {
+    isFinance,
     isSchedule,
     isHome,
     isHabits,

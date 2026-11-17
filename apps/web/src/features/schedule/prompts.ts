@@ -79,6 +79,7 @@ export function usePromptAction(prompt: PlanPrompt) {
       void client.invalidateQueries({ queryKey: ["plan-prompts"] });
       void client.invalidateQueries({ queryKey: ["time-tracker"] });
       void client.invalidateQueries({ queryKey: ["schedule"] });
+      void client.invalidateQueries({ queryKey: ["home-activity"] });
     },
   });
 }

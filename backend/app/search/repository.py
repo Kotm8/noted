@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.journals.models import JournalEntry
 from app.notes.documents.models import ChannelDocument
-from app.notes.models import Message
+from app.notes.models import Attachment, Message
 from app.workspaces.models import Channel, Workspace
 
 
@@ -55,7 +55,18 @@ class SearchRepository:
                 Message.created_at,
                 Message.thread_root_id,
                 literal("message").label("kind"),
-            ).where(Message.deleted_at.is_(None), Message.content.ilike(pattern, escape="\\")),
+            ).where(
+                Message.deleted_at.is_(None),
+                or_(
+                    Message.content.ilike(pattern, escape="\\"),
+                    select(Attachment.id)
+                    .where(
+                        Attachment.message_id == Message.id,
+                        Attachment.original_filename.ilike(pattern, escape="\\"),
+                    )
+                    .exists(),
+                ),
+            ),
             select(
                 JournalEntry.id,
                 JournalEntry.channel_id,

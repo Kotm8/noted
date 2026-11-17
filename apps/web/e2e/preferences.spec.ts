@@ -137,7 +137,7 @@ test("account appearance, sessions, search controls and workspace icon imports w
   await expect(page.locator(".note-group-start")).toHaveCount(1);
   await expect(page.locator(".note-group-follow")).toHaveCount(2);
 
-  for (const [label, layout] of [
+  for (const [, layout] of [
     ["Connected thoughts", "connected"],
     ["Quiet timestamp gutter", "quiet"],
     ["Compact rows", "rows"],
@@ -150,10 +150,12 @@ test("account appearance, sessions, search controls and workspace icon imports w
         response.request().method() === "PUT" &&
         response.ok(),
     );
-    await page.getByText(label, { exact: true }).click();
+    await page
+      .getByLabel("Message layout", { exact: true })
+      .selectOption(layout);
     await persisted;
     await page
-      .getByRole("button", { name: "Close dialog", exact: true })
+      .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
       .click();
     await expect(
       page.locator(`.notes-list.layout-${layout} .note`),
@@ -181,7 +183,9 @@ test("account appearance, sessions, search controls and workspace icon imports w
       response.request().method() === "PUT" &&
       response.ok(),
   );
-  await page.getByText("Connected thoughts", { exact: true }).click();
+  await page
+    .getByLabel("Message layout", { exact: true })
+    .selectOption("connected");
   await saved;
   await expect(
     page.getByText("Saving appearance...", { exact: true }),
@@ -192,6 +196,7 @@ test("account appearance, sessions, search controls and workspace icon imports w
   });
 
   const remote = await browser.newContext({
+    viewport: { width: 390, height: 844 },
     userAgent:
       "Mozilla/5.0 (Linux; Android 15; NotedTestPhone) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36",
   });
@@ -203,6 +208,9 @@ test("account appearance, sessions, search controls and workspace icon imports w
       .getByLabel("Password", { exact: true })
       .fill("browser-test-password-only");
     await phone.getByRole("button", { name: "Sign in", exact: true }).click();
+    await phone
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
     await phone.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(
       phone.getByRole("radio", { name: "Connected thoughts", exact: true }),
@@ -218,8 +226,8 @@ test("account appearance, sessions, search controls and workspace icon imports w
     await page.reload();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(
-      page.getByRole("radio", { name: "Quiet timestamp gutter", exact: true }),
-    ).toBeChecked();
+      page.getByLabel("Message layout", { exact: true }),
+    ).toHaveValue("quiet");
     await page.getByRole("button", { name: "Server", exact: true }).click();
     await expect(page.getByText("This device", { exact: true })).toBeVisible();
     await expect(
@@ -259,7 +267,7 @@ test("account appearance, sessions, search controls and workspace icon imports w
         response.ok(),
     );
     await page
-      .getByRole("button", { name: "Reset appearance", exact: true })
+      .getByRole("button", { name: "Reset to defaults", exact: true })
       .click();
     await reset;
   } finally {

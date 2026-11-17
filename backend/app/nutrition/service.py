@@ -17,7 +17,14 @@ from app.nutrition.models import (
     NutritionProfile,
     NutritionTarget,
     SavedMeal,
+    SavedMealPhoto,
     WeighIn,
+)
+from app.nutrition.photo_references import (
+    retained_photo,
+    save_photo_links,
+    saved_photo_ids,
+    unused_file_keys,
 )
 from app.nutrition.schemas import (
     DaySummary,
@@ -104,7 +111,7 @@ class NutritionService:
             else None,
             target=TargetResponse.model_validate(target) if target else None,
             limits=limits_for(profile, today) if profile else None,
-            saved_meals=[SavedMealResponse.model_validate(item) for item in self.saved(owner_id)],
+            saved_meals=[self.saved_response(item) for item in self.saved(owner_id)],
             weigh_ins=[WeighInResponse.model_validate(item) for item in weigh_ins],
         )
 
@@ -272,12 +279,24 @@ class NutritionService:
             photo.id: photo
             for photo in self.db.scalars(select(MealPhoto).where(MealPhoto.meal_id == meal.id))
         }
-        for photo_id in photo_ids:
+        for photo_id in dict.fromkeys(photo_ids):
             photo = current.pop(photo_id, None) or self.db.get(MealPhoto, photo_id)
             if photo is None or photo.owner_id != owner_id:
                 raise NotFoundError("A photo is no longer available. Add it again.")
-            if photo.meal_id not in (None, meal.id):
+            shared = self.db.scalar(
+                select(SavedMealPhoto.photo_id).where(SavedMealPhoto.photo_id == photo.id).limit(1)
+            )
+            if photo.meal_id not in (None, meal.id) and not shared:
                 raise ValidationError("That photo belongs to another meal.")
+            if shared and photo.meal_id != meal.id:
+                photo = MealPhoto(
+                    owner_id=owner_id,
+                    storage_key=photo.storage_key,
+                    size=photo.size,
+                    width=photo.width,
+                    height=photo.height,
+                )
+                self.db.add(photo)
             photo.meal_id = meal.id
         # Photos taken off the meal become unattached and are cleaned up later.
         for photo in current.values():
@@ -293,7 +312,10 @@ class NutritionService:
             saved.last_used_at = utc_now()
             meal.saved_meal_id = saved.id
         elif data.remember:
-            saved = self.add_saved(owner_id, SavedMealFields(name=data.name, items=data.items))
+            saved = self.add_saved(
+                owner_id,
+                SavedMealFields(name=data.name, items=data.items, photo_ids=data.photo_ids),
+            )
             saved.uses = 1
             saved.last_used_at = utc_now()
             meal.saved_meal_id = saved.id
@@ -320,7 +342,10 @@ class NutritionService:
         self.db.add(meal)
         self.db.flush()
         self._remember(owner_id, meal, data)
-        self._attach_photos(owner_id, meal, data.photo_ids)
+        photo_ids = data.photo_ids
+        if not photo_ids and data.source == "saved" and meal.saved_meal_id:
+            photo_ids = saved_photo_ids(self.db, meal.saved_meal_id)
+        self._attach_photos(owner_id, meal, photo_ids)
         self.db.flush()
         return meal
 
@@ -343,15 +368,32 @@ class NutritionService:
         meal = self._meal(owner_id, meal_id)
         if meal.revision != revision:
             raise ConflictError("This meal changed on another device. Reload it and try again.")
-        photos = list(self.db.scalars(select(MealPhoto).where(MealPhoto.meal_id == meal.id)))
-        keys = [photo.storage_key for photo in photos]
+        photos = list(
+            self.db.scalars(select(MealPhoto).where(MealPhoto.meal_id == meal.id).with_for_update())
+        )
+        candidates = [photo.storage_key for photo in photos]
         for photo in photos:
-            self.db.delete(photo)
+            if self.db.scalar(
+                select(MealPhoto.id).where(MealPhoto.id == photo.id, retained_photo()).limit(1)
+            ):
+                photo.meal_id = None
+            else:
+                self.db.delete(photo)
         self.db.delete(meal)
         self.db.flush()
-        return keys
+        return unused_file_keys(self.db, candidates)
 
     # Saved meals.
+
+    def saved_response(self, saved: SavedMeal) -> SavedMealResponse:
+        return SavedMealResponse(
+            id=saved.id,
+            name=saved.name,
+            items=saved.items,
+            uses=saved.uses,
+            revision=saved.revision,
+            photo_ids=saved_photo_ids(self.db, saved.id),
+        )
 
     def saved(self, owner_id: UUID) -> list[SavedMeal]:
         return list(
@@ -374,10 +416,16 @@ class NutritionService:
         )
         self.db.add(saved)
         self.db.flush()
+        save_photo_links(self.db, owner_id, saved.id, data.photo_ids)
         return saved
 
     def _saved(self, owner_id: UUID, saved_id: UUID) -> SavedMeal:
-        saved = self.db.get(SavedMeal, saved_id)
+        saved = self.db.scalar(
+            select(SavedMeal)
+            .where(SavedMeal.id == saved_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if saved is None or saved.owner_id != owner_id:
             raise NotFoundError("That saved meal no longer exists.")
         return saved
@@ -396,12 +444,20 @@ class NutritionService:
             raise ValidationError(f"You already have a saved meal called “{name}”.")
         saved.name = name
         saved.items = [item.model_dump() for item in data.items]
+        if "photo_ids" in data.model_fields_set:
+            save_photo_links(self.db, owner_id, saved.id, data.photo_ids)
         saved.revision += 1
         self.db.flush()
         return saved
 
-    def remove_saved(self, owner_id: UUID, saved_id: UUID) -> None:
-        self.db.delete(self._saved(owner_id, saved_id))
+    def remove_saved(self, owner_id: UUID, saved_id: UUID, revision: int | None = None) -> None:
+        saved = self._saved(owner_id, saved_id)
+        if revision is not None and saved.revision != revision:
+            raise ConflictError(
+                "This saved food changed on another device. Reload it and try again."
+            )
+        save_photo_links(self.db, owner_id, saved.id, [])
+        self.db.delete(saved)
         self.db.flush()
 
     # Weight.
@@ -430,10 +486,14 @@ class NutritionService:
     def stale_photos(self, owner_id: UUID, now: datetime) -> list[MealPhoto]:
         return list(
             self.db.scalars(
-                select(MealPhoto).where(
+                select(MealPhoto)
+                .where(
                     MealPhoto.owner_id == owner_id,
                     MealPhoto.meal_id.is_(None),
+                    ~retained_photo(),
                     MealPhoto.created_at < now - PHOTO_GRACE,
                 )
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
         )

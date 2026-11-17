@@ -2,6 +2,13 @@ import type { HabitFields } from "../../habits/types";
 import type { PlanFields } from "../../schedule/types";
 import type { MealItem, Slot } from "../../nutrition/types";
 import type { AiSource } from "../api";
+import type { FinanceAction } from "../../finance/types";
+
+export type FinanceChange = Omit<FinanceAction, "request_id"> & {
+  title?: string;
+  display_currency?: string;
+  display_savings_mode?: "fixed" | "percent";
+};
 
 export interface HabitChange {
   id: string | null;
@@ -40,6 +47,7 @@ export interface PostedReply {
   channel_id: string;
 }
 export interface AssistantProposal {
+  finance?: FinanceChange[];
   explanation: string;
   habits: HabitChange[];
   plans: PlanChange[];

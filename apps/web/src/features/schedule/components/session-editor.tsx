@@ -18,18 +18,20 @@ export function SessionEditor({
   activities,
   timezone,
   onClose,
+  deleting = false,
 }: {
   session: TimeSession;
   activities: Activity[];
   timezone: string;
   onClose: () => void;
+  deleting?: boolean;
 }) {
   const [start, setStart] = useState(() =>
     zonedParts(session.started_at, timezone),
   );
   const [end, setEnd] = useState(() => zonedParts(session.ended_at!, timezone));
   const [activity, setActivity] = useState(session.activity_id);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(deleting);
   const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (remove: boolean) => {

@@ -47,7 +47,7 @@
   position: relative;
   align-items: flex-start;
   gap: 12px;
-  padding: 8px 24px;
+  padding: var(--note-padding, 8px) 24px;
   border-left: 2px solid transparent;
 }
 
@@ -59,7 +59,7 @@
 .note-main {
   flex: 1;
   min-width: 0;
-  max-width: 960px;
+  max-width: var(--reading-width, 960px);
 }
 
 .note-actions {
@@ -73,6 +73,12 @@
   opacity: 0;
   background: var(--surface-floating);
   box-shadow: 0 2px 5px #0003;
+}
+.note-thread-action {
+  width: auto;
+  gap: 5px;
+  padding-inline: 8px;
+  white-space: nowrap;
 }
 
 .note:hover .note-actions,
@@ -111,7 +117,7 @@
 .markdown {
   color: var(--text-primary);
   font-size: var(--font-body);
-  line-height: 1.6;
+  line-height: var(--message-line-height, 1.6);
   overflow-wrap: anywhere;
 }
 
@@ -181,7 +187,13 @@
   border-radius: 3px;
   color: var(--text-primary);
   background: var(--surface-code);
-  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-family: var(
+    --code-font,
+    "Cascadia Code",
+    "SFMono-Regular",
+    Consolas,
+    monospace
+  );
   font-size: 0.87em;
 }
 

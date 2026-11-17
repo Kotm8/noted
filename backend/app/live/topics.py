@@ -25,6 +25,7 @@ Topic = Literal[
     "templates",
     "habits",
     "nutrition",
+    "finance",
 ]
 
 
@@ -46,6 +47,12 @@ class LiveEvent(BaseModel):
 
 
 TABLE_TOPICS: dict[str, Topic] = {
+    "document_reminders": "document",
+    "finance_profiles": "finance",
+    "finance_accounts": "finance",
+    "finance_entries": "finance",
+    "finance_items": "finance",
+    "finance_assets": "finance",
     "habits": "habits",
     "habit_entries": "habits",
     "habit_reminders": "habits",
@@ -53,6 +60,7 @@ TABLE_TOPICS: dict[str, Topic] = {
     "nutrition_targets": "nutrition",
     "meals": "nutrition",
     "saved_meals": "nutrition",
+    "saved_meal_photos": "nutrition",
     "weigh_ins": "nutrition",
     "meal_photos": "nutrition",
     "day_templates": "templates",

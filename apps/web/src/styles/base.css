@@ -267,3 +267,41 @@ a {
     transform: rotate(360deg);
   }
 }
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--text-heading, var(--text-primary));
+}
+
+:root {
+  font-family: var(--app-font, "Segoe UI", -apple-system, sans-serif);
+}
+code,
+pre {
+  font-family: var(--code-font, Consolas, monospace);
+}
+.document-editor,
+.journal-editor {
+  max-width: var(--reading-width, 960px);
+}
+.appearance-note {
+  padding-block: var(--note-padding, 8px);
+  line-height: var(--message-line-height, 1.6);
+}
+:root[data-high-contrast="true"] {
+  --border-subtle: var(--text-muted);
+  --border-default: var(--text-secondary);
+}
+:root[data-high-contrast="true"] :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}

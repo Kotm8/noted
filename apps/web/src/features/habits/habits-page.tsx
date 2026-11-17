@@ -1,3 +1,7 @@
+import { ContextMenu } from "../../components/ui/context-menu";
+import { MenuItem } from "../../components/ui/menu";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { ComicHalftone } from "../../components/ui/comic-halftone";
 import { isDayOff } from "../time-tracking/work-schedule";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,6 +62,7 @@ export function HabitsPage() {
   });
   const [editing, setEditing] = useState<Habit | null | undefined>(undefined);
   const [detail, setDetail] = useState<string | null>(params.get("habit"));
+  const [removing, setRemoving] = useState<Habit | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const busy = useRef(false);
   const habits = board.data?.habits ?? [];
@@ -137,6 +142,7 @@ export function HabitsPage() {
   return (
     <>
       <header className="channel-header">
+        <ComicHalftone />
         <button
           className="icon-button mobile-menu"
           aria-label="Open navigation"
@@ -200,78 +206,112 @@ export function HabitsPage() {
                         );
                         const disabled = pending !== null || day > today;
                         return (
-                          <div
-                            className={`habit-row${done ? " is-done" : ""}`}
+                          <ContextMenu
                             key={habit.id}
+                            label={`Actions for habit ${habit.name}`}
+                            menu={
+                              <>
+                                <MenuItem onSelect={() => setDetail(habit.id)}>
+                                  View progress
+                                </MenuItem>
+                                <MenuItem onSelect={() => setEditing(habit)}>
+                                  Edit habit
+                                </MenuItem>
+                                {!habit.activity_id && (
+                                  <MenuItem
+                                    disabled={disabled}
+                                    onSelect={() =>
+                                      void update(habit, done ? 0 : habit.goal)
+                                    }
+                                  >
+                                    {done ? "Reset today" : "Complete today"}
+                                  </MenuItem>
+                                )}
+                                <MenuItem
+                                  danger
+                                  disabled={disabled}
+                                  onSelect={() => setRemoving(habit)}
+                                >
+                                  Remove habit
+                                </MenuItem>
+                              </>
+                            }
                           >
-                            <input
-                              className="habit-checkbox"
-                              type="checkbox"
-                              aria-label={habit.name}
-                              checked={done}
-                              disabled={disabled || Boolean(habit.activity_id)}
-                              onChange={() =>
-                                void update(habit, done ? 0 : habit.goal)
-                              }
-                            />
-                            <button
-                              className="habit-name-button"
-                              onClick={() => setDetail(habit.id)}
+                            <div
+                              className={`habit-row${done ? " is-done" : ""}`}
+                              key={habit.id}
                             >
-                              <span>{habit.name}</span>
-                              {(linked || habit.reminder_minute !== null) && (
-                                <small>
-                                  {linked && (
-                                    <>
-                                      <Clock size={12} />
-                                      {linked.name}
-                                      <span>Automatic</span>
-                                    </>
-                                  )}
-                                  {habit.reminder_minute !== null && (
-                                    <span>
-                                      <Bell size={12} />
-                                      {minuteLabel(habit.reminder_minute)}
-                                    </span>
-                                  )}
-                                </small>
-                              )}
-                            </button>
-                            {habit.kind !== "check" && (
-                              <button
-                                className={`habit-count${habit.activity_id ? " automatic" : ""}`}
+                              <input
+                                className="habit-checkbox"
+                                type="checkbox"
+                                aria-label={habit.name}
+                                checked={done}
                                 disabled={
-                                  disabled || (!habit.activity_id && done)
+                                  disabled || Boolean(habit.activity_id)
                                 }
-                                aria-label={
-                                  habit.activity_id
-                                    ? `View ${habit.name} progress`
-                                    : `Add ${habit.kind === "time" ? 5 : 1} ${habit.unit} to ${habit.name}`
+                                onChange={() =>
+                                  void update(habit, done ? 0 : habit.goal)
                                 }
-                                onClick={() =>
-                                  habit.activity_id
-                                    ? setDetail(habit.id)
-                                    : void update(
-                                        habit,
-                                        Math.min(
-                                          habit.goal,
-                                          value +
-                                            (habit.kind === "time" ? 5 : 1),
-                                        ),
-                                      )
-                                }
+                              />
+                              <button
+                                className="habit-name-button"
+                                onClick={() => setDetail(habit.id)}
                               >
-                                <strong>{Number(value.toFixed(1))}</strong>
-                                <span>/ {habit.goal}</span>
-                                <small>{habit.unit}</small>
-                                {habit.activity_id ? (
-                                  <Clock size={14} />
-                                ) : (
-                                  <Plus size={14} />
+                                <span>{habit.name}</span>
+                                {(linked || habit.reminder_minute !== null) && (
+                                  <small>
+                                    {linked && (
+                                      <>
+                                        <Clock size={12} />
+                                        {linked.name}
+                                        <span>Automatic</span>
+                                      </>
+                                    )}
+                                    {habit.reminder_minute !== null && (
+                                      <span>
+                                        <Bell size={12} />
+                                        {minuteLabel(habit.reminder_minute)}
+                                      </span>
+                                    )}
+                                  </small>
                                 )}
                               </button>
-                            )}
-                          </div>
+                              {habit.kind !== "check" && (
+                                <button
+                                  className={`habit-count${habit.activity_id ? " automatic" : ""}`}
+                                  disabled={
+                                    disabled || (!habit.activity_id && done)
+                                  }
+                                  aria-label={
+                                    habit.activity_id
+                                      ? `View ${habit.name} progress`
+                                      : `Add ${habit.kind === "time" ? 5 : 1} ${habit.unit} to ${habit.name}`
+                                  }
+                                  onClick={() =>
+                                    habit.activity_id
+                                      ? setDetail(habit.id)
+                                      : void update(
+                                          habit,
+                                          Math.min(
+                                            habit.goal,
+                                            value +
+                                              (habit.kind === "time" ? 5 : 1),
+                                          ),
+                                        )
+                                  }
+                                >
+                                  <strong>{Number(value.toFixed(1))}</strong>
+                                  <span>/ {habit.goal}</span>
+                                  <small>{habit.unit}</small>
+                                  {habit.activity_id ? (
+                                    <Clock size={14} />
+                                  ) : (
+                                    <Plus size={14} />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </ContextMenu>
                         );
                       })
                     )}
@@ -357,6 +397,18 @@ export function HabitsPage() {
           </aside>
         </div>
       </div>
+      <ConfirmDialog
+        open={removing !== null}
+        pending={pending !== null}
+        title="Remove habit"
+        description={`Remove ${removing?.name ?? "this habit"} from your list? Existing history is kept.`}
+        keepLabel="Keep habit"
+        confirmLabel="Remove habit"
+        onClose={() => setRemoving(null)}
+        onConfirm={() => {
+          if (removing) void remove(removing).then(() => setRemoving(null));
+        }}
+      />
       {selected && (
         <HabitDetails
           key={`${selected.id}-${day}-${progress(selected)?.revision}`}

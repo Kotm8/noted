@@ -32,7 +32,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
   await page.goto("/schedule");
   await expect(page.locator(".schedule-grid")).toBeVisible();
   await page.locator(".schedule-hours-button").click();
-  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  const settings = page.locator(".settings-destination, .settings-dialog");
   const fields = settings.getByRole("region", {
     name: "Workdays and days off",
   });
@@ -60,7 +60,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
     path: "../../.local/work-schedule-settings-desktop.png",
   });
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   const row = page.locator(`.schedule-week-row[data-date="${anchor}"]`);
   await expect(row).toHaveClass(/is-day-off/);
@@ -85,7 +85,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
     ),
   );
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   await expect(row).not.toHaveClass(/is-day-off/);
   await expect(row.locator(".schedule-day-kind")).toHaveText("Workday");
@@ -116,7 +116,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
   );
   await choose(page, "Consecutive days off", "3 days");
   await settings
-    .getByRole("button", { name: "Close dialog", exact: true })
+    .getByRole("button", { name: /Close (dialog|settings)/, exact: true })
     .click();
   expect(
     (await (await closingSave).json()).preferences.work_schedule.off_days,

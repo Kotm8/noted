@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
+import { ContextMenu } from "../../../components/ui/context-menu";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import type { Category, Channel, OpenManagement } from "../types";
 import { ChannelRow } from "./channel-row";
@@ -27,76 +28,97 @@ export function CategorySection({
   onManage,
   reorder,
 }: CategorySectionProps) {
+  const actions = (
+    <>
+      <MenuItem
+        onSelect={() =>
+          onManage({
+            kind: "channel",
+            workspaceId: category.workspace_id,
+            categoryId: category.id,
+          })
+        }
+      >
+        Add channel
+      </MenuItem>{" "}
+      <MenuItem
+        onSelect={() =>
+          onManage({
+            kind: "category",
+            workspaceId: category.workspace_id,
+            item: category,
+          })
+        }
+      >
+        Rename category
+      </MenuItem>
+      <MenuItem
+        danger
+        onSelect={() =>
+          onManage({
+            kind: "category",
+            workspaceId: category.workspace_id,
+            item: category,
+            deleting: true,
+          })
+        }
+      >
+        Delete category
+      </MenuItem>
+    </>
+  );
   return (
     <section
       className="category"
       data-category-id={category.id}
       {...reorder.categoryProps(category)}
     >
-      <div
-        className="category-heading"
-        {...reorder.categoryHandle(category.id)}
+      <ContextMenu
+        label={`Actions for category ${category.name}`}
+        menu={actions}
       >
-        <button
-          className="category-toggle"
-          onClick={onToggle}
-          aria-expanded={!collapsed}
+        <div
+          className="category-heading"
+          {...reorder.categoryHandle(category.id)}
         >
-          {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-          <span>{category.name}</span>
-        </button>
-
-        <div className="category-actions">
           <button
-            className="icon-button"
-            aria-label={`Add channel to ${category.name}`}
-            onClick={() =>
-              onManage({
-                kind: "channel",
-                workspaceId: category.workspace_id,
-                categoryId: category.id,
-              })
-            }
+            className="category-toggle"
+            onClick={onToggle}
+            aria-expanded={!collapsed}
           >
-            <Plus size={14} />
+            {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+            <span>{category.name}</span>
           </button>
-          <Menu
-            trigger={
-              <button
-                className="icon-button"
-                aria-label={`Options for category ${category.name}`}
-              >
-                <MoreHorizontal size={14} />
-              </button>
-            }
-          >
-            <MenuItem
-              onSelect={() =>
+
+          <div className="category-actions">
+            <button
+              className="icon-button"
+              aria-label={`Add channel to ${category.name}`}
+              onClick={() =>
                 onManage({
-                  kind: "category",
+                  kind: "channel",
                   workspaceId: category.workspace_id,
-                  item: category,
+                  categoryId: category.id,
                 })
               }
             >
-              Rename category
-            </MenuItem>
-            <MenuItem
-              danger
-              onSelect={() =>
-                onManage({
-                  kind: "category",
-                  workspaceId: category.workspace_id,
-                  item: category,
-                  deleting: true,
-                })
+              <Plus size={14} />
+            </button>
+            <Menu
+              trigger={
+                <button
+                  className="icon-button"
+                  aria-label={`Options for category ${category.name}`}
+                >
+                  <MoreHorizontal size={14} />
+                </button>
               }
             >
-              Delete category
-            </MenuItem>
-          </Menu>
+              {actions}
+            </Menu>
+          </div>
         </div>
-      </div>
+      </ContextMenu>
 
       {!collapsed &&
         channels.map((channel) => (

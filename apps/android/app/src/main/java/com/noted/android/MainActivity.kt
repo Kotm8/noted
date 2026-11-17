@@ -8,6 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.core.content.IntentCompat
 import androidx.core.view.WindowCompat
 import com.noted.android.ui.NotedApp
+import com.noted.android.ui.openOnWeb
+import com.noted.android.connection.ConnectionStore
+import com.noted.android.connection.ServerAddress
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
@@ -44,6 +47,14 @@ class MainActivity : ComponentActivity() {
         }
         if (photos.isNotEmpty()) sharedPhotos.value = photos.take(4)
         val data = intent.data
+        if (data?.pathSegments?.firstOrNull() == "finance") {
+            val origin = ConnectionStore(this).origin
+            if (origin != null && ServerAddress.owns(origin, data.toString())) {
+                val path = data.encodedPath.orEmpty() + data.encodedQuery?.let { "?$it" }.orEmpty()
+                openOnWeb(this, origin, path)
+                return
+            }
+        }
         destination.value = when {
             photos.isNotEmpty() || (data?.scheme == "noted" && data.host == "log-meal") -> Uri.parse("noted://log-meal?at=${System.nanoTime()}")
             else -> data

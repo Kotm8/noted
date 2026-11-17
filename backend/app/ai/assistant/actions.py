@@ -74,6 +74,38 @@ def deletion_preview(db: Session, owner: UUID, change: ItemDeletion) -> dict[str
 
 
 def review_actions(db: Session, owner: UUID, output: dict[str, Any]) -> dict[str, Any]:
+    from app.finance.repository import FinanceRepository
+
+    finance = []
+    from app.finance.models import FinanceProfile
+
+    profile = db.get(FinanceProfile, owner)
+    currency = profile.currency if profile else "EUR"
+    savings_mode = profile.savings_mode if profile else "fixed"
+    for raw in output.get("finance") or []:
+        from app.finance.schemas import FinanceChange
+
+        finance_change = FinanceChange.model_validate(raw)
+        title = str(finance_change.fields.get("name") or finance_change.entity)
+        if finance_change.id and finance_change.entity != "settings":
+            row = FinanceRepository(db).get(owner, finance_change.entity, finance_change.id)
+            title = str(
+                row.fields.get("name", finance_change.entity)
+                if hasattr(row, "fields")
+                else getattr(row, "name", finance_change.entity)
+            )
+        if finance_change.entity == "settings" and finance_change.fields.get("currency"):
+            currency = str(finance_change.fields["currency"])
+        if finance_change.entity == "settings" and finance_change.fields.get("savings_mode"):
+            savings_mode = str(finance_change.fields["savings_mode"])
+        finance.append(
+            {
+                **finance_change.model_dump(mode="json"),
+                "title": title,
+                "display_currency": currency,
+                "display_savings_mode": savings_mode,
+            }
+        )
     posts = []
     for raw in output.get("posts") or []:
         post = MessagePost.model_validate(raw)
@@ -92,7 +124,7 @@ def review_actions(db: Session, owner: UUID, output: dict[str, Any]) -> dict[str
                 "target": preview,
             }
         )
-    return {**output, "posts": posts, "deletions": deletions}
+    return {**output, "posts": posts, "deletions": deletions, "finance": finance}
 
 
 def apply_actions(db: Session, owner: UUID, data: AssistantActions) -> dict[str, Any]:

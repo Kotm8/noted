@@ -52,6 +52,8 @@ object PushNotifications {
         val ended = plan && payload.optString("phase") == "end"
         val habit = payload.optString("kind") == "habit"
         val writing = payload.optString("kind") == "writing"
+        val finance = payload.optString("kind") == "finance"
+        val document = payload.optString("kind") == "document"
         val identity =
             if (diagnostic) payload.optString("testId")
             else if (plan) payload.optString("promptId")
@@ -219,7 +221,7 @@ object PushNotifications {
                     "${if (ended) "Ended" else "Planned"} ${time.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}",
                 )
             }
-        } else if (!diagnostic && !writing && !habit && revision > 0) {
+        } else if (!diagnostic && !writing && !habit && !finance && !document && revision > 0) {
             for (action in listOf("done", "snooze")) {
                 val minutes = payload.optInt("snoozeMinutes", 10).coerceIn(1, 10080)
                 val intent =
