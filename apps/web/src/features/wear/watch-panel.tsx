@@ -5,6 +5,7 @@ import { request } from "../../lib/http";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { Select } from "../../components/ui/select";
+import { androidPilot, isAndroidPilot } from "../../lib/android-pilot";
 import { isAndroidApp } from "../notifications/android";
 
 interface WatchSettings {
@@ -40,7 +41,9 @@ export function WatchPairing() {
         Sessions. On Wear OS 6 or newer, install the included face from Watch
         settings inside the watch app. No separate face APK is needed.
       </p>
-      {isAndroidApp() ? (
+      {isAndroidPilot ? (
+        <PilotWatchPairing />
+      ) : isAndroidApp() ? (
         <Button disabled={pair.isPending} onClick={() => pair.mutate()}>
           <Watch size={16} />
           {pair.isPending ? "Preparing..." : "Pair watch"}
@@ -57,6 +60,48 @@ export function WatchPairing() {
         this server's Android notification configuration.
       </p>
     </fieldset>
+  );
+}
+
+function PilotWatchPairing() {
+  const watches = useMutation({ mutationFn: () => androidPilot.listWatches() });
+  const pairing = useMutation({
+    mutationFn: (id: string) => androidPilot.pairWatch({ id }),
+  });
+  const error = pairing.error ?? watches.error;
+  return (
+    <>
+      <Button
+        disabled={watches.isPending || pairing.isPending}
+        onClick={() => {
+          pairing.reset();
+          watches.mutate();
+        }}
+      >
+        <Watch size={16} />
+        {watches.isPending ? "Finding watches..." : "Find connected watches"}
+      </Button>
+      {watches.data?.devices.map((device) => (
+        <Button
+          key={device.id}
+          variant="secondary"
+          disabled={pairing.isPending}
+          onClick={() => pairing.mutate(device.id)}
+        >
+          {pairing.isPending && pairing.variables === device.id
+            ? "Pairing..."
+            : device.name}
+        </Button>
+      ))}
+      {watches.data?.devices.length === 0 && (
+        <Notice>
+          Connect your Wear OS watch to this phone and install Noted on the
+          watch.
+        </Notice>
+      )}
+      {pairing.isSuccess && <Notice>Watch connected.</Notice>}
+      {error && <Notice tone="error">{error.message}</Notice>}
+    </>
   );
 }
 

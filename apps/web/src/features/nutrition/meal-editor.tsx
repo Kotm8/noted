@@ -45,6 +45,7 @@ export function MealEditor({
   onDiscard,
   onAnswer,
   status,
+  manual = false,
 }: {
   initial: MealDraft;
   question?: MealEstimate["question"];
@@ -58,6 +59,7 @@ export function MealEditor({
   /** Re-estimates with the owner's own answer when none of the offered ones fit. */
   onAnswer?: (answer: string) => void;
   status?: React.ReactNode;
+  manual?: boolean;
 }) {
   const [ownAnswer, setOwnAnswer] = useState("");
   const [name, setName] = useState(initial.name);
@@ -78,7 +80,10 @@ export function MealEditor({
     items.length > 0 && items.every((item) => item.name.trim()) && name.trim();
 
   return (
-    <section className="nutrition-estimate" aria-label="Meal">
+    <section
+      className={`nutrition-estimate${manual ? " manual-meal-editor" : ""}`}
+      aria-label="Meal"
+    >
       <header>
         {initial.photo_ids[0] && (
           <MealPhoto id={initial.photo_ids[0]} size={52} />
@@ -87,6 +92,7 @@ export function MealEditor({
           <input
             className="estimate-name"
             aria-label="Meal name"
+            placeholder={manual ? "Meal name" : undefined}
             value={name}
             maxLength={80}
             onChange={(event) => setName(event.target.value)}
@@ -141,38 +147,54 @@ export function MealEditor({
                     }))
                   }
                 />
-                <ConfidenceTag level={row.base.confidence} />
+                {!manual && <ConfidenceTag level={row.base.confidence} />}
               </span>
-              <span className="amount">
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={`Less ${row.base.name}`}
-                  disabled={row.factor <= STEP}
-                  onClick={() =>
+              {manual ? (
+                <input
+                  className="manual-meal-portion"
+                  aria-label="Portion"
+                  placeholder="Portion"
+                  maxLength={40}
+                  value={row.base.amount}
+                  onChange={(event) =>
                     update(index, (before) => ({
                       ...before,
-                      factor: Math.max(STEP, before.factor - STEP),
+                      base: { ...before.base, amount: event.target.value },
                     }))
                   }
-                >
-                  <Minus size={13} />
-                </button>
-                <span title={item.amount}>{item.amount || "1 portion"}</span>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={`More ${row.base.name}`}
-                  onClick={() =>
-                    update(index, (before) => ({
-                      ...before,
-                      factor: before.factor + STEP,
-                    }))
-                  }
-                >
-                  <Plus size={13} />
-                </button>
-              </span>
+                />
+              ) : (
+                <span className="amount">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`Less ${row.base.name}`}
+                    disabled={row.factor <= STEP}
+                    onClick={() =>
+                      update(index, (before) => ({
+                        ...before,
+                        factor: Math.max(STEP, before.factor - STEP),
+                      }))
+                    }
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span title={item.amount}>{item.amount || "1 portion"}</span>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`More ${row.base.name}`}
+                    onClick={() =>
+                      update(index, (before) => ({
+                        ...before,
+                        factor: before.factor + STEP,
+                      }))
+                    }
+                  >
+                    <Plus size={13} />
+                  </button>
+                </span>
+              )}
               <input
                 className="item-kcal"
                 type="number"
@@ -180,11 +202,12 @@ export function MealEditor({
                 min={0}
                 max={6000}
                 aria-label={`Calories in ${row.base.name || "this item"}`}
-                value={item.kcal}
+                placeholder={manual ? "kcal" : undefined}
+                value={manual && item.kcal === 0 ? "" : item.kcal}
                 onChange={(event) => {
                   const value = Math.max(
                     0,
-                    Math.min(6000, Number(event.target.value) || 0),
+                    Math.min(6000, Math.round(Number(event.target.value) || 0)),
                   );
                   update(index, (before) => {
                     const ratio = before.base.kcal
@@ -221,6 +244,46 @@ export function MealEditor({
               >
                 <X size={13} />
               </button>
+              {manual && (
+                <div className="manual-meal-macros">
+                  {(
+                    [
+                      ["protein", "Protein", 600],
+                      ["carbs", "Carbs", 900],
+                      ["fat", "Fat", 600],
+                    ] as const
+                  ).map(([key, label, limit]) => (
+                    <label key={key}>
+                      {label}
+                      <input
+                        aria-label={`${label} in grams`}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={limit}
+                        step="0.1"
+                        placeholder="0 g"
+                        value={row.base[key] || ""}
+                        onChange={(event) =>
+                          update(index, (before) => ({
+                            ...before,
+                            base: {
+                              ...before.base,
+                              [key]: Math.max(
+                                0,
+                                Math.min(
+                                  limit,
+                                  Number(event.target.value) || 0,
+                                ),
+                              ),
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
             </li>
           );
         })}
@@ -295,6 +358,7 @@ export function MealEditor({
         <Button
           variant="ghost"
           size="small"
+          disabled={rows.length >= 40 || saving}
           onClick={() =>
             setRows((before) => [
               ...before,
@@ -327,7 +391,7 @@ export function MealEditor({
             Remember as a saved meal
           </label>
         )}
-        <Button variant="secondary" onClick={onDiscard}>
+        <Button variant="secondary" disabled={saving} onClick={onDiscard}>
           Discard
         </Button>
         <Button
@@ -348,10 +412,12 @@ export function MealEditor({
           {saving ? "Saving…" : saveLabel}
         </Button>
       </footer>
-      <p className="estimate-hint">
-        Estimates from photos can be off by a fifth or more. Check amounts you
-        know.
-      </p>
+      {!manual && (
+        <p className="estimate-hint">
+          Estimates from photos can be off by a fifth or more. Check amounts you
+          know.
+        </p>
+      )}
     </section>
   );
 }

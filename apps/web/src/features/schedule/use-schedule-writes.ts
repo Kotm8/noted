@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { User } from "../auth/types";
 import { scheduleApi } from "./api";
 import {
-  applyLocalWrite,
+  patchScheduleBoard,
   validateLocalPlan,
   type ScheduleWrite,
 } from "./local-plans";
@@ -36,12 +36,8 @@ function patchBoards(client: QueryClient, write: ScheduleWrite) {
     .getQueryCache()
     .findAll({ queryKey: ["schedule"] })) {
     const key = query.queryKey;
-    const offset = key[1] === "ai-context" ? 2 : 1;
-    const first = String(key[offset] ?? write.plan.date).slice(0, 10);
-    const last = String(key[offset + 1] ?? write.plan.date).slice(0, 10);
-    client.setQueryData<ScheduleBoard>(
-      key,
-      (board) => board && applyLocalWrite(board, write, first, last),
+    client.setQueryData<ScheduleBoard>(key, (board) =>
+      patchScheduleBoard(board, key, write),
     );
   }
 }

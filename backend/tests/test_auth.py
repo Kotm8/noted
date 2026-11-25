@@ -69,6 +69,58 @@ def test_expired_session_is_rejected(owner: TestClient, db: Session) -> None:
     session.expires_at = utc_now() - timedelta(seconds=1)
     db.commit()
     assert owner.get(f"{API}/auth/session").status_code == 401
+    assert owner.post(f"{API}/auth/renew").status_code == 401
+
+
+def test_renewal_extends_the_same_session_up_to_its_absolute_limit(
+    owner: TestClient, db: Session, app: FastAPI
+) -> None:
+    session = db.scalar(select(LoginSession))
+    assert session is not None
+    session.expires_at = utc_now() + timedelta(minutes=10)
+    deadline = utc_now() + timedelta(days=2)
+    session.created_at = deadline - timedelta(hours=app.state.settings.session_absolute_hours)
+    db.commit()
+    assert owner.post(f"{API}/auth/renew", headers={"X-CSRF-Token": ""}).status_code == 403
+
+    token = owner.cookies["noted_session"]
+    response = owner.post(f"{API}/auth/renew")
+    assert response.status_code == 204
+    assert owner.cookies["noted_session"] == token
+    assert "Max-Age=" in response.headers.get("set-cookie", "")
+    db.refresh(session)
+    assert session.expires_at == deadline
+
+
+def test_legacy_session_with_no_creation_date_keeps_its_current_expiry(
+    owner: TestClient, db: Session
+) -> None:
+    session = db.scalar(select(LoginSession))
+    assert session is not None
+    session.created_at = None
+    deadline = utc_now() + timedelta(minutes=10)
+    session.expires_at = deadline
+    db.commit()
+    response = owner.post(f"{API}/auth/renew")
+    assert response.status_code == 204
+    assert "Max-Age=" in response.headers.get("set-cookie", "")
+    db.refresh(session)
+    assert session.created_at is None
+    assert session.expires_at == deadline
+
+
+def test_ordinary_authenticated_requests_do_not_renew_the_session(
+    owner: TestClient, db: Session
+) -> None:
+    session = db.scalar(select(LoginSession))
+    assert session is not None
+    deadline = utc_now() + timedelta(minutes=10)
+    session.expires_at = deadline
+    db.commit()
+    assert owner.get(f"{API}/auth/session").status_code == 200
+    assert owner.get(f"{API}/workspaces").status_code == 200
+    db.refresh(session)
+    assert session.expires_at == deadline
 
 
 def test_writes_require_csrf_and_trusted_origin(owner: TestClient) -> None:

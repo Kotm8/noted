@@ -18,7 +18,6 @@ from app.notifications.delivery import send_push
 from app.notifications.firebase import load_configuration
 from app.notifications.models import PushSubscription
 from app.notifications.schemas import NotificationSettings
-from app.notifications.service import notification_key
 from app.schedule.board import schedule_board
 from app.schedule.prompts.schemas import PromptResponse
 from app.schedule.prompts.service import due_prompts
@@ -103,7 +102,8 @@ def finish_pairing(db: Session, data: WatchPairingInput, settings: Settings) -> 
         user_id=parent.user_id,
         token_hash=hash_token(generate_token()),
         csrf_hash=hash_token(generate_token()),
-        expires_at=utc_now() + timedelta(hours=settings.session_hours),
+        expires_at=utc_now()
+        + timedelta(hours=min(settings.watch_session_hours, settings.watch_session_absolute_hours)),
         user_agent=f"Noted Wear OS / {''.join(c for c in data.name if c.isprintable())}",
     )
     secret = generate_token()
@@ -194,7 +194,6 @@ def send_test(db: Session, current: AuthenticatedSession, settings: Settings) ->
     )
     if subscription is None:
         raise ConflictError("This watch isn't registered for notifications yet.")
-    _, private_key = notification_key(db)
     test_id = uuid4()
     payload = json.dumps(
         {
@@ -204,9 +203,7 @@ def send_test(db: Session, current: AuthenticatedSession, settings: Settings) ->
             "body": "Server-to-watch notifications are working.",
         }
     )
-    outcome = send_push(
-        subscription, private_key, settings.app_origin, payload, ttl=60, settings=settings
-    )
+    outcome = send_push(subscription, settings.app_origin, payload, ttl=60, settings=settings)
     if outcome == "expired":
         db.delete(subscription)
         db.commit()

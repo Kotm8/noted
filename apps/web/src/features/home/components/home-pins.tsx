@@ -158,7 +158,7 @@ function PinnedRow({ channel }: { channel: Channel }) {
   );
 }
 
-export function HomePins() {
+export function HomePins({ compact = false }: { compact?: boolean }) {
   const query = useQuery({
     queryKey: ["channels", "all"],
     queryFn: channelApi.listAll,
@@ -169,6 +169,7 @@ export function HomePins() {
       ?.filter((channel) => channel.pinned_at)
       .sort((a, b) => Date.parse(a.pinned_at!) - Date.parse(b.pinned_at!)) ??
     [];
+  if (compact && !pins.length) return null;
   return (
     <section
       className="home-b-section home-b-pins"

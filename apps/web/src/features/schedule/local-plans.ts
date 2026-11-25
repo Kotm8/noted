@@ -1,4 +1,4 @@
-import { addDays, wallTime, weekDays } from "./dates";
+import { addDays, wallTime, weekDays, zonedParts } from "./dates";
 import type {
   PlanFields,
   PlanOccurrence,
@@ -57,9 +57,10 @@ export function applyLocalWrite(
   first: string,
   last: string,
   timezone = write.plan.timezone,
+  range?: { start: number; end: number },
 ): ScheduleBoard {
-  const start = Date.parse(wallTime(first, 0, timezone));
-  const end = Date.parse(wallTime(addDays(last, 1), 0, timezone));
+  const start = range?.start ?? Date.parse(wallTime(first, 0, timezone));
+  const end = range?.end ?? Date.parse(wallTime(addDays(last, 1), 0, timezone));
   const visible = (plan: PlanOccurrence) =>
     Date.parse(plan.start_at) < end && Date.parse(plan.end_at) > start;
   const plans = board.plans.filter(
@@ -94,6 +95,52 @@ export function applyLocalWrite(
     }
   }
   return { ...board, plans };
+}
+
+export function patchScheduleBoard(
+  board: ScheduleBoard | undefined,
+  key: readonly unknown[],
+  write: ScheduleWrite,
+): ScheduleBoard | undefined {
+  if (!board || !Array.isArray(board.plans)) return board;
+  if (key[1] === "ai-context") {
+    const [, , first, last, timezone] = key;
+    if (
+      typeof first !== "string" ||
+      typeof last !== "string" ||
+      typeof timezone !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(first) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(last) ||
+      !Number.isFinite(Date.parse(first)) ||
+      !Number.isFinite(Date.parse(last)) ||
+      first > last
+    )
+      return board;
+    try {
+      return applyLocalWrite(board, write, first, last, timezone);
+    } catch {
+      return board;
+    }
+  }
+  const [, from, to] = key;
+  if (typeof from !== "string" || typeof to !== "string") return board;
+  const start = Date.parse(from);
+  const end = Date.parse(to);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end)
+    return board;
+  const timezone = write.plan.timezone;
+  try {
+    return applyLocalWrite(
+      board,
+      write,
+      zonedParts(start, timezone).date,
+      zonedParts(end - 1, timezone).date,
+      timezone,
+      { start, end },
+    );
+  } catch {
+    return board;
+  }
 }
 
 export function validateLocalPlan(

@@ -9,9 +9,11 @@ import type { Habit, HabitProgress } from "../../habits/types";
 export function HomeHabits({
   today,
   onOpen,
+  compact = false,
 }: {
   today: string;
   onOpen: () => void;
+  compact?: boolean;
 }) {
   const client = useQueryClient();
   const board = useQuery({
@@ -32,12 +34,21 @@ export function HomeHabits({
     onError: (error) => toast.error(error.message),
     onSettled: () => client.invalidateQueries({ queryKey: ["habits"] }),
   });
-  const due =
-    board.data?.habits.filter((habit) =>
-      board.data.progress.some(
-        (item) => item.habit_id === habit.id && item.due,
-      ),
-    ) ?? [];
+  const due = (board.data?.habits ?? []).flatMap((habit) => {
+    const progress = board.data?.progress.find(
+      (item) => item.habit_id === habit.id && item.due,
+    );
+    return progress
+      ? [{ habit, progress, done: progress.value >= habit.goal }]
+      : [];
+  });
+  const complete = due.filter((item) => item.done).length;
+  const visible = compact
+    ? [
+        ...due.filter((item) => !item.done),
+        ...due.filter((item) => item.done),
+      ].slice(0, 2)
+    : due;
   return (
     <section
       className="home-b-section home-b-habits"
@@ -46,7 +57,9 @@ export function HomeHabits({
       <div className="home-b-section-heading">
         <h2>Habits</h2>
         <button className="home-text-button" onClick={onOpen}>
-          All
+          {compact && due.length > visible.length
+            ? `+${due.length - visible.length} more`
+            : "All"}
           <ChevronRight size={13} />
         </button>
       </div>
@@ -57,11 +70,19 @@ export function HomeHabits({
           <button onClick={() => void board.refetch()}>Retry</button>
         </Notice>
       )}
-      {due.map((habit) => {
-        const progress = board.data!.progress.find(
-          (item) => item.habit_id === habit.id,
-        )!;
-        const done = progress.value >= habit.goal;
+      {compact && due.length > 0 && (
+        <div className="phone-habits-progress">
+          <strong>
+            {complete} of {due.length} complete
+          </strong>
+          <progress
+            max={due.length}
+            value={complete}
+            aria-label="Today's habits completed"
+          />
+        </div>
+      )}
+      {visible.map(({ habit, progress, done }) => {
         const change = (value: number) =>
           update.mutate({
             habit,
@@ -126,6 +147,7 @@ export function HomeHabits({
                   <>
                     <button
                       className="home-small-button"
+                      data-adjust="decrease"
                       disabled={update.isPending || progress.value <= 0}
                       aria-label={`Decrease ${habit.name}`}
                       onClick={() =>

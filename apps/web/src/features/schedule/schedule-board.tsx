@@ -2,6 +2,7 @@ import { ComicHalftone } from "../../components/ui/comic-halftone";
 import { useAssistant } from "../ai/assistant/context";
 import { AssistantButton } from "../ai/assistant/assistant-button";
 import { liveInterval } from "../../lib/live";
+import { useMobileLayout } from "../../lib/layout";
 import {
   useCallback,
   useEffect,
@@ -119,6 +120,7 @@ function weekOffset(box: HTMLElement, row: HTMLElement) {
 
 export function ScheduleBoard({
   initialDate,
+  initialPlanId,
   onNavigation,
   onReminder,
   onSettings,
@@ -127,8 +129,10 @@ export function ScheduleBoard({
   onReminder: (flag: ReminderFlag) => void;
   onSettings: () => void;
   initialDate?: string;
+  initialPlanId?: string;
 }) {
   const { tracker, activities, action } = useTracking();
+  const mobile = useMobileLayout();
   const preferences = tracker.data?.preferences ?? {
     start_minute: 480,
     end_minute: 1320,
@@ -137,7 +141,9 @@ export function ScheduleBoard({
   const [date, setDate] = useState(
     () => initialDate ?? zonedParts(Date.now(), preferences.timezone).date,
   );
-  const [mode, setMode] = useState<"week" | "day">("week");
+  const [mode, setMode] = useState<"week" | "day">(
+    initialPlanId ? "day" : "week",
+  );
   const [editing, setEditing] = useState<{
     plan: PlanFields | PlanOccurrence;
     /** The block the quick card points at; without it the full form opens. */
@@ -146,6 +152,7 @@ export function ScheduleBoard({
     deleting?: boolean;
   } | null>(null);
   const [sessionDeleting, setSessionDeleting] = useState(false);
+  const [initialPlanClosed, setInitialPlanClosed] = useState(false);
   const [session, setSession] = useState<TimeSession | null>(null);
   const [draft, setDraft] = useState<PlanFields | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -156,7 +163,7 @@ export function ScheduleBoard({
   const scroller = useRef<HTMLDivElement>(null);
   const topEdge = useRef<HTMLDivElement>(null);
   const bottomEdge = useRef<HTMLDivElement>(null);
-  const scrollTarget = useRef<string | null>(weekDays(date)[0]);
+  const scrollTarget = useRef<string | null>(date);
   const prepended = useRef<{ height: number; top: number } | null>(null);
   const client = useQueryClient();
   const history = useScheduleHistory();
@@ -242,6 +249,14 @@ export function ScheduleBoard({
     [data, writes.pending, days, preferences.timezone],
   );
   const boardError = boards.error;
+  const linkedPlan =
+    initialPlanId &&
+    !initialPlanClosed &&
+    localData?.plans.find(
+      (plan) =>
+        plan.id === initialPlanId &&
+        zonedParts(plan.start_at, timezone).date === initialDate,
+    );
 
   /** Jumps to a day, reloading around it when it is outside the loaded weeks. */
   function showDay(day: string) {
@@ -249,7 +264,7 @@ export function ScheduleBoard({
     const week = weekDays(day)[0];
     const last = addDays(loaded.first, loaded.weeks * 7);
     if (week < loaded.first || week >= last) setLoaded(blocksAround(day));
-    scrollTarget.current = week;
+    scrollTarget.current = day;
     setJumps((count) => count + 1);
   }
   const sharedAssistant = useAssistant();
@@ -387,14 +402,20 @@ export function ScheduleBoard({
       prepended.current = null;
     }
     const target = scrollTarget.current;
-    const row = target
-      ? box.querySelector<HTMLElement>(`[data-week="${target}"]`)
-      : null;
+    if (!target || mode !== "week") return;
+    const week = weekDays(target)[0];
+    const row = box.querySelector<HTMLElement>(`[data-week="${week}"]`);
     if (!row) return;
-    box.scrollTop = weekOffset(box, row);
-    setVisibleWeek(target!);
+    const day = mobile
+      ? box.querySelector<HTMLElement>(
+          `.schedule-week-row[data-date="${target}"]`,
+        )
+      : null;
+    box.scrollTop =
+      weekOffset(box, row) + (day ? day.offsetTop - row.offsetTop : 0);
+    setVisibleWeek(week);
     scrollTarget.current = null;
-  }, [jumps, loaded, mode, ready]);
+  }, [jumps, loaded, mode, ready, mobile]);
   useEffect(() => {
     const box = scroller.current;
     if (mode !== "week" || !box || !topEdge.current || !bottomEdge.current)
@@ -599,11 +620,15 @@ export function ScheduleBoard({
                 label="Choose displayed date"
                 displayLabel={
                   mode === "week"
-                    ? dateRangeLabel(visibleWeek, addDays(visibleWeek, 6))
+                    ? dateRangeLabel(
+                        visibleWeek,
+                        addDays(visibleWeek, 6),
+                        mobile ? "short" : "long",
+                      )
                     : dayLabel(date, {
-                        weekday: "long",
+                        weekday: mobile ? "short" : "long",
                         day: "numeric",
-                        month: "long",
+                        month: mobile ? "short" : "long",
                       })
                 }
                 value={date}
@@ -646,6 +671,7 @@ export function ScheduleBoard({
               </div>
               <Button
                 size="small"
+                className="schedule-add-plan"
                 onClick={() =>
                   create({
                     date,
@@ -736,6 +762,11 @@ export function ScheduleBoard({
                 <button
                   key={day}
                   aria-pressed={day === date}
+                  aria-label={dayLabel(day, {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
                   className={
                     isDayOff(day, preferences.work_schedule)
                       ? "is-day-off"
@@ -899,6 +930,15 @@ export function ScheduleBoard({
           hours={preferences}
           writes={writes}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {linkedPlan && !editing && (
+        <PlanDialog
+          initial={linkedPlan}
+          activities={activities.data ?? []}
+          hours={preferences}
+          writes={writes}
+          onClose={() => setInitialPlanClosed(true)}
         />
       )}
       {session && (

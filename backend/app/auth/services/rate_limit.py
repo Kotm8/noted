@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from app.auth.repository import AuthThrottleRepository
@@ -19,3 +21,10 @@ class RateLimitService:
 
         if client_attempts > LOGIN_ATTEMPTS_PER_MINUTE or global_attempts > 100:
             raise RateLimitError("Too many attempts. Try again in a minute.")
+
+    def check_renewal(self, session_id: UUID) -> None:
+        window_start = utc_now().replace(second=0, microsecond=0)
+        attempts = self.repository.record_attempt(hash_token(f"renew:{session_id}"), window_start)
+        self.db.commit()
+        if attempts > 20:
+            raise RateLimitError("Too many sign-in refreshes. Try again in a minute.")

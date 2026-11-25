@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import LoginSession, User
@@ -34,18 +35,52 @@ class SessionService:
     def create(self, user: User, settings: Settings, user_agent: str = "") -> SessionTokens:
         token = generate_token()
         csrf_token = generate_token()
+        hours = min(settings.session_hours, settings.session_absolute_hours)
         self.sessions.create(
             user_id=user.id,
             token_hash=hash_token(token),
             csrf_hash=hash_token(csrf_token),
-            expires_at=utc_now() + timedelta(hours=settings.session_hours),
+            expires_at=utc_now() + timedelta(hours=hours),
             user_agent="".join(c for c in user_agent if c.isprintable())[:512],
         )
         return SessionTokens(
             token=token,
             csrf_token=csrf_token,
-            max_age=settings.session_hours * 3600,
+            max_age=hours * 3600,
         )
+
+    def renew(
+        self, current: AuthenticatedSession, token: str, csrf: str, settings: Settings
+    ) -> SessionTokens:
+        max_age = self.extend(current, settings.session_hours, settings.session_absolute_hours)
+        return SessionTokens(token=token, csrf_token=csrf, max_age=max_age)
+
+    def extend(self, current: AuthenticatedSession, idle_hours: int, absolute_hours: int) -> int:
+        session = self.db.scalar(
+            select(LoginSession)
+            .where(LoginSession.id == current.session.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        now = utc_now()
+        if session is None or session.revoked_at is not None or session.expires_at <= now:
+            raise AuthenticationError("Sign in to continue")
+        if session.created_at is None:
+            return max(1, int((session.expires_at - now).total_seconds()))
+        deadline = session.created_at + timedelta(hours=absolute_hours)
+        expires = min(deadline, now + timedelta(hours=idle_hours))
+        if expires <= now:
+            raise AuthenticationError("Sign in to continue")
+        cadence = timedelta(hours=min(6.0, idle_hours / 4))
+        if (
+            expires - session.expires_at >= cadence
+            or session.expires_at - now <= cadence
+            or session.expires_at > deadline
+        ):
+            session.expires_at = expires
+        max_age = max(1, int((session.expires_at - now).total_seconds()))
+        self.db.commit()
+        return max_age
 
     def authenticate(self, token: str) -> AuthenticatedSession:
         session = self.sessions.find_active(hash_token(token), utc_now())

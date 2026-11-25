@@ -29,6 +29,12 @@ object PushNotifications {
     }
     private const val channel = "noted_reminders"
 
+    fun clear(context: Context, origin: String) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.activeNotifications.filter { it.tag?.startsWith("$origin:") == true }
+            .forEach { manager.cancel(it.tag, it.id) }
+    }
+
     fun show(context: Context, origin: String, payload: JSONObject) {
         if (ConnectionStore(context).origin != origin) return
         if (
@@ -68,7 +74,9 @@ object PushNotifications {
                 description = "Reminders from your Noted server"
             },
         )
-        val open = Intent(context, MainActivity::class.java).setData(Uri.parse(destination))
+        val open = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .setData(Uri.parse(if (plan) "$origin/?prompt=$identity" else destination))
         val builder =
             NotificationCompat.Builder(context, channel)
                 .setSmallIcon(R.drawable.ic_notification)
@@ -86,6 +94,7 @@ object PushNotifications {
                     ),
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setLocalOnly(true)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .addExtras(
@@ -190,14 +199,6 @@ object PushNotifications {
                         )
             }
             buttons.forEach(builder::addAction)
-            val more =
-                Intent(context, PlanPromptActivity::class.java)
-                    .setData(
-                        Uri.parse("noted-plan://$identity/$revision?origin=${Uri.encode(origin)}"),
-                    )
-                    .putExtra("origin", origin)
-                    .putExtra("prompt_id", identity)
-                    .putExtra("binding", binding)
             if (buttons.size < 3)
                 builder.addAction(
                     0,
@@ -205,7 +206,7 @@ object PushNotifications {
                     PendingIntent.getActivity(
                         context,
                         0,
-                        more,
+                        Intent(open),
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                     ),
                 )
@@ -250,6 +251,8 @@ object PushNotifications {
                 )
             }
         }
+        val shown = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == 0 }
+        if ((shown?.notification?.extras?.getInt("noted_revision") ?: -1) > revision) return
         NotificationManagerCompat.from(context).notify(tag, 0, builder.build())
     }
 

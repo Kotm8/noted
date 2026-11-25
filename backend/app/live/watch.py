@@ -86,7 +86,6 @@ class WatchSync:
                 state.last_sent_at = now or utc_now()
                 outcome = send_push(
                     subscription,
-                    "",
                     self.settings.app_origin,
                     json.dumps({"kind": "sync"}),
                     ttl=60,

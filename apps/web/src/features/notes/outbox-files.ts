@@ -21,11 +21,14 @@ async function run<T>(
   const database = await open();
   try {
     return await new Promise<T>((resolve, reject) => {
-      const request = action(
-        database.transaction(STORE, mode).objectStore(STORE),
+      const transaction = database.transaction(
+        STORE,
+        mode,
+        mode === "readwrite" ? { durability: "strict" } : undefined,
       );
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      const request = action(transaction.objectStore(STORE));
+      transaction.oncomplete = () => resolve(request.result);
+      transaction.onabort = () => reject(transaction.error ?? request.error);
     });
   } finally {
     database.close();
@@ -40,3 +43,15 @@ export const readFiles = (clientId: string) =>
 
 export const forgetFiles = (clientId: string) =>
   run("readwrite", (store) => store.delete(clientId));
+
+export const readDraftText = (key: string) =>
+  run<string | undefined>("readonly", (store) => store.get(key));
+export const keepDraftText = (key: string, text: string) =>
+  text
+    ? run("readwrite", (store) => store.put(text, key))
+    : run("readwrite", (store) => store.delete(key));
+
+export const readQueuedNotes = <T>(key: string) =>
+  run<T[] | undefined>("readonly", (store) => store.get(key));
+export const keepQueuedNotes = <T>(key: string, entries: T[]) =>
+  run("readwrite", (store) => store.put(entries, key));

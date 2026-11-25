@@ -47,7 +47,9 @@ class PushWorker(context: Context, parameters: WorkerParameters) : Worker(contex
                         "/api/v1/notifications/android/plan-prompts/${inputData.getString("message_id")}/actions"
                     } else "/api/v1/notifications/android/actions"
                 PushHttp.request(origin, path, body = body, secret = state.getString("secret"))
-                inputData.getString("tag")?.let {
+                inputData.getString("tag")?.takeIf {
+                    PushState(applicationContext).read()?.optString("binding") == state.optString("binding")
+                }?.let {
                     PushNotifications.cancelRevision(
                         applicationContext,
                         it,
@@ -63,14 +65,9 @@ class PushWorker(context: Context, parameters: WorkerParameters) : Worker(contex
                         state.optString("binding")
             )
                 PushRegistration.forget(applicationContext)
-            if (error.status in listOf(401, 404, 409))
-                inputData.getString("tag")?.let {
-                    PushNotifications.cancelRevision(
-                        applicationContext,
-                        it,
-                        inputData.getInt("shown_revision", inputData.getInt("revision", 0)),
-                    )
-                }
+            if (error.status in listOf(404, 409) &&
+                PushState(applicationContext).read()?.optString("binding") == state.optString("binding"))
+                NotificationSyncWorker.enqueue(applicationContext)
             if ((error.status >= 500 || error.status == 429) && runAttemptCount < 8) Result.retry()
             else Result.failure()
         } catch (_: Exception) {

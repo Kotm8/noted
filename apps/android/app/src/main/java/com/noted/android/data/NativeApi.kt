@@ -7,6 +7,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Cookie
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -26,9 +27,12 @@ import kotlin.coroutines.resumeWithException
 
 class ApiException(val status: Int, override val message: String) : IOException(message)
 
+internal class NativeRequestSession(val cookies: List<Cookie>)
+
 class NativeApi(val origin: String, cookies: List<okhttp3.Cookie> = emptyList(),
-    onCookies: (List<okhttp3.Cookie>) -> Unit = {}, private val unauthorized: () -> Unit = {}) {
-    val jar = SessionCookies(origin.toHttpUrl(), cookies, onCookies)
+    onCookies: (List<okhttp3.Cookie>) -> Unit = {}, private val unauthorized: () -> Unit = {},
+    acceptsCookieResponse: (String) -> Boolean = { true }) {
+    val jar = SessionCookies(origin.toHttpUrl(), cookies, acceptsCookieResponse, onCookies)
     val client: OkHttpClient = OkHttpClient.Builder().cookieJar(jar)
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS)
         .callTimeout(45, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
@@ -38,6 +42,19 @@ class NativeApi(val origin: String, cookies: List<okhttp3.Cookie> = emptyList(),
             chain.proceed(request.newBuilder().header("Origin", origin)
                 .header("User-Agent", "Noted-Android/Native")
                 .header("X-CSRF-Token", jar.csrf()).build())
+        }.addNetworkInterceptor { chain ->
+            val request = chain.request()
+            val session = request.tag(NativeRequestSession::class.java)
+                ?: return@addNetworkInterceptor chain.proceed(request)
+            val cookies = session.cookies.filter { it.matches(request.url) && it.expiresAt > System.currentTimeMillis() }
+            val token = session.cookies.firstOrNull { it.name == "noted_session" }?.value
+            val activeToken = jar.loadForRequest(request.url).firstOrNull { it.name == "noted_session" }?.value
+            if (activeToken != token) throw IOException("The sign-in changed.")
+            val scoped = request.newBuilder().removeHeader("Cookie")
+                .header("X-CSRF-Token", cookies.firstOrNull { it.name == "noted_csrf" }?.value.orEmpty())
+            if (cookies.isNotEmpty())
+                scoped.header("Cookie", cookies.joinToString("; ") { "${it.name}=${it.value}" })
+            chain.proceed(scoped.build())
         }.build()
     val transferClient: OkHttpClient by lazy {
         client.newBuilder().callTimeout(30, TimeUnit.MINUTES).readTimeout(60, TimeUnit.SECONDS)

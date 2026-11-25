@@ -1,6 +1,8 @@
+import { isAndroidPilot, pilotRequest } from "./android-pilot";
+
 const API_BASE_URL = "/api/v1";
 
-type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 interface ErrorResponse {
   detail?: string | Array<{ msg: string }>;
@@ -10,10 +12,19 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly detail?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+export function isSessionRejection(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 401 &&
+    error.detail === "Sign in to continue"
+  );
 }
 
 function readCsrfToken(): string | undefined {
@@ -28,18 +39,31 @@ function readCsrfToken(): string | undefined {
   return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : undefined;
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
-  const data: ErrorResponse = await response.json().catch(() => ({}));
+async function readApiError(response: Response): Promise<ApiError> {
+  const mime = response.headers.get("content-type")?.split(";", 1)[0].trim();
+  const data: ErrorResponse =
+    mime?.toLowerCase() === "application/json"
+      ? ((await response.json().catch(() => null)) ?? {})
+      : {};
 
   if (typeof data.detail === "string") {
-    return data.detail;
+    return new ApiError(response.status, data.detail, data.detail);
   }
 
   if (Array.isArray(data.detail)) {
-    return data.detail.map((item) => item.msg).join(". ");
+    return new ApiError(
+      response.status,
+      data.detail
+        .map((item) => item?.msg)
+        .filter(Boolean)
+        .join(". "),
+    );
   }
 
-  return "Something went wrong. Please try again.";
+  return new ApiError(
+    response.status,
+    "The server returned an unexpected response. Check your connection and try again.",
+  );
 }
 
 export async function fetchResponse(
@@ -48,6 +72,11 @@ export async function fetchResponse(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<Response> {
+  if (isAndroidPilot) {
+    const response = await pilotRequest(path, method, body, signal);
+    if (!response.ok) throw await readApiError(response);
+    return response;
+  }
   const headers = new Headers();
   const csrfToken = readCsrfToken();
 
@@ -75,7 +104,7 @@ export async function fetchResponse(
   });
 
   if (!response.ok) {
-    throw new ApiError(response.status, await readErrorMessage(response));
+    throw await readApiError(response);
   }
 
   return response;

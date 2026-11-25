@@ -1,5 +1,11 @@
 import * as Context from "@radix-ui/react-context-menu";
-import { useSyncExternalStore, type ReactElement, type ReactNode } from "react";
+import {
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import { useAndroidBackLayer } from "../../lib/android-navigation";
 import { MenuKind } from "./menu-kind";
 
 const media = "(hover: hover) and (pointer: fine)";
@@ -29,16 +35,22 @@ export function ContextMenu({
   menu,
   disabled = false,
   label = "Item actions",
+  touch = false,
 }: {
   children: ReactElement;
   menu: ReactNode;
   disabled?: boolean;
   label?: string;
+  touch?: boolean;
 }) {
-  const enabled = useSyncExternalStore(subscribe, desktop, () => false);
+  const hasPointer = useSyncExternalStore(subscribe, desktop, () => false);
+  const enabled = hasPointer || touch;
+  const touchLayout = touch && !hasPointer;
+  const [open, setOpen] = useState(false);
+  useAndroidBackLayer(open, () => setOpen(false));
   return (
     <MenuKind.Provider value="context">
-      <Context.Root>
+      <Context.Root open={open} onOpenChange={setOpen}>
         <Context.Trigger
           asChild
           disabled={disabled || !enabled}
@@ -78,6 +90,10 @@ export function ContextMenu({
         <Context.Portal>
           <Context.Content
             className="dropdown-content"
+            data-touch-menu={touchLayout ? "" : undefined}
+            side={touchLayout ? "bottom" : "right"}
+            align={touchLayout ? "center" : "start"}
+            sideOffset={touchLayout ? 8 : 2}
             collisionPadding={10}
             aria-label={label}
             style={{

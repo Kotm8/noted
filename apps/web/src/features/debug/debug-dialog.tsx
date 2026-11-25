@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell,
   Check,
   CircleAlert,
   Copy,
@@ -12,12 +11,7 @@ import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/dialog";
 import { Notice } from "../../components/ui/notice";
-import { supportsPush } from "../notifications/browser";
-import {
-  collectDiagnostics,
-  testDeviceNotification,
-  testPhoneNotification,
-} from "./diagnostics";
+import { collectDiagnostics, testPhoneNotification } from "./diagnostics";
 
 export function DebugDialog({
   open,
@@ -142,19 +136,6 @@ export function DebugDialog({
         </Button>
         <Button
           variant="secondary"
-          disabled={busy || !supportsPush()}
-          onClick={() =>
-            void run(
-              testDeviceNotification,
-              "Local notification sent. This does not test server delivery.",
-            )
-          }
-        >
-          <Bell size={15} />
-          Test this device
-        </Button>
-        <Button
-          variant="secondary"
           disabled={busy}
           onClick={() =>
             void run(
@@ -188,8 +169,8 @@ export function DebugDialog({
         </Notice>
       )}
       <p className="debug-footnote">
-        Phone tests use server push and ignore desktop focus. Device tests run
-        locally. Reports exclude credentials, note contents, and push tokens.
+        Phone tests use server push and ignore desktop focus. Reports exclude
+        credentials, note contents, and push tokens.
       </p>
     </Modal>
   );

@@ -47,6 +47,7 @@ interface ChannelSidebarProps {
   onHome: () => void;
   workspaces: Workspace[];
   trackerRequest: number;
+  hideTracker?: boolean;
 }
 
 export function ChannelSidebar({
@@ -73,6 +74,7 @@ export function ChannelSidebar({
   onHome,
   workspaces,
   trackerRequest,
+  hideTracker,
 }: ChannelSidebarProps) {
   const { collapsed, toggleCategory } = useCategoryCollapse();
   const reorder = useSidebarReorder(workspace?.id, { categories, channels });
@@ -267,12 +269,14 @@ export function ChannelSidebar({
         </div>
       </ContextMenu>
 
-      <div className="sidebar-bottom tracking-sidebar-bottom">
-        <TimeTracker
-          key={`${new URLSearchParams(window.location.search).get("prompt") ?? "tracker"}:${trackerRequest}`}
-          onSettings={onTrackingSettings}
-        />
-      </div>
+      {!hideTracker && (
+        <div className="sidebar-bottom tracking-sidebar-bottom">
+          <TimeTracker
+            key={`${new URLSearchParams(window.location.search).get("prompt") ?? "tracker"}:${trackerRequest}`}
+            onSettings={onTrackingSettings}
+          />
+        </div>
+      )}
     </aside>
   );
 }

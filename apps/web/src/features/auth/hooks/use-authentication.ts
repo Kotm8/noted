@@ -16,7 +16,8 @@ export function useAuthentication() {
         await desktopRequest("session", "PUT", { remember: remember ?? false });
       return authApi.login(credentials);
     },
-    onSuccess: (user) => {
+    onSuccess: async (user) => {
+      await queryClient.cancelQueries({ queryKey: ["session"], exact: true });
       queryClient.setQueryData(["session"], user);
       void queryClient.invalidateQueries({ queryKey: ["auth-status"] });
     },

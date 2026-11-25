@@ -1,4 +1,4 @@
-import { ApiError, request } from "../../lib/http";
+import { isSessionRejection, request } from "../../lib/http";
 import type { Credentials, LoginSession, SetupStatus, User } from "./types";
 
 export const authApi = {
@@ -20,7 +20,7 @@ export const authApi = {
         AbortSignal.timeout(15000),
       );
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
+      if (isSessionRejection(error)) {
         return null;
       }
 
@@ -34,6 +34,14 @@ export const authApi = {
 
   logout(): Promise<void> {
     return request<void>("/auth/logout", "POST");
+  },
+  renew(): Promise<void> {
+    return request<void>(
+      "/auth/renew",
+      "POST",
+      undefined,
+      AbortSignal.timeout(15000),
+    );
   },
 
   listSessions(): Promise<LoginSession[]> {

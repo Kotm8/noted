@@ -183,7 +183,7 @@ class WatchActivity : ComponentActivity() {
         handler.post(tick)
         handler.postDelayed(poll, 20000)
         model.load()
-        model.refresh()
+        model.refresh(renew = true)
     }
 
     override fun onStop() {

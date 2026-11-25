@@ -4,9 +4,9 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.4.4")
+VERSION = os.environ.get("NOTED_BUILD_VERSION", "0.5.0")
 BUILD_COMMIT = os.environ.get("NOTED_BUILD_COMMIT", "development")
-SCHEMA_REVISION = "0034_document_reminders"
+SCHEMA_REVISION = "0035_native_push_only"
 API_VERSION = 1
 # Sign-in attempts allowed per address each minute. Only the browser test server raises it,
 # because its whole suite signs in from one address.
@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     server_name: str = Field(default="Noted", min_length=1, max_length=80)
     app_origin: str = "http://localhost:5173"
     cookie_secure: bool = True
-    session_hours: int = 168
+    session_hours: int = Field(default=30 * 24, gt=0)
+    session_absolute_hours: int = Field(default=180 * 24, gt=0)
+    watch_session_hours: int = Field(default=30 * 24, gt=0)
+    watch_session_absolute_hours: int = Field(default=180 * 24, gt=0)
     storage_path: Path = Path(__file__).resolve().parents[3] / ".local" / "attachments"
     updates_directory: Path | None = None
     backup_path: Path | None = None

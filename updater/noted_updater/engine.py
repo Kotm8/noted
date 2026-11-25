@@ -183,6 +183,10 @@ class Engine:
                 "NOTED_SERVER_NAME",
                 "NOTED_INSTANCE_ID",
                 "NOTED_COOKIE_SECURE",
+                "NOTED_SESSION_HOURS",
+                "NOTED_SESSION_ABSOLUTE_HOURS",
+                "NOTED_WATCH_SESSION_HOURS",
+                "NOTED_WATCH_SESSION_ABSOLUTE_HOURS",
                 "NOTED_STORAGE_PATH",
                 "NOTED_UPDATES_DIRECTORY",
             ):

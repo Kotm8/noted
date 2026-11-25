@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { connectPilotLive, isAndroidPilot } from "./android-pilot";
 import {
   LiveConnection,
   liveConnected,
@@ -10,7 +11,10 @@ import {
 export function useLiveUpdates() {
   const client = useQueryClient();
   useEffect(() => {
-    const connection = new LiveConnection(client);
+    const connection = new LiveConnection(
+      client,
+      isAndroidPilot ? connectPilotLive : undefined,
+    );
     const start = setTimeout(() => connection.start(), 0);
     return () => {
       clearTimeout(start);

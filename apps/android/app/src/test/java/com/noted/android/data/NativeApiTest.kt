@@ -3,11 +3,14 @@ package com.noted.android.data
 import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.IOException
 
 class NativeApiTest {
     @Test fun cookiesAndCsrfStayOnTheirOwnServerAndRespectPaths() {
@@ -50,6 +53,36 @@ class NativeApiTest {
             catch (error: ApiException) { assertEquals(302, error.status) }
             assertFalse(api.sameOrigin("https://another.example.com/api/v1/home/activity"))
             assertFalse(api.sameOrigin("https://user:password@another.example.com/"))
+        }
+    }
+
+    @Test fun aQueuedWriteCannotUseTheCookiesFromANewerSignIn() {
+        MockWebServer().use { server ->
+            server.start()
+            val login = server.url("/api/v1/auth/login")
+            val url = server.url("/api/v1/channels/channel/messages")
+            fun cookies(token: String) = listOf(
+                Cookie.parse(login, "noted_session=$token; Path=/api; Max-Age=3600")!!,
+                Cookie.parse(login, "noted_csrf=$token; Path=/; Max-Age=3600")!!,
+            )
+            val api = NativeApi(server.url("/").toString().trimEnd('/'), cookies("before"),
+                acceptsCookieResponse = { it == login.encodedPath })
+            val write = Request.Builder().url(url).post(ByteArray(0).toRequestBody())
+                .tag(NativeRequestSession::class.java, NativeRequestSession(api.jar.loadForRequest(url)))
+                .build()
+            api.jar.saveFromResponse(url, cookies("unexpected"))
+            assertEquals("before", api.jar.csrf())
+            api.jar.saveFromResponse(login, cookies("after"))
+            assertThrows(IOException::class.java) { api.client.newCall(write).execute().close() }
+            assertEquals(0, server.requestCount)
+            server.enqueue(MockResponse())
+            val next = write.newBuilder()
+                .tag(NativeRequestSession::class.java, NativeRequestSession(api.jar.loadForRequest(url)))
+                .build()
+            api.client.newCall(next).execute().close()
+            val sent = server.takeRequest()
+            assertEquals("after", sent.getHeader("X-CSRF-Token"))
+            assertTrue(sent.getHeader("Cookie")!!.contains("noted_session=after"))
         }
     }
 

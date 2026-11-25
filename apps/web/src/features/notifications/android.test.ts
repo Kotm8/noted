@@ -35,16 +35,6 @@ it("remembers the Android shell without losing notification action parameters", 
 });
 
 it("unregisters the old server's push subscription before signing out", async () => {
-  const unsubscribe = vi.fn().mockResolvedValue(true);
-  vi.stubGlobal("navigator", {
-    serviceWorker: {
-      getRegistration: vi.fn().mockResolvedValue({
-        pushManager: {
-          getSubscription: vi.fn().mockResolvedValue({ unsubscribe }),
-        },
-      }),
-    },
-  });
   localStorage.setItem("noted.notification-device", "device-id");
   sessionStorage.setItem("noted.android-client", "browser");
   await disconnectAndroid();
@@ -53,7 +43,6 @@ it("unregisters the old server's push subscription before signing out", async ()
     "/notifications/subscriptions/device-id",
     "DELETE",
   );
-  expect(unsubscribe).toHaveBeenCalledOnce();
   expect(request).toHaveBeenNthCalledWith(2, "/auth/logout", "POST");
   expect(isAndroidApp()).toBe(false);
   expect(localStorage.getItem("noted.push-disabled")).toBe("yes");

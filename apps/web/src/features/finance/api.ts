@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { request } from "../../lib/http";
 import { liveInterval } from "../../lib/live";
+import { isAndroidPilot } from "../../lib/android-pilot";
+import { shrinkImage } from "../../lib/shrink-image";
 import type { FinanceAction, FinanceBoard } from "./types";
 
 export const financeApi = {
@@ -15,9 +17,9 @@ export const financeApi = {
       ...action,
       request_id: action.request_id ?? crypto.randomUUID(),
     }),
-  photo: (file: File) => {
+  photo: async (file: File) => {
     const body = new FormData();
-    body.append("file", file);
+    body.append("file", isAndroidPilot ? await shrinkImage(file) : file);
     return request<{ id: string }>("/finance/photos", "POST", body);
   },
 };

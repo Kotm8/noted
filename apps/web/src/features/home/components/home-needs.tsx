@@ -57,10 +57,12 @@ export function HomeNeeds({
   timezone,
   board,
   onOpen,
+  compact = false,
 }: {
   timezone: string;
   board?: ScheduleBoard;
   onOpen: (item: HomeActivity) => void;
+  compact?: boolean;
 }) {
   const [creating, setCreating] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -96,6 +98,7 @@ export function HomeNeeds({
   const list = [...items.values()].sort(
     (a, b) => Date.parse(a.due_at) - Date.parse(b.due_at),
   );
+  const previewSize = compact ? 2 : 5;
   return (
     <section
       className="home-b-section home-b-needs"
@@ -103,7 +106,7 @@ export function HomeNeeds({
       id="missed"
     >
       <div className="home-b-section-heading">
-        <h2>Needs you</h2>
+        <h2>{compact ? "Reminders" : "Needs you"}</h2>
         <button className="home-text-button" onClick={() => setCreating(true)}>
           <Plus size={13} />
           Reminder
@@ -121,7 +124,7 @@ export function HomeNeeds({
           onDelay={() => setDelaying(prompt)}
         />
       ))}
-      {(expanded ? list : list.slice(0, 5)).map((item) => (
+      {(expanded ? list : list.slice(0, previewSize)).map((item) => (
         <div
           className={`home-need-row ${item.read ? "is-read" : ""}`}
           key={`${item.kind}:${item.id}`}
@@ -181,7 +184,7 @@ export function HomeNeeds({
           )}
         </div>
       ))}
-      {list.length > 5 && (
+      {list.length > previewSize && (
         <button
           className="home-text-button home-needs-more"
           onClick={() => setExpanded((value) => !value)}

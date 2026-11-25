@@ -1,13 +1,69 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect } from "react";
 import { isAndroidApp } from "../features/notifications/android";
+import { androidPilot, isAndroidPilot } from "./android-pilot";
 
 type Layer = { id: string; path: string; close: () => void };
 const layers: Layer[] = [];
+const pilotLayers: (() => void)[] = [];
 let ignoredPops = 0;
 let previousPath = window.location.pathname;
 
+const composerInput = ".composer textarea, .thread-composer textarea";
+
+function initializeComposerKeyboard() {
+  let tappedOutside: HTMLTextAreaElement | null = null;
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      const input = document.activeElement;
+      tappedOutside =
+        event.pointerType !== "mouse" &&
+        input instanceof HTMLTextAreaElement &&
+        input.matches(composerInput) &&
+        event.target instanceof Element &&
+        !event.target.closest(
+          ".composer-area, .thread-composer, textarea, input, select, [contenteditable], [role=menu], [role=dialog]",
+        )
+          ? input
+          : null;
+    },
+    true,
+  );
+  document.addEventListener(
+    "pointercancel",
+    () => {
+      tappedOutside = null;
+    },
+    true,
+  );
+  document.addEventListener(
+    "click",
+    () => {
+      if (!tappedOutside) return;
+      tappedOutside.blur();
+      tappedOutside = null;
+      void androidPilot.hideKeyboard().catch(() => {});
+    },
+    true,
+  );
+  window.addEventListener("noted:keyboard-hidden", () => {
+    const input = document.activeElement;
+    if (input instanceof HTMLTextAreaElement && input.matches(composerInput))
+      input.blur();
+  });
+}
+
 export function initializeAndroidNavigation() {
   if (!isAndroidApp()) return;
+  if (isAndroidPilot) {
+    initializeComposerKeyboard();
+    window.addEventListener("noted:android-back", (event) => {
+      const close = pilotLayers.at(-1);
+      if (!close) return;
+      event.preventDefault();
+      close();
+    });
+  }
   if (window.history.state?.idx == null && window.location.pathname !== "/") {
     const destination = window.location.href;
     window.history.replaceState({ idx: 0, key: "home" }, "", "/");
@@ -42,8 +98,16 @@ export function syncAndroidRoute(path: string) {
 
 export function useAndroidBackLayer(open: boolean, onClose: () => void) {
   const close = useEffectEvent(onClose);
+  useLayoutEffect(() => {
+    if (!open || !isAndroidPilot) return;
+    const dismiss = () => close();
+    pilotLayers.push(dismiss);
+    return () => {
+      pilotLayers.splice(pilotLayers.indexOf(dismiss), 1);
+    };
+  }, [open]);
   useEffect(() => {
-    if (!open || !isAndroidApp()) return;
+    if (!open || !isAndroidApp() || isAndroidPilot) return;
     let layer: Layer | undefined;
     let cancelled = false;
     queueMicrotask(() => {

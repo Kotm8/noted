@@ -73,8 +73,23 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
   await expect(
     page.locator(`.schedule-week-row[data-date="${anchor}"]`),
   ).toHaveClass(/is-day-off/);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator(".schedule-hours-button").click();
+  await page.setViewportSize({ width: 320, height: 592 });
+  const phoneSettings = page.getByRole("button", {
+    name: "Time tracking settings",
+    exact: true,
+  });
+  const scroller = page.locator(".schedule-timeline-scroll");
+  const addPlan = page.getByRole("button", { name: "Add plan", exact: true });
+  await expect(addPlan).toBeInViewport({ ratio: 1 });
+  await expect
+    .poll(async () => (await scroller.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(340);
+  const dayCell = row.locator(".schedule-date-cell");
+  const left = (await dayCell.boundingBox())!.x;
+  await scroller.evaluate((node) => (node.scrollLeft = 170));
+  await expect.poll(async () => (await dayCell.boundingBox())!.x).toBe(left);
+  expect(await scroller.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+  await phoneSettings.click();
   await fields.scrollIntoViewIfNeeded();
   await fields.screenshot({
     path: "../../.local/work-schedule-settings-mobile.png",
@@ -91,6 +106,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
   await expect(row.locator(".schedule-day-kind")).toHaveText("Workday");
   await row.locator(".schedule-day-label").click();
   await expect(page.locator(".schedule-activity-grid")).toBeVisible();
+  await expect(addPlan).toBeInViewport({ ratio: 1 });
   await expect(
     page.locator(
       '.schedule-day-strip [aria-pressed="true"] .schedule-day-kind',
@@ -99,7 +115,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
   await page.screenshot({
     path: "../../.local/work-schedule-calendar-mobile.png",
   });
-  await page.locator(".schedule-hours-button").click();
+  await phoneSettings.click();
   await fields.scrollIntoViewIfNeeded();
   data = await saved(page, () =>
     fields
@@ -122,8 +138,7 @@ test("workday patterns and one-off days persist and shade the calendar on deskto
     (await (await closingSave).json()).preferences.work_schedule.off_days,
   ).toBe(3);
   await page.reload();
-  await page.locator(".schedule-hours-button").click();
-  await fields.scrollIntoViewIfNeeded();
+  await phoneSettings.click();
   await expect(
     fields.getByRole("button", { name: "Consecutive days off", exact: true }),
   ).toContainText("3 days");

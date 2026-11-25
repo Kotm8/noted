@@ -158,12 +158,15 @@ function DesktopConnection({ children }: { children: ReactNode }) {
         <label>
           Server address
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             autoFocus
             required
             maxLength={2048}
             autoComplete="url"
-            placeholder="https://notes.example.com"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="notes.example.com"
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             disabled={busy}

@@ -1,0 +1,210 @@
+.phone-nutrition-header {
+  min-height: 54px;
+}
+
+.phone-nutrition-header .icon-button {
+  width: 44px;
+  height: 44px;
+}
+
+.nutrition-tabs.phone-nutrition-tabs {
+  gap: 20px;
+  padding-inline: 16px;
+}
+
+.phone-nutrition-tabs button {
+  min-height: 44px;
+  padding-block: 8px;
+}
+
+.nutrition-scroll:has(> .phone-nutrition-diary) {
+  padding: 12px 16px 20px;
+}
+
+.phone-nutrition-diary {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 500px);
+  margin-inline: auto;
+}
+
+.phone-nutrition-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.phone-nutrition-date .date-picker-trigger {
+  min-height: 44px;
+  padding-inline: 12px;
+  background: transparent;
+  text-align: start;
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+
+.phone-nutrition-date .ui-button {
+  min-height: 44px;
+  flex: none;
+}
+
+.phone-nutrition-progress {
+  display: grid;
+  gap: 12px;
+}
+
+.phone-nutrition-calories {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 5vw, 30px);
+}
+
+.phone-nutrition-remaining {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.phone-nutrition-remaining > span {
+  color: var(--text-muted);
+  font-size: var(--font-md);
+}
+
+.phone-nutrition-remaining strong {
+  font-size: calc(20px * var(--text-scale, 1));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-nutrition-remaining small {
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+
+.phone-nutrition-progress .nutrition-macros {
+  max-width: none;
+  gap: 8px;
+}
+
+.phone-nutrition-progress .nutrition-macro > div {
+  margin-bottom: 3px;
+  font-size: var(--font-md);
+}
+
+.phone-nutrition-progress .macro-track {
+  height: 4px;
+}
+
+.phone-nutrition-progress .nutrition-macro .macro-track > span {
+  background: var(--accent);
+}
+
+.phone-nutrition-meals h2 {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.phone-nutrition-meals .meal-head {
+  min-height: 54px;
+  padding: 6px 4px;
+}
+
+.phone-nutrition-meals .meal-glyph,
+.phone-nutrition-meals .nutrition-photo {
+  width: 40px;
+  height: 40px;
+}
+
+.phone-nutrition-meals .meal-glyph {
+  background: transparent;
+}
+
+.phone-nutrition-empty {
+  color: var(--text-muted);
+  font-size: var(--font-md);
+  padding: 8px 0;
+}
+
+.phone-nutrition-entry {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.phone-nutrition-entry .ui-button {
+  min-height: 44px;
+  border-radius: 24px;
+}
+
+.phone-nutrition-diary .nutrition-side {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.modal-content.phone-nutrition-sheet {
+  top: auto;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100dvh - 12px);
+  padding: 16px;
+  border-radius: 16px 16px 0 0;
+  transform: translateX(-50%);
+}
+
+.phone-nutrition-sheet .modal-description {
+  margin-bottom: 12px;
+}
+
+.phone-nutrition-sheet .nutrition-dock {
+  padding: 0;
+}
+
+.phone-nutrition-sheet .nutrition-estimate {
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.phone-nutrition-sheet .nutrition-estimate > header input,
+.phone-nutrition-sheet .nutrition-estimate > header select,
+.phone-nutrition-sheet .nutrition-estimate button,
+.phone-nutrition-sheet .composer-row button {
+  min-height: 40px;
+}
+
+.phone-nutrition-sheet .nutrition-composer textarea {
+  font-size: var(--font-body);
+}
+
+.manual-meal-editor .estimate-items > li {
+  grid-template-columns: minmax(0, 1fr) 58px 40px;
+}
+
+.manual-meal-editor .manual-meal-portion,
+.manual-meal-editor .manual-meal-macros input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--surface-input);
+  font-size: var(--font-md);
+}
+
+.manual-meal-editor .manual-meal-macros {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.manual-meal-macros label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}

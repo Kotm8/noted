@@ -36,6 +36,7 @@
     "0031_assistant_chats",
     "0032_saved_food_photos",
     "0033_finance",
-    "0034_document_reminders"
+    "0034_document_reminders",
+    "0035_native_push_only"
   ]
 }

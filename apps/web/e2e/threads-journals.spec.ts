@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { clientVersion, expect, test, type Page } from "./fixtures";
 
 test("thread attachments support picker, paste and queued file retries", async ({
   page,
@@ -51,7 +51,7 @@ test("thread attachments support picker, paste and queued file retries", async (
   await expect(picture.locator(".image-attachment")).toBeVisible();
   await expect(picture.locator("img")).toBeVisible();
   await page.screenshot({
-    path: "../../.local/release-0.4.4/thread-media.png",
+    path: `../../.local/release-${clientVersion}/thread-media.png`,
   });
   await input.evaluate((element) => {
     const transfer = new DataTransfer();

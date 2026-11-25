@@ -53,7 +53,10 @@ export function WorkspaceRoutes() {
         <Route index element={<HomeRoute />} />
         <Route path="home" element={<HomeRoute />} />
         <Route path="schedule" element={<ScheduleRoute />} />
-        <Route path="habits" element={<HabitsPage />} />
+        <Route
+          path="habits"
+          element={<HabitsPage key={background.current.search} />}
+        />
         <Route path="nutrition" element={<NutritionPage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="w/:workspaceId" element={<ChannelRoute />} />

@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Camera, ImagePlus, LoaderCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { Notice } from "../../components/ui/notice";
 import { Button } from "../../components/ui/button";
+import type { SharedMealPhoto } from "../../lib/android-pilot";
 import { AiSources } from "../ai/components/ai-feedback";
 import { nutritionApi, photoUrl, streamEstimate } from "./api";
 import { MealEditor, StreamingEstimate, type MealDraft } from "./meal-editor";
@@ -24,41 +25,107 @@ export function LogDock({
   state,
   day,
   nowMinute,
+  onSaved,
+  onDraftState,
+  sharedPhotos,
 }: {
   state: NutritionState;
   day: string;
   nowMinute: number;
+  onSaved?: () => void;
+  onDraftState?: (dirty: boolean, saving: boolean) => void;
+  sharedPhotos?: SharedMealPhoto[];
 }) {
   const client = useQueryClient();
   const [text, setText] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [sentPhotos, setSentPhotos] = useState<string[]>([]);
+  const [sharedFailed, setSharedFailed] = useState(false);
+  const [sharedRetry, setSharedRetry] = useState(0);
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
+  const previews = useRef(new Set<string>());
+  const loadedShares = useRef(new Set<string>());
+  const slots = useRef(0);
   const run = useNutritionRun<MealEstimate>();
   const uploading = photos.some((photo) => photo.id === null);
+  useEffect(() => {
+    const urls = previews.current;
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
 
-  async function add(files: FileList | null) {
-    const chosen = Array.from(files ?? []).slice(0, MAX_PHOTOS - photos.length);
+  function releasePreview(url: string) {
+    URL.revokeObjectURL(url);
+    previews.current.delete(url);
+  }
+
+  async function add(files: ArrayLike<File> | null) {
+    const chosen = Array.from(files ?? []).slice(0, MAX_PHOTOS - slots.current);
+    slots.current += chosen.length;
+    let added = 0;
     for (const file of chosen) {
       const key = `${file.name}-${Date.now()}-${Math.random()}`;
-      setPhotos((before) => [
-        ...before,
-        { key, id: null, preview: URL.createObjectURL(file) },
-      ]);
+      const preview = URL.createObjectURL(file);
+      previews.current.add(preview);
+      setPhotos((before) => [...before, { key, id: null, preview }]);
       try {
         const saved = await nutritionApi.uploadPhoto(file);
+        added += 1;
         setPhotos((before) =>
           before.map((photo) =>
             photo.key === key ? { ...photo, id: saved.id } : photo,
           ),
         );
       } catch (error) {
+        slots.current = Math.max(0, slots.current - 1);
+        releasePreview(preview);
         setPhotos((before) => before.filter((photo) => photo.key !== key));
         toast.error((error as Error).message);
       }
     }
+    return added;
   }
+
+  const loadShared = useEffectEvent(
+    async (items: SharedMealPhoto[], signal: AbortSignal) => {
+      let failed = false;
+      for (const item of items) {
+        if (
+          signal.aborted ||
+          loadedShares.current.has(item.id) ||
+          slots.current >= MAX_PHOTOS
+        )
+          continue;
+        try {
+          const response = await fetch(
+            `/incoming/${encodeURIComponent(item.id)}`,
+            { signal },
+          );
+          if (!response.ok) throw new Error("Couldn't read the shared photo.");
+          const blob = await response.blob();
+          if (signal.aborted) return;
+          const count = await add([
+            new File([blob], item.name, { type: blob.type }),
+          ]);
+          if (count) loadedShares.current.add(item.id);
+          else failed = true;
+        } catch (error) {
+          failed = true;
+          if (!signal.aborted) toast.error((error as Error).message);
+        }
+      }
+      if (!signal.aborted) setSharedFailed(failed);
+    },
+  );
+  useEffect(() => {
+    if (!sharedPhotos?.length) return;
+    const controller = new AbortController();
+    void loadShared(sharedPhotos, controller.signal);
+    return () => controller.abort();
+  }, [sharedPhotos, sharedRetry]);
 
   function send(said = text.trim()) {
     const ids = photos.flatMap((photo) => (photo.id ? [photo.id] : []));
@@ -77,7 +144,8 @@ export function LogDock({
 
   function reset() {
     run.cancel();
-    photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
+    photos.forEach((photo) => releasePreview(photo.preview));
+    slots.current = 0;
     setPhotos([]);
     setSentPhotos([]);
     setText("");
@@ -120,8 +188,13 @@ export function LogDock({
               .catch((error: Error) => toast.error(error.message)),
         },
       });
+      onSaved?.();
     },
   });
+  const dirty = Boolean(text || photos.length || run.stage !== "idle");
+  useEffect(() => {
+    onDraftState?.(dirty, save.isPending);
+  }, [dirty, onDraftState, save.isPending]);
 
   if (run.stage === "done" && run.output) {
     const output = run.output;
@@ -181,6 +254,21 @@ export function LogDock({
     );
   return (
     <div className="nutrition-dock">
+      {sharedFailed && (
+        <Notice tone="error">
+          Some shared photos could not be uploaded.
+          <Button
+            size="small"
+            variant="ghost"
+            onClick={() => {
+              setSharedFailed(false);
+              setSharedRetry((value) => value + 1);
+            }}
+          >
+            Retry photos
+          </Button>
+        </Notice>
+      )}
       {run.stage === "error" && (
         <Notice tone="error">
           {run.error}
@@ -219,7 +307,8 @@ export function LogDock({
                   type="button"
                   aria-label="Remove photo"
                   onClick={() => {
-                    URL.revokeObjectURL(photo.preview);
+                    releasePreview(photo.preview);
+                    slots.current = Math.max(0, slots.current - 1);
                     setPhotos((before) =>
                       before.filter((item) => item.key !== photo.key),
                     );

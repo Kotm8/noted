@@ -26,12 +26,17 @@ class WatchActionWorker(context: Context, parameters: WorkerParameters) :
         if (action == "snooze") data.put("minutes", inputData.getInt("minutes", 10))
         return try {
             WatchRepository(applicationContext).request("$path/$id/actions", data)
+            if (store.credentials()?.optString("device_id") == inputData.getString("device_id"))
+                WatchNotifications.dismiss(applicationContext, id, data.getInt("revision"))
             runCatching { WatchRepository(applicationContext).refresh() }
             Result.success()
         } catch (error: WatchHttpException) {
-            if (error.status in listOf(401, 404, 409, 422)) Result.failure() else Result.retry()
+            if (error.status in listOf(404, 409) &&
+                store.credentials()?.optString("device_id") == inputData.getString("device_id"))
+                WatchNotificationWorker.enqueue(applicationContext, checkNotNull(store.credentials()))
+            if (error.status in listOf(401, 404, 409, 422) || runAttemptCount >= 8) Result.failure() else Result.retry()
         } catch (_: Exception) {
-            Result.retry()
+            if (runAttemptCount < 8) Result.retry() else Result.failure()
         }
     }
 }

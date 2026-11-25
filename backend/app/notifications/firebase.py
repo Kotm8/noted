@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from app.core.errors import ValidationError
 
 logger = logging.getLogger(__name__)
+AndroidPackage = Literal["com.noted.android", "com.noted.android.pilot"]
 
 
 class FirebaseClient(BaseModel):
@@ -25,7 +26,7 @@ class FirebaseClient(BaseModel):
     application_id: str = Field(pattern=r"^1:\d+:android:[a-f0-9]+$", max_length=150)
     sender_id: str = Field(pattern=r"^\d{1,30}$")
     api_key: str = Field(pattern=r"^AIza[\w-]{35}$")
-    package_name: Literal["com.noted.android"] = "com.noted.android"
+    package_name: AndroidPackage = "com.noted.android"
 
 
 class FirebaseInput(BaseModel):
@@ -37,6 +38,10 @@ class FirebaseInput(BaseModel):
 class FirebaseConfiguration:
     client: FirebaseClient
     account: dict[str, str] = field(repr=False)
+    pilot_client: FirebaseClient | None = None
+
+    def client_for(self, package: AndroidPackage) -> FirebaseClient | None:
+        return self.pilot_client if package == "com.noted.android.pilot" else self.client
 
 
 def configuration_path(storage: Path) -> Path:
@@ -46,6 +51,11 @@ def configuration_path(storage: Path) -> Path:
 def validate_configuration(value: dict[str, Any]) -> FirebaseConfiguration:
     try:
         client = FirebaseClient.model_validate(value["client"])
+        pilot = (
+            FirebaseClient.model_validate(value["pilot_client"])
+            if value.get("pilot_client")
+            else None
+        )
         account = value["service_account"]
         if (
             account["type"] != "service_account"
@@ -53,6 +63,16 @@ def validate_configuration(value: dict[str, Any]) -> FirebaseConfiguration:
             or not account["client_email"].endswith(f"@{client.project_id}.iam.gserviceaccount.com")
             or account["token_uri"] != "https://oauth2.googleapis.com/token"
             or client.application_id.split(":")[1] != client.sender_id
+            or client.package_name != "com.noted.android"
+            or (
+                pilot is not None
+                and (
+                    pilot.package_name != "com.noted.android.pilot"
+                    or pilot.project_id != client.project_id
+                    or pilot.sender_id != client.sender_id
+                    or pilot.application_id.split(":")[1] != client.sender_id
+                )
+            )
         ):
             raise ValueError
         key = serialization.load_pem_private_key(account["private_key"].encode(), password=None)
@@ -65,6 +85,7 @@ def validate_configuration(value: dict[str, Any]) -> FirebaseConfiguration:
                 for name in ("type", "project_id", "client_email", "private_key", "token_uri")
             }
             | {"private_key_id": str(account.get("private_key_id", ""))},
+            pilot,
         )
     except (KeyError, TypeError, ValueError, AttributeError):
         raise ValidationError(
@@ -77,24 +98,37 @@ def parse_configuration(data: FirebaseInput) -> FirebaseConfiguration:
         services = json.loads(data.googleServicesJson)
         account = json.loads(data.serviceAccountJson.get_secret_value())
         info = services["project_info"]
-        app = next(
-            app
-            for app in services["client"]
-            if app["client_info"]["android_client_info"]["package_name"] == "com.noted.android"
-        )
-        api_key = next(
-            key["current_key"]
-            for key in app["api_key"]
-            if re.fullmatch(r"AIza[\w-]{35}", key.get("current_key", ""))
-        )
+
+        def read_client(package: AndroidPackage) -> dict[str, str] | None:
+            app = next(
+                (
+                    record
+                    for record in services["client"]
+                    if record["client_info"]["android_client_info"]["package_name"] == package
+                ),
+                None,
+            )
+            if app is None:
+                return None
+            return {
+                "project_id": info["project_id"],
+                "sender_id": str(info["project_number"]),
+                "application_id": app["client_info"]["mobilesdk_app_id"],
+                "api_key": next(
+                    key["current_key"]
+                    for key in app["api_key"]
+                    if re.fullmatch(r"AIza[\w-]{35}", key.get("current_key", ""))
+                ),
+                "package_name": package,
+            }
+
+        client = read_client("com.noted.android")
+        if client is None:
+            raise ValueError
         return validate_configuration(
             {
-                "client": {
-                    "project_id": info["project_id"],
-                    "sender_id": str(info["project_number"]),
-                    "application_id": app["client_info"]["mobilesdk_app_id"],
-                    "api_key": api_key,
-                },
+                "client": client,
+                "pilot_client": read_client("com.noted.android.pilot"),
                 "service_account": account,
             }
         )
@@ -134,6 +168,9 @@ def save_configuration(storage: Path, data: FirebaseInput) -> FirebaseClient:
             json.dump(
                 {
                     "client": configuration.client.model_dump(),
+                    "pilot_client": configuration.pilot_client.model_dump()
+                    if configuration.pilot_client
+                    else None,
                     "service_account": configuration.account,
                 },
                 file,
@@ -179,6 +216,7 @@ def send_firebase(
     *,
     urgent: bool = True,
     collapse_key: str | None = None,
+    package_name: AndroidPackage = "com.noted.android",
 ) -> Literal["accepted", "expired", "failed"]:
     requests = import_module("requests")
     auth_errors = import_module("google.auth.exceptions")
@@ -187,7 +225,8 @@ def send_firebase(
         if configuration is None:
             return "failed"
         _, project, token = endpoint.split(":", 2)
-        if project != configuration.client.project_id:
+        client = configuration.client_for(package_name)
+        if client is None or project != client.project_id:
             return "expired"
         response = requests.post(
             f"https://fcm.googleapis.com/v1/projects/{project}/messages:send",
@@ -199,7 +238,7 @@ def send_firebase(
                     "android": {
                         "priority": "HIGH" if urgent else "NORMAL",
                         "ttl": f"{ttl}s",
-                        "restricted_package_name": "com.noted.android",
+                        "restricted_package_name": package_name,
                         **({"collapse_key": collapse_key} if collapse_key else {}),
                     },
                 }

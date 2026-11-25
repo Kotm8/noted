@@ -31,7 +31,7 @@ Signed update builds use `python scripts/desktop.py build` with the backend Pyth
 
 ## Connect
 
-Open Noted and enter the existing server's HTTPS origin, such as `https://notes.example.com`. Native requests verify HTTPS certificates. HTTP is accepted only for localhost development. After the readiness and API-version check, sign in using the server's username and password.
+Open Noted and enter the existing server address, such as `notes.example.com` or `https://notes.example.com`. Noted adds HTTPS to a bare hostname, and native requests verify HTTPS certificates. HTTP is accepted only for localhost development when explicitly entered. After the readiness and API-version check, sign in using the server's username and password.
 
 Only the server URL and a preferred local port are saved in `connection.json` under the application's configuration directory. On Windows, **Keep me signed in** stores the session token and its expiry in Windows Credential Manager so sign-in survives app restarts. The password is never saved. Without that option, session cookies stay in native process memory. Server session cookies are never written to the connection file, returned to JavaScript, or stored in localStorage. Saved sessions still expire or can be revoked from Settings > Sessions.
 

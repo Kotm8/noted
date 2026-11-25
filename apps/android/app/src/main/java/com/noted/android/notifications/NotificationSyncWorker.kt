@@ -29,10 +29,15 @@ class NotificationSyncWorker(context: Context, parameters: WorkerParameters) : W
             Result.success()
         } catch (error: PushHttpException) {
             if (error.status == 404) {
-                inputData.getString("payload")?.let { PushNotifications.show(applicationContext, origin, JSONObject(it)) }
+                if (PushState(applicationContext).read()?.optString("binding") == state.optString("binding"))
+                    inputData.getString("payload")?.let { PushNotifications.show(applicationContext, origin, JSONObject(it)) }
                 Result.success()
-            } else if (error.status in listOf(401, 403)) Result.failure() else Result.retry()
-        } catch (_: Exception) { Result.retry() }
+            } else if (error.status in listOf(401, 403)) {
+                if (PushState(applicationContext).read()?.optString("binding") == state.optString("binding"))
+                    PushRegistration.forget(applicationContext)
+                Result.failure()
+            } else if (runAttemptCount < 8) Result.retry() else Result.failure()
+        } catch (_: Exception) { if (runAttemptCount < 8) Result.retry() else Result.failure() }
     }
 
     companion object {

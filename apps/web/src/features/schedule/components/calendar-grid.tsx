@@ -109,7 +109,9 @@ function CalendarGridView(props: GridProps) {
       style={{ "--schedule-hours": span / 60 } as CSSProperties}
     >
       <div className="schedule-axis-row">
-        <span>{mode === "day" ? "ACTIVITY" : preferences.timezone}</span>
+        <span title={mode === "day" ? undefined : preferences.timezone}>
+          {mode === "day" ? "ACTIVITY" : preferences.timezone}
+        </span>
         {axis}
         {mode === "day" && <span>TRACKED</span>}
       </div>
@@ -136,7 +138,7 @@ function CalendarGridView(props: GridProps) {
               ? []
               : [
                   <div className="schedule-week-divider" key={`week-${date}`}>
-                    {dateRangeLabel(date, addDays(date, 6))}
+                    <span>{dateRangeLabel(date, addDays(date, 6))}</span>
                   </div>,
                 ]),
             <div
@@ -212,7 +214,12 @@ function CalendarGridView(props: GridProps) {
                     <ActivityIcon activity={item} />
                     <span>
                       {item.name}
-                      <small>Plan above · actual below</small>
+                      <small className="schedule-lane-hint">
+                        Plan above · actual below
+                      </small>
+                      <small className="schedule-lane-total-mobile">
+                        {duration(seconds)}
+                      </small>
                     </span>
                     <button
                       className="icon-button"

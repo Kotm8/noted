@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   Menu,
   Settings2,
+  Sparkles,
 } from "lucide-react";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { SavedFoods } from "./saved-foods/saved-foods";
@@ -16,6 +17,8 @@ import { Button } from "../../components/ui/button";
 import { AssistantButton } from "../ai/assistant/assistant-button";
 import { Notice } from "../../components/ui/notice";
 import { liveInterval } from "../../lib/live";
+import { isAndroidPilot } from "../../lib/android-pilot";
+import { useMobileLayout } from "../../lib/layout";
 import { useAiPreferences, useAiStatus } from "../ai/queries";
 import { addDays, dayLabel, weekDays, zonedParts } from "../schedule/dates";
 import { useWorkspaceShell } from "../workspaces/shell-context";
@@ -23,12 +26,14 @@ import { nutritionApi } from "./api";
 import { LogDock } from "./log-dock";
 import { MealCard } from "./meal-card";
 import { MacroBars, Ring } from "./parts";
+import { PhoneNutritionDiary } from "./phone-nutrition-diary";
 import { NutritionSetup } from "./setup";
 import { SidePanels } from "./side-panels";
 import { SLOTS, kcal, totals } from "./types";
 
 export function NutritionPage() {
   const shell = useWorkspaceShell();
+  const phone = useMobileLayout() && isAndroidPilot;
   const status = useAiStatus();
   const ai = useAiPreferences();
   const turnedOff = ai.query.data?.nutrition === false;
@@ -84,7 +89,11 @@ export function NutritionPage() {
     : 0;
 
   const header = (
-    <header className="channel-header">
+    <header
+      className={
+        phone ? "channel-header phone-nutrition-header" : "channel-header"
+      }
+    >
       <ComicHalftone />
       <button
         className="icon-button mobile-menu"
@@ -94,9 +103,9 @@ export function NutritionPage() {
         <Menu size={20} />
       </button>
       <div className="channel-heading">
-        <Apple size={18} />
-        <h1>Nutrition</h1>
-        {shown && !setup && state.data?.target && (
+        {!phone && <Apple size={18} />}
+        <h1>{phone ? "Food" : "Nutrition"}</h1>
+        {!phone && shown && !setup && state.data?.target && (
           <span className="nutrition-subtitle">
             {dayLabel(shown, {
               weekday: "long",
@@ -107,7 +116,21 @@ export function NutritionPage() {
         )}
       </div>
       <div className="header-actions">
-        <AssistantButton />
+        {phone ? (
+          status.data?.connected && (
+            <button
+              className="icon-button"
+              aria-label="Ask AI"
+              onClick={() =>
+                window.dispatchEvent(new Event("noted:assistant-open"))
+              }
+            >
+              <Sparkles size={19} />
+            </button>
+          )
+        ) : (
+          <AssistantButton />
+        )}
         {status.data?.connected &&
           state.data?.target &&
           !setup &&
@@ -226,7 +249,9 @@ export function NutritionPage() {
     <>
       {header}
       <div
-        className="nutrition-tabs"
+        className={
+          phone ? "nutrition-tabs phone-nutrition-tabs" : "nutrition-tabs"
+        }
         role="tablist"
         aria-label="Nutrition views"
       >
@@ -274,100 +299,124 @@ export function NutritionPage() {
           role="tabpanel"
           aria-labelledby="nutrition-diary-tab"
         >
-          <div className="nutrition-layout">
-            <div className="nutrition-main">
-              <div className="nutrition-day-nav">
-                <button
-                  className="icon-button"
-                  aria-label="Previous day"
-                  onClick={() => setDay(addDays(shown, -1))}
-                >
-                  <ChevronLeft size={17} />
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label="Next day"
-                  disabled={shown >= today}
-                  onClick={() => setDay(addDays(shown, 1))}
-                >
-                  <ChevronRight size={17} />
-                </button>
-                {shown !== today && (
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    onClick={() => setDay(null)}
-                  >
-                    Today
-                  </Button>
-                )}
-              </div>
-              <div className="nutrition-summary">
-                <Ring eaten={eaten.kcal} target={target.kcal} />
-                <div className="summary-text">
-                  <h2>
-                    {shown === today
-                      ? "Today"
-                      : dayLabel(shown, { weekday: "long" })}
-                  </h2>
-                  <p>
-                    <strong>{kcal(eaten.kcal)}</strong> eaten of{" "}
-                    {kcal(target.kcal)} kcal
-                  </p>
-                  <MacroBars eaten={eaten} target={target} />
-                </div>
-              </div>
-              {meals.isError && (
-                <Notice tone="error">{meals.error.message}</Notice>
-              )}
-              <div className="nutrition-slots">
-                {SLOTS.map((slot) => {
-                  const inSlot = list.filter((meal) => meal.slot === slot);
-                  return (
-                    <section key={slot} className="nutrition-slot">
-                      <div className="slot-head">
-                        <h3>{slot === "Snack" ? "Snacks" : slot}</h3>
-                        {inSlot.length > 0 && (
-                          <small>
-                            {kcal(
-                              totals(inSlot.flatMap((meal) => meal.items)).kcal,
-                            )}{" "}
-                            kcal
-                          </small>
-                        )}
-                      </div>
-                      {inSlot.length ? (
-                        inSlot.map((meal) => (
-                          <MealCard
-                            key={meal.id}
-                            meal={meal}
-                            open={open === meal.id}
-                            onToggle={() =>
-                              setOpen(open === meal.id ? null : meal.id)
-                            }
-                            savedNames={data.saved_meals.map(
-                              (item) => item.name,
-                            )}
-                            logDay={today}
-                            nowMinute={nowMinute}
-                          />
-                        ))
-                      ) : (
-                        <p className="slot-empty">Nothing yet</p>
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-            </div>
-            <SidePanels
+          {phone ? (
+            <PhoneNutritionDiary
+              day={shown}
+              setDay={(next) => setDay(next === today ? null : next)}
               state={data}
+              target={target}
+              meals={meals.data}
+              mealsError={meals.error}
+              retryMeals={() => void meals.refetch()}
               week={days.data ?? []}
+              nowMinute={nowMinute}
+              logRequested={params.get("log") === "1"}
+              sharedCapture={params.get("capture") ?? undefined}
+              closeRequestedLog={() => {
+                const next = new URLSearchParams(params);
+                next.delete("log");
+                next.delete("capture");
+                setParams(next, { replace: true });
+              }}
               onRecalculate={() => setSetup(true)}
             />
-          </div>
+          ) : (
+            <div className="nutrition-layout">
+              <div className="nutrition-main">
+                <div className="nutrition-day-nav">
+                  <button
+                    className="icon-button"
+                    aria-label="Previous day"
+                    onClick={() => setDay(addDays(shown, -1))}
+                  >
+                    <ChevronLeft size={17} />
+                  </button>
+                  <button
+                    className="icon-button"
+                    aria-label="Next day"
+                    disabled={shown >= today}
+                    onClick={() => setDay(addDays(shown, 1))}
+                  >
+                    <ChevronRight size={17} />
+                  </button>
+                  {shown !== today && (
+                    <Button
+                      variant="ghost"
+                      size="small"
+                      onClick={() => setDay(null)}
+                    >
+                      Today
+                    </Button>
+                  )}
+                </div>
+                <div className="nutrition-summary">
+                  <Ring eaten={eaten.kcal} target={target.kcal} />
+                  <div className="summary-text">
+                    <h2>
+                      {shown === today
+                        ? "Today"
+                        : dayLabel(shown, { weekday: "long" })}
+                    </h2>
+                    <p>
+                      <strong>{kcal(eaten.kcal)}</strong> eaten of{" "}
+                      {kcal(target.kcal)} kcal
+                    </p>
+                    <MacroBars eaten={eaten} target={target} />
+                  </div>
+                </div>
+                {meals.isError && (
+                  <Notice tone="error">{meals.error.message}</Notice>
+                )}
+                <div className="nutrition-slots">
+                  {SLOTS.map((slot) => {
+                    const inSlot = list.filter((meal) => meal.slot === slot);
+                    return (
+                      <section key={slot} className="nutrition-slot">
+                        <div className="slot-head">
+                          <h3>{slot === "Snack" ? "Snacks" : slot}</h3>
+                          {inSlot.length > 0 && (
+                            <small>
+                              {kcal(
+                                totals(inSlot.flatMap((meal) => meal.items))
+                                  .kcal,
+                              )}{" "}
+                              kcal
+                            </small>
+                          )}
+                        </div>
+                        {inSlot.length ? (
+                          inSlot.map((meal) => (
+                            <MealCard
+                              key={meal.id}
+                              meal={meal}
+                              open={open === meal.id}
+                              onToggle={() =>
+                                setOpen(open === meal.id ? null : meal.id)
+                              }
+                              savedNames={data.saved_meals.map(
+                                (item) => item.name,
+                              )}
+                              logDay={today}
+                              nowMinute={nowMinute}
+                            />
+                          ))
+                        ) : (
+                          <p className="slot-empty">Nothing yet</p>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              </div>
+              <SidePanels
+                state={data}
+                week={days.data ?? []}
+                onRecalculate={() => setSetup(true)}
+              />
+            </div>
+          )}
         </div>
-        <LogDock state={data} day={shown} nowMinute={nowMinute} />
+        {!phone && <LogDock state={data} day={shown} nowMinute={nowMinute} />}
       </div>
       <ConfirmDialog
         open={pendingTab !== null}

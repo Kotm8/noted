@@ -47,6 +47,7 @@ async function setup(page: Page, directory: string, android = false) {
   await page
     .getByLabel("Attach files", { exact: true })
     .setInputFiles([`${directory}/mountains.jpg`, `${directory}/animated.gif`]);
+  await expect(page.locator(".pending-file")).toHaveCount(2);
   const uploaded = page.waitForResponse(
     (response) =>
       response.url().endsWith("/messages/with-files") &&

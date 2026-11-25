@@ -25,8 +25,12 @@ export function HomeRoute() {
   return (
     <HomePage
       onNavigation={shell.openNavigation}
-      onCalendar={(date) =>
-        shell.openPage(date ? `/schedule?date=${date}` : "/schedule")
+      onCalendar={(date, plan) =>
+        shell.openPage(
+          date
+            ? `/schedule?date=${date}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`
+            : "/schedule",
+        )
       }
       onSearch={shell.openSearch}
       onActivity={() => {

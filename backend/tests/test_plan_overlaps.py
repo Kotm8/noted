@@ -32,7 +32,7 @@ def test_plans_starting_together_share_one_notification(owner, clock, db, monkey
     subscribe(owner, "mobile")
     send = dispatch(db, monkeypatch)
     assert send.call_count == 1
-    payload = json.loads(send.call_args.args[3])
+    payload = json.loads(send.call_args.args[2])
     assert payload["title"] == "Time for Reading or Work"
     assert payload["body"] == "A chapter · Budget review"
     assert [item["activityName"] for item in payload["alternatives"]] == ["Work"]
@@ -63,7 +63,7 @@ def test_end_prompt_offers_the_overlapping_plan_still_running(owner, clock, db, 
     assert prompt["switch_activity_id"] == work["id"]
     assert prompt["switch_title"] == "Write report"
     subscribe(owner, "mobile")
-    payload = json.loads(dispatch(db, monkeypatch).call_args.args[3])
+    payload = json.loads(dispatch(db, monkeypatch).call_args.args[2])
     assert payload["switchActivityName"] == "Work"
     assert "Switch to Work" in payload["body"]
 

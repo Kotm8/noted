@@ -620,16 +620,19 @@
   font-size: var(--font-sm);
   font-weight: 600;
 }
-.edit-history ol {
+.edit-history ol,
+.edit-history-dialog ol {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.edit-history li {
+.edit-history li,
+.edit-history-dialog li {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border-subtle);
 }
-.edit-history li:last-child {
+.edit-history li:last-child,
+.edit-history-dialog li:last-child {
   border-bottom: 0;
 }
 .edit-history-time {

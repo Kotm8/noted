@@ -4,11 +4,14 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.JsonWriter
+import java.io.Writer
 import org.json.JSONObject
 
 data class PendingMessage(val id: String, val path: String, val body: JSONObject, val error: String?)
 
-class LocalStore(context: Context) : SQLiteOpenHelper(context, "noted-native.db", null, 1) {
+class LocalStore(context: Context, name: String = "noted-native.db") :
+    SQLiteOpenHelper(context, name, null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE cache (account TEXT NOT NULL, path TEXT NOT NULL, body TEXT NOT NULL, saved INTEGER NOT NULL, PRIMARY KEY(account,path))")
         db.execSQL("CREATE TABLE outbox (account TEXT NOT NULL, id TEXT NOT NULL, path TEXT NOT NULL, body TEXT NOT NULL, created INTEGER NOT NULL, error TEXT, PRIMARY KEY(account,id))")
@@ -29,12 +32,19 @@ class LocalStore(context: Context) : SQLiteOpenHelper(context, "noted-native.db"
     }
 
     @Synchronized
+    fun recent(account: String, path: String, after: Long): Pair<Long, String>? =
+        readableDatabase.rawQuery("SELECT saved,body FROM cache WHERE account=? AND path=? AND saved>=?",
+            arrayOf(account, path, after.toString())).use {
+            if (it.moveToFirst()) it.getLong(0) to it.getString(1) else null
+        }
+
+    @Synchronized
     fun save(account: String, path: String, body: String) {
         writableDatabase.insertWithOnConflict("cache", null, ContentValues().apply {
             put("account", account); put("path", path); put("body", body); put("saved", System.currentTimeMillis())
         }, SQLiteDatabase.CONFLICT_REPLACE)
         writableDatabase.execSQL("DELETE FROM cache WHERE rowid IN (SELECT rowid FROM cache ORDER BY saved DESC LIMIT -1 OFFSET 500)")
-        while (readableDatabase.rawQuery("SELECT COALESCE(SUM(LENGTH(body)),0) FROM cache", null).use { it.moveToFirst(); it.getLong(0) } > 32L * 1024 * 1024) {
+        while (readableDatabase.rawQuery("SELECT COALESCE(SUM(LENGTH(CAST(body AS BLOB))),0) FROM cache", null).use { it.moveToFirst(); it.getLong(0) } > 32L * 1024 * 1024) {
             writableDatabase.execSQL("DELETE FROM cache WHERE rowid IN (SELECT rowid FROM cache ORDER BY saved LIMIT 20)")
         }
     }
@@ -93,6 +103,42 @@ class LocalStore(context: Context) : SQLiteOpenHelper(context, "noted-native.db"
         writableDatabase.insertWithOnConflict("drafts", null, ContentValues().apply {
             put("account", account); put("path", path); put("body", body)
         }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    @Synchronized
+    fun hasUnsent(account: String): Boolean = readableDatabase.rawQuery(
+        "SELECT EXISTS(SELECT 1 FROM drafts WHERE account=? AND body<>'' UNION ALL SELECT 1 FROM outbox WHERE account=?)",
+        arrayOf(account, account),
+    ).use { it.moveToFirst() && it.getInt(0) == 1 }
+
+    @Synchronized
+    fun exportUnsent(account: String, output: Writer) {
+        val json = JsonWriter(output)
+        json.beginObject().name("format").value("noted-android-unsent-1")
+        json.name("drafts").beginArray()
+        readableDatabase.rawQuery(
+            "SELECT path, body FROM drafts WHERE account=? AND body<>'' ORDER BY path",
+            arrayOf(account),
+        ).use {
+            while (it.moveToNext()) {
+                json.beginObject().name("path").value(it.getString(0))
+                    .name("text").value(it.getString(1)).endObject()
+            }
+        }
+        json.endArray().name("queuedMessages").beginArray()
+        readableDatabase.rawQuery(
+            "SELECT id, path, body, error FROM outbox WHERE account=? ORDER BY created,id",
+            arrayOf(account),
+        ).use {
+            while (it.moveToNext()) {
+                json.beginObject().name("clientId").value(it.getString(0))
+                    .name("path").value(it.getString(1)).name("payload").value(it.getString(2))
+                if (!it.isNull(3)) json.name("error").value(it.getString(3))
+                json.endObject()
+            }
+        }
+        json.endArray().endObject()
+        json.flush()
     }
 
     @Synchronized

@@ -69,6 +69,8 @@ def native_endpoint(configuration: FirebaseConfiguration, token: str) -> str:
 def finish_pairing(
     db: Session, data: PairingCompletion, configuration: FirebaseConfiguration
 ) -> None:
+    if configuration.client_for(data.package_name) is None:
+        raise ConflictError("Add this Android package to the Firebase configuration first.")
     db.execute(text("SELECT pg_advisory_xact_lock(731492683)"))
     row = pairing(db, data.ticket.get_secret_value())
     endpoint = native_endpoint(configuration, data.token.get_secret_value())
@@ -108,6 +110,7 @@ def finish_pairing(
     existing.keys = {
         "device_secret_hash": secret_hash,
         "project_id": configuration.client.project_id,
+        "package_name": data.package_name,
     }
     row.used_at = utc_now()
     db.commit()

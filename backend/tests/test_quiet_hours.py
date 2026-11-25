@@ -95,4 +95,4 @@ def test_urgent_reminders_ring_during_quiet_hours(owner, channel, db, monkeypatc
     send = Mock(return_value="accepted")
     monkeypatch.setattr(routing, "send_push", send)
     dispatch_due(db.get_bind(), "https://noted.example.com")
-    assert [json.loads(call.args[3])["messageId"] for call in send.call_args_list] == [urgent["id"]]
+    assert [json.loads(call.args[2])["messageId"] for call in send.call_args_list] == [urgent["id"]]

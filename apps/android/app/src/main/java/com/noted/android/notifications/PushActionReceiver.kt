@@ -36,15 +36,17 @@ class PushActionReceiver : BroadcastReceiver() {
         if (action == "plan_delay" && reason.isNullOrBlank()) return
         val revision = intent.getIntExtra("revision", 0)
         if (revision <= 0) return
+        val binding = intent.getStringExtra("binding") ?: return
+        val active = PushState(context).read() ?: return
+        if (active.optString("origin") != origin || active.optString("binding") != binding) return
         // A Start button for another plan in a shared notification carries that plan's
         // revision; the notification itself is cleared by the revision it was shown with.
         val shown = intent.getIntExtra("shown_revision", revision)
-        intent.getStringExtra("tag")?.let { PushNotifications.cancelRevision(context, it, shown) }
         val data =
             Data.Builder()
                 .putString("origin", origin)
                 .putString("message_id", id)
-                .putString("binding", intent.getStringExtra("binding"))
+                .putString("binding", binding)
                 .putString("action", action)
                 .putInt("revision", revision)
                 .putInt("shown_revision", shown)

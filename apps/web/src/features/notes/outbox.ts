@@ -1,11 +1,28 @@
-import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ApiError } from "../../lib/http";
+import {
+  getPilotOffline,
+  PilotOriginContext,
+  subscribePilotOffline,
+} from "../../lib/android-pilot";
 import { readStoredValue } from "../../lib/storage";
 import type { ReminderSchedule } from "../reminders/types";
 import { threadsApi } from "../threads/api";
 import { notesApi } from "./api";
-import { forgetFiles, keepFiles, readFiles } from "./outbox-files";
+import {
+  forgetFiles,
+  keepFiles,
+  keepQueuedNotes,
+  readFiles,
+  readQueuedNotes,
+} from "./outbox-files";
 import { cacheDelivered } from "./outbox-cache";
 
 export interface Outgoing {
@@ -28,14 +45,17 @@ const KEY = "noted.outbox";
 const RETRY_MS = 15000;
 const listeners = new Set<() => void>();
 let key: string | null = null;
+let durable = false;
+let generation = 0;
 let items: Outgoing[] = [];
 let sending = false;
 let recovering: Promise<void> = Promise.resolve();
+let writes: Promise<void> = Promise.resolve();
 
-function load(): Outgoing[] {
+function load(source = key): Outgoing[] {
   try {
     const parsed: unknown = JSON.parse(
-      key ? (readStoredValue(key) ?? "[]") : "[]",
+      source ? (readStoredValue(source) ?? "[]") : "[]",
     );
     return Array.isArray(parsed)
       ? (parsed as Outgoing[]).map((item) => ({ ...item, sending: false }))
@@ -44,18 +64,32 @@ function load(): Outgoing[] {
     return [];
   }
 }
-function save(next: Outgoing[]) {
-  if (key) {
+function publish(next: Outgoing[]) {
+  items = next;
+  listeners.forEach((listener) => listener());
+}
+
+function save(change: (current: Outgoing[]) => Outgoing[]) {
+  const scope = key;
+  const epoch = generation;
+  const persistInDatabase = durable;
+  const update = writes.then(async () => {
+    if (!scope || scope !== key || epoch !== generation)
+      throw new Error("The active account changed. Your draft has been kept.");
+    const next = change(items);
+    if (next === items) return;
     try {
-      localStorage.setItem(key, JSON.stringify(next));
+      if (persistInDatabase) await keepQueuedNotes(scope, next);
+      else localStorage.setItem(scope, JSON.stringify(next));
     } catch {
       throw new Error(
         "This device could not keep the message. Free some browser storage and retry.",
       );
     }
-  }
-  items = next;
-  listeners.forEach((listener) => listener());
+    if (scope === key && epoch === generation) publish(next);
+  });
+  writes = update.catch(() => {});
+  return update;
 }
 
 /**
@@ -77,14 +111,15 @@ export async function enqueue(
   files: File[] = [],
 ) {
   const scope = key;
+  const epoch = generation;
   if (!scope) throw new Error("Sign in before sending a message.");
   await recovering;
   if (files.length) await keepFiles(item.clientId, files);
-  if (scope !== key)
-    throw new Error("The active account changed. Your draft has been kept.");
   try {
-    save([
-      ...items,
+    if (scope !== key || epoch !== generation)
+      throw new Error("The active account changed. Your draft has been kept.");
+    await save((current) => [
+      ...current,
       {
         ...item,
         ...(files.length
@@ -99,14 +134,22 @@ export async function enqueue(
   }
 }
 
-export function discard(clientId: string) {
-  const item = items.find((entry) => entry.clientId === clientId);
-  if (item?.sending) return;
-  save(items.filter((entry) => entry.clientId !== clientId));
-  if (item?.files) void forgetFiles(clientId).catch(() => {});
+export async function discard(clientId: string) {
+  let hadFiles = false;
+  try {
+    await save((current) => {
+      const item = current.find((entry) => entry.clientId === clientId);
+      if (!item || item.sending) return current;
+      hadFiles = Boolean(item.files);
+      return current.filter((entry) => entry.clientId !== clientId);
+    });
+    if (hadFiles) await forgetFiles(clientId).catch(() => {});
+  } catch (error) {
+    toast.error((error as Error).message);
+  }
 }
 
-async function deliver(item: Outgoing) {
+async function deliver(item: Outgoing, stillActive: () => boolean) {
   if (item.threadRootId && !item.files)
     return threadsApi.reply(item.threadRootId, item.content, item.clientId);
   if (!item.files)
@@ -117,6 +160,7 @@ async function deliver(item: Outgoing) {
       item.clientId,
     );
   const files = await readFiles(item.clientId).catch(() => undefined);
+  if (!stillActive()) throw new Error("The active account changed.");
   if (!files?.length)
     throw new ApiError(410, "Its files are no longer on this device.");
   if (item.threadRootId)
@@ -140,33 +184,42 @@ async function deliver(item: Outgoing) {
  * retry after a dropped response can't post twice. Stops at the first unreachable send.
  */
 export async function flushOutbox(client: QueryClient) {
-  await recovering;
-  if (sending || !key || !navigator.onLine) return;
+  try {
+    await recovering;
+  } catch {
+    return;
+  }
+  if (sending || !key || !navigator.onLine || getPilotOffline()) return;
   const scope = key;
+  const epoch = generation;
+  const stillActive = () => key === scope && epoch === generation;
   sending = true;
   try {
-    for (const item of [...items]) {
-      if (key !== scope) break;
+    for (const queued of [...items]) {
+      if (key !== scope || epoch !== generation || getPilotOffline()) break;
+      const item = items.find((entry) => entry.clientId === queued.clientId);
+      if (!item) continue;
       if (item.error && !item.retryOnReconnect) continue;
-      save(
-        items.map((entry) =>
+      await save((current) =>
+        current.map((entry) =>
           entry.clientId === item.clientId
             ? { ...entry, sending: true, error: undefined }
             : entry,
         ),
       );
+      if (
+        !stillActive() ||
+        !items.some((entry) => entry.clientId === item.clientId)
+      )
+        break;
       try {
-        const note = await deliver(item);
-        if (key !== scope) break;
+        const note = await deliver(item, stillActive);
+        if (key !== scope || epoch !== generation) break;
         cacheDelivered(client, note);
-        save(
-          items.map((entry) =>
-            entry.clientId === item.clientId
-              ? { ...entry, sending: false }
-              : entry,
-          ),
+        await save((current) =>
+          current.filter((entry) => entry.clientId !== item.clientId),
         );
-        discard(item.clientId);
+        if (item.files) await forgetFiles(item.clientId).catch(() => {});
         void client.invalidateQueries({ queryKey: ["notes", item.channelId] });
         if (item.threadRootId)
           void client.invalidateQueries({
@@ -176,10 +229,11 @@ export async function flushOutbox(client: QueryClient) {
         void client.invalidateQueries({ queryKey: ["search"] });
         void client.invalidateQueries({ queryKey: ["publishing"] });
       } catch (error) {
-        if (key !== scope) break;
-        const reconnect = unreachable(error);
-        save(
-          items.map((entry) =>
+        if (key !== scope || epoch !== generation) break;
+        const unauthorized = error instanceof ApiError && error.status === 401;
+        const reconnect = unauthorized || unreachable(error);
+        await save((current) =>
+          current.map((entry) =>
             entry.clientId === item.clientId
               ? {
                   ...entry,
@@ -190,22 +244,33 @@ export async function flushOutbox(client: QueryClient) {
               : entry,
           ),
         );
+        if (unauthorized)
+          void client.invalidateQueries(
+            { queryKey: ["session"], exact: true },
+            { cancelRefetch: false },
+          );
         if (reconnect) break;
       }
     }
+  } catch (error) {
+    if (stillActive()) toast.error((error as Error).message);
   } finally {
     sending = false;
-    if (key !== scope) void flushOutbox(client);
+    if (key !== scope || epoch !== generation) void flushOutbox(client);
   }
 }
 
-export function retry(client: QueryClient, clientId: string) {
-  save(
-    items.map((item) =>
-      item.clientId === clientId ? { ...item, error: undefined } : item,
-    ),
-  );
-  void flushOutbox(client);
+export async function retry(client: QueryClient, clientId: string) {
+  try {
+    await save((current) =>
+      current.map((item) =>
+        item.clientId === clientId ? { ...item, error: undefined } : item,
+      ),
+    );
+    void flushOutbox(client);
+  } catch (error) {
+    toast.error((error as Error).message);
+  }
 }
 
 function subscribe(listener: () => void) {
@@ -225,16 +290,29 @@ export function useOutbox(channelId: string, threadRootId?: string) {
 /** Mounted once: sends when the connection returns, on a timer, and at startup. */
 export function useOutboxSender() {
   const client = useQueryClient();
+  const origin = useContext(PilotOriginContext);
   const ownerId = client.getQueryData<{ id: string }>(["session"])?.id;
   useLayoutEffect(() => {
-    key = ownerId ? `${KEY}:${ownerId}` : null;
-    items = load();
-    listeners.forEach((listener) => listener());
-    recovering = recoverLegacy();
+    generation++;
+    const ownerKey = ownerId ? `${KEY}:${ownerId}` : null;
+    durable = Boolean(origin);
+    if (ownerKey && origin) {
+      key = `${ownerKey}:${origin}`;
+      publish([]);
+      recovering = hydratePilotQueue(key, ownerKey, origin, generation);
+      void recovering.catch(() =>
+        toast.error("Couldn't read the messages saved on this phone."),
+      );
+    } else {
+      key = ownerKey;
+      publish(load());
+      recovering = recoverLegacy();
+    }
     return () => {
+      generation++;
       key = null;
     };
-  }, [ownerId]);
+  }, [ownerId, origin]);
   useEffect(() => {
     const send = () => void flushOutbox(client);
     send();
@@ -242,23 +320,57 @@ export function useOutboxSender() {
       if (hasWaiting()) send();
     }, RETRY_MS);
     window.addEventListener("online", send);
+    const unsubscribe = subscribePilotOffline(() => {
+      if (!getPilotOffline()) send();
+    });
     const storage = (event: StorageEvent) => {
-      if (event.key !== key) return;
-      items = load();
-      listeners.forEach((listener) => listener());
+      if (durable || event.key !== key) return;
+      publish(load());
     };
     window.addEventListener("storage", storage);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("online", send);
+      unsubscribe();
       window.removeEventListener("storage", storage);
     };
-  }, [client, ownerId]);
+  }, [client, ownerId, origin]);
+}
+
+async function hydratePilotQueue(
+  scopedKey: string,
+  ownerKey: string,
+  origin: string,
+  epoch: number,
+) {
+  await writes;
+  let saved = await readQueuedNotes<Outgoing>(scopedKey);
+  if (scopedKey !== key || epoch !== generation) return;
+  const pin = `${ownerKey}:origin`;
+  const pinnedOrigin = readStoredValue(pin);
+  if (saved === undefined) {
+    const legacy =
+      !pinnedOrigin || pinnedOrigin === origin ? load(ownerKey) : [];
+    const byId = new Map(legacy.map((item) => [item.clientId, item]));
+    for (const item of load(scopedKey)) byId.set(item.clientId, item);
+    saved = [...byId.values()].sort((left, right) =>
+      left.writtenAt.localeCompare(right.writtenAt),
+    );
+    await keepQueuedNotes(scopedKey, saved);
+    if (scopedKey !== key || epoch !== generation) return;
+    if (legacy.length && (!pinnedOrigin || pinnedOrigin === origin)) {
+      localStorage.setItem(pin, origin);
+      localStorage.removeItem(ownerKey);
+    }
+    localStorage.removeItem(scopedKey);
+  }
+  publish(saved.map((entry) => ({ ...entry, sending: false })));
 }
 
 async function recoverLegacy() {
   const scope = key;
-  if (!scope || !navigator.onLine) return;
+  const epoch = generation;
+  if (!scope || !navigator.onLine || getPilotOffline()) return;
   let legacy: Outgoing[];
   try {
     const saved: unknown = JSON.parse(readStoredValue(KEY) ?? "[]");
@@ -269,7 +381,7 @@ async function recoverLegacy() {
   }
   const channels = new Map<string, boolean>();
   for (const item of legacy) {
-    if (key !== scope) return;
+    if (key !== scope || generation !== epoch) return;
     let owned = channels.get(item.channelId);
     if (owned === undefined) {
       try {
@@ -280,11 +392,11 @@ async function recoverLegacy() {
       }
       channels.set(item.channelId, owned);
     }
-    if (!owned || key !== scope) continue;
+    if (!owned || key !== scope || generation !== epoch) continue;
     try {
       if (!items.some((current) => current.clientId === item.clientId)) {
-        save(
-          [...items, { ...item, sending: false }].sort((left, right) =>
+        await save((current) =>
+          [...current, { ...item, sending: false }].sort((left, right) =>
             left.writtenAt.localeCompare(right.writtenAt),
           ),
         );

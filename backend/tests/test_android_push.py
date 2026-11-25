@@ -30,7 +30,7 @@ from app.reminders.models import Reminder
 from app.schedule.prompts.delivery import dispatch_plan_prompts
 from app.wear.models import WatchDevice
 from tests.conftest import API, TEST_ORIGIN
-from tests.test_reminders import create, subscribe
+from tests.test_reminders import create, legacy_subscription
 from tests.test_wear import pair as pair_watch
 
 
@@ -154,7 +154,7 @@ def test_expired_pairings_and_signed_out_devices_are_rejected(owner, db, firebas
 
 
 def test_pairing_replaces_browser_delivery_for_the_same_device(owner, db, firebase_files):
-    browser = subscribe(owner, "mobile")
+    browser = legacy_subscription(owner, "mobile")
     configure(owner, firebase_files)
     ticket = owner.post(
         f"{API}/notifications/android/pairings", json={"device_id": browser["device_id"]}
@@ -242,9 +242,7 @@ def test_firebase_uses_only_its_own_project_and_preserves_temporary_failures(
         )
 
 
-def test_due_reminders_use_native_delivery_without_a_browser_vapid_key(
-    owner, channel, db, app, firebase_files, monkeypatch
-):
+def test_due_reminders_use_native_delivery(owner, channel, db, app, firebase_files, monkeypatch):
     pair(owner, firebase_files)
     message = create(owner, channel)
     db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
@@ -258,7 +256,7 @@ def test_due_reminders_use_native_delivery_without_a_browser_vapid_key(
     assert db.scalar(select(NotificationDelivery.delivered_at)) is not None
 
 
-def test_desktop_focus_still_suppresses_native_phone_alerts(
+def test_desktop_focus_keeps_native_phone_alerts(
     owner, channel, db, app, firebase_files, monkeypatch
 ):
     pair(owner, firebase_files)
@@ -278,11 +276,55 @@ def test_desktop_focus_still_suppresses_native_phone_alerts(
     send = Mock(return_value="accepted")
     monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
     dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
-    send.assert_not_called()
+    send.assert_called_once()
     assert db.scalar(select(NotificationDelivery.delivered_at)) is not None
 
 
-def test_android_delivery_can_be_muted_without_disabling_browser_notifications(
+def test_pilot_requires_its_own_firebase_client_and_receives_its_package(
+    owner, channel, db, app, firebase_files, monkeypatch
+):
+    configure(owner, firebase_files)
+    package = "com.noted.android.pilot"
+    device = str(uuid4())
+    status = f"{API}/notifications/android/status?device_id={device}"
+    assert owner.get(f"{status}&package_name={package}").json()["configured"] is False
+    services = json.loads(firebase_files["googleServicesJson"])
+    services["client"].append(
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:1234567890:android:abcdef1234",
+                "android_client_info": {"package_name": package},
+            },
+            "api_key": services["client"][0]["api_key"],
+        }
+    )
+    configure(owner, {**firebase_files, "googleServicesJson": json.dumps(services)})
+    ticket = owner.post(f"{API}/notifications/android/pairings", json={"device_id": device}).json()[
+        "ticket"
+    ]
+    data = {"ticket": ticket, "package_name": package}
+    prepared = owner.post(f"{API}/notifications/android/prepare", json=data)
+    assert prepared.json()["client"]["package_name"] == package
+    assert (
+        owner.post(
+            f"{API}/notifications/android/complete",
+            json={**data, "token": "pilot-token-" + "a" * 64, "secret": generate_token()},
+        ).status_code
+        == 204
+    )
+    assert owner.get(f"{status}&package_name={package}").json()["subscribed"] is True
+    assert owner.get(status).json()["subscribed"] is False
+
+    create(owner, channel)
+    db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
+    db.commit()
+    send = Mock(return_value="accepted")
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
+    dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
+    assert send.call_args.kwargs["package_name"] == package
+
+
+def test_android_delivery_can_be_muted_and_enabled_again(
     owner, channel, db, app, firebase_files, monkeypatch
 ):
     pair(owner, firebase_files)
@@ -449,13 +491,12 @@ def test_installer_configuration_script_validates_key_and_writes_only_private_fi
         assert path.stat().st_mode & 0o777 == 0o600
 
 
-def test_one_phone_alert_replaces_chrome_and_watch_gets_a_fallback_copy(
+def test_only_native_phone_and_watch_receive_alerts(
     owner, channel, db, app, firebase_files, monkeypatch
 ):
-    owner.get(f"{API}/notifications/config")
     pair(owner, firebase_files)
-    chrome = subscribe(owner, "mobile")
-    laptop = subscribe(owner)
+    legacy_subscription(owner, "mobile")
+    legacy_subscription(owner)
     pair_watch(owner)
     watch = db.scalar(select(WatchDevice))
     db.add(
@@ -471,12 +512,9 @@ def test_one_phone_alert_replaces_chrome_and_watch_gets_a_fallback_copy(
     db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
     db.commit()
     native = Mock(return_value="accepted")
-    browser = Mock()
     monkeypatch.setattr("app.notifications.delivery.send_firebase", native)
-    monkeypatch.setattr("pywebpush.webpush", browser)
     for _ in range(2):
         dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
-    browser.assert_not_called()
     assert sorted(call.args[0].split(":")[2][:5] for call in native.call_args_list) == [
         "phone",
         "watch",
@@ -486,7 +524,8 @@ def test_one_phone_alert_replaces_chrome_and_watch_gets_a_fallback_copy(
         .join(NotificationDelivery)
         .where(NotificationDelivery.attempts == 0)
     ).all()
-    assert sorted(quiet) == sorted([chrome["endpoint"], laptop["endpoint"]])
+    assert quiet == []
+    assert db.scalar(select(func.count()).select_from(NotificationDelivery)) == 2
 
 
 def test_acting_on_a_reminder_dismisses_it_on_every_device_once(

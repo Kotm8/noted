@@ -164,28 +164,41 @@ test("hosting controls separate transfer and domain change and require exact del
     name: "Permanently delete Noted and its data",
     exact: true,
   });
+  const backupAcknowledgment = dialog.getByLabel(
+    "I have saved any backup I need and understand that this deletion is permanent.",
+  );
+  const ownerPassword = dialog.getByLabel("Current owner password", {
+    exact: true,
+  });
+  const confirmation = dialog.getByLabel("Server deletion confirmation", {
+    exact: true,
+  });
   await expect(remove).toBeDisabled();
-  await dialog
-    .getByLabel(
-      "I have saved any backup I need and understand that this deletion is permanent.",
-    )
-    .check();
-  await dialog
-    .getByLabel("Current owner password", { exact: true })
-    .fill("browser-test-password-only");
-  await dialog
-    .getByLabel("Server deletion confirmation", { exact: true })
-    .fill("I LOVE VERITY ");
+  await backupAcknowledgment.check();
+  await ownerPassword.fill("browser-test-password-only");
+  await confirmation.fill("I LOVE VERITY ");
   await expect(remove).toBeDisabled();
   expect(removals).toBe(0);
-  await dialog
-    .getByLabel("Server deletion confirmation", { exact: true })
-    .fill("I LOVE VERITY");
+  await confirmation.fill("I LOVE VERITY");
+  await expect(remove).toBeEnabled();
   await page.screenshot({
     path: "../../.local/screenshots/danger-zone.png",
     fullPage: true,
   });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
   await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("navigation", { name: "Settings sections" })
+    .getByRole("button", { name: "Server", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete Noted from this VPS", exact: true })
+    .click();
+  await expect(remove).toBeDisabled();
+  await backupAcknowledgment.check();
+  await ownerPassword.fill("browser-test-password-only");
+  await confirmation.fill("I LOVE VERITY");
   await remove.scrollIntoViewIfNeeded();
   expect(
     await page.evaluate(

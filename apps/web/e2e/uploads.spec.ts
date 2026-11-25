@@ -54,7 +54,13 @@ test("250 MB files upload and download, and larger files are rejected", async ({
         response.status() === 201,
     );
     await page.getByRole("button", { name: "Send note", exact: true }).click();
-    const message = await (await uploaded).json();
+    await uploaded;
+    const message = await page.evaluate(async (channel) => {
+      const response = await fetch(`/api/v1/channels/${channel}/messages`);
+      if (!response.ok)
+        throw new Error("The committed upload could not be read.");
+      return (await response.json()).items.at(-1);
+    }, fixture.channel);
     expect(message.attachments[0].size).toBe(maximum);
     await expect(page.locator(".file-attachment")).toHaveCount(1);
     const downloaded = page.waitForEvent("download");

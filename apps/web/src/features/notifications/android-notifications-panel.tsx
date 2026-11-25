@@ -46,6 +46,14 @@ export function AndroidNotificationsPanel({
           notification settings.
         </p>
       )}
+      {status.data?.packageName === "com.noted.android.pilot" &&
+        !configured && (
+          <p>
+            Add <code>com.noted.android.pilot</code> alongside{" "}
+            <code>com.noted.android</code> in your Firebase project and import
+            the updated Android app JSON.
+          </p>
+        )}
       {status.isError && <Notice tone="error">{status.error.message}</Notice>}
       <fieldset
         className="android-delivery-settings"
@@ -70,11 +78,11 @@ export function AndroidNotificationsPanel({
           Send notifications to Android
         </label>
         <p>
-          Uses your reminder timing and snooze preferences above. Phone alerts
-          are suppressed while Noted is focused on your PC.
+          These preferences apply to native phone and watch alerts, including
+          while Noted is open on a computer.
         </p>
         {isAndroidApp() ? (
-          <DevicePushControls android />
+          <DevicePushControls />
         ) : (
           <p>
             Open the latest Noted APK and enable notifications to connect your

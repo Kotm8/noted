@@ -196,9 +196,22 @@ class WatchViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refresh() {
+    fun refresh(renew: Boolean = false) {
         if (!state.value.paired || state.value.busy) return
-        perform(navigateHome = false) { WatchRepository(context).refresh() }
+        perform(navigateHome = false) {
+            val repository = WatchRepository(context)
+            if (renew) {
+                try {
+                    repository.request("session/renew", method = "POST")
+                } catch (error: com.noted.wear.data.WatchHttpException) {
+                    if (error.status == 401) throw error
+                }
+                store.credentials()?.let {
+                    com.noted.wear.notifications.WatchNotificationWorker.enqueue(context, it)
+                }
+            }
+            repository.refresh()
+        }
     }
 
     fun tracker(action: String, activityId: String? = null) {

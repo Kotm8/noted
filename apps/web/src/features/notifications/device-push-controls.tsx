@@ -3,10 +3,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
-import { disablePush } from "./browser";
-import { devicePushState, enableDevicePush } from "./device-push";
+import { request } from "../../lib/http";
+import { androidPilot, isAndroidPilot } from "../../lib/android-pilot";
+import { notificationDevice } from "./device";
+import {
+  devicePushState,
+  disableDevicePush,
+  enableDevicePush,
+} from "./device-push";
 
-export function DevicePushControls({ android = false }: { android?: boolean }) {
+export function DevicePushControls() {
   const client = useQueryClient();
   const [pending, setPending] = useState(false);
   const [nativeLink, setNativeLink] = useState<string | null>(null);
@@ -14,9 +20,17 @@ export function DevicePushControls({ android = false }: { android?: boolean }) {
     queryKey: ["device-push-state"],
     queryFn: devicePushState,
   });
-  const supported = device.data?.supported && (!android || device.data.native);
+  const supported = device.data?.supported && device.data.native;
   const permission = device.data?.permission;
-  const deviceLabel = android ? "phone" : "browser";
+  const status = device.isPending
+    ? "checking"
+    : !supported
+      ? "waiting for Firebase setup"
+      : permission === "denied"
+        ? "blocked in Android settings"
+        : permission === "granted" && device.data?.native
+          ? "connected"
+          : "not connected";
 
   async function change(enabled: boolean) {
     setPending(true);
@@ -28,9 +42,9 @@ export function DevicePushControls({ android = false }: { android?: boolean }) {
           window.location.assign(link);
         } else toast.success("Notifications enabled");
       } else {
-        await disablePush();
+        await disableDevicePush();
         setNativeLink(null);
-        toast.success(`Notifications disabled on this ${deviceLabel}`);
+        toast.success("Notifications disabled on this phone");
       }
     } catch (error) {
       toast.error(
@@ -44,28 +58,64 @@ export function DevicePushControls({ android = false }: { android?: boolean }) {
     }
   }
 
+  async function sendTest() {
+    setPending(true);
+    try {
+      const id = isAndroidPilot
+        ? (await androidPilot.notificationState()).deviceId
+        : notificationDevice().device_id;
+      const result = await request<{
+        accepted: number;
+        expired: number;
+        failed: number;
+      }>(`/notifications/test?device_id=${encodeURIComponent(id)}`, "POST");
+      if (result.accepted)
+        toast.success(
+          "Firebase accepted the test. Check your phone for the alert.",
+        );
+      else if (result.expired)
+        toast.error(
+          "This phone's registration expired. Enable notifications again.",
+        );
+      else toast.error("Firebase could not send the test alert.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not send a test alert.",
+      );
+    } finally {
+      setPending(false);
+      void client.invalidateQueries({ queryKey: ["device-push-state"] });
+    }
+  }
+
   return (
     <div className="device-push-controls">
       <p>
-        {android
-          ? `This phone: ${permission === "granted" && device.data?.native ? "connected" : "not connected"}. Permission is managed in Android app settings.`
-          : supported
-            ? `Browser permission: ${permission ?? "checking..."}`
-            : "Web Push is available in supported browsers over HTTPS."}
+        This phone is {status}. Android manages notification permission and the
+        Reminders channel.
       </p>
       <div className="dialog-actions">
         <Button
           disabled={pending || !supported}
           onClick={() => void change(true)}
         >
-          {android ? "Enable on this phone" : "Enable notifications"}
+          Enable on this phone
         </Button>
         <Button
           variant="secondary"
-          disabled={pending || !supported}
+          disabled={
+            pending || (!device.data?.paired && permission !== "granted")
+          }
           onClick={() => void change(false)}
         >
-          Disable on this {deviceLabel}
+          Disable on this phone
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={pending || permission !== "granted"}
+          onClick={() => void sendTest()}
+        >
+          Send a test alert
         </Button>
       </div>
       {nativeLink && permission !== "granted" && (

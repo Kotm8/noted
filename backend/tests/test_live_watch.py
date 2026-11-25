@@ -51,7 +51,7 @@ def test_watch_sync_is_debounced_and_sends_the_last_change_after_a_restart(
         sync.record({user}, now)
         sync.deliver(now)
         assert send.call_count == 1
-        assert json.loads(send.call_args.args[3]) == {"kind": "sync"}
+        assert json.loads(send.call_args.args[2]) == {"kind": "sync"}
         assert send.call_args.kwargs["collapse_key"] == "noted-sync"
         sync.record({user}, now + timedelta(seconds=1))
         sync.record({user}, now + timedelta(seconds=10))

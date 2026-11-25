@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
@@ -31,6 +31,7 @@ export function FinancePage() {
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [editor, setEditor] = useState<EditorTarget | null>(null);
+  const scroll = useRef<HTMLDivElement>(null);
   const query = useFinance(month, useDeferredValue(search), offset);
   const board = query.data;
   const purchases = params.get("tab") === "purchases";
@@ -82,7 +83,7 @@ export function FinancePage() {
           </button>
         </div>
       </header>
-      <div className="finance-scroll">
+      <div className="finance-scroll" ref={scroll}>
         <div className="finance-content">
           <nav
             className="finance-tabs"
@@ -98,6 +99,7 @@ export function FinancePage() {
                   const next = new URLSearchParams(params);
                   if (index) next.set("tab", "purchases");
                   else next.delete("tab");
+                  scroll.current?.scrollTo({ top: 0, left: 0 });
                   setParams(next, { replace: true });
                 }}
               >
@@ -162,6 +164,31 @@ export function FinancePage() {
                   </div>
                 </div>
               </div>
+              <section
+                className="finance-account-balances"
+                aria-labelledby="finance-account-balances"
+              >
+                <h3 id="finance-account-balances">Account balances</h3>
+                <ul>
+                  {board.accounts.map((account) => (
+                    <li key={account.id}>
+                      <span>
+                        {account.name}
+                        {account.archived && <small>Archived</small>}
+                      </span>
+                      <strong>
+                        {money(account.balance, board.settings.currency)}
+                      </strong>
+                      {account.reserved > 0 && (
+                        <small>
+                          {money(account.available, board.settings.currency)}{" "}
+                          available
+                        </small>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
               <div className="finance-split">
                 <aside className="finance-overview">
                   <ProfitGauge

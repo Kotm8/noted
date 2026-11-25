@@ -23,7 +23,6 @@ from app.notifications.models import (
     AndroidPairing,
     DevicePresence,
     NotificationDelivery,
-    NotificationKey,
     PushSubscription,
 )
 from app.nutrition.models import (
@@ -84,7 +83,6 @@ __all__ = [
     "MessageVersion",
     "NoteTemplate",
     "NotificationDelivery",
-    "NotificationKey",
     "NudgeDelivery",
     "NutritionProfile",
     "NutritionTarget",

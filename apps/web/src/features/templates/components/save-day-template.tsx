@@ -33,13 +33,16 @@ export function SaveDayTemplate({
         type="button"
         size="small"
         variant="secondary"
+        className="schedule-save-day"
+        aria-label="Save day"
+        title="Save day as a template"
         onClick={() => {
           save.reset();
           setOpen(true);
         }}
       >
         <Copy size={14} />
-        Save day
+        <span>Save day</span>
       </Button>
       <Modal
         open={open}

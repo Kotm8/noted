@@ -45,11 +45,12 @@ def dispatch_document_reminders(engine: Engine, settings: Settings) -> None:
             .join(Channel)
             .where(
                 DocumentReminder.status == "active",
+                DocumentReminder.read_revision < DocumentReminder.revision,
                 DocumentReminder.due_at <= utc_now(),
                 Channel.kind == "document",
                 pending,
             )
-            .order_by(DocumentReminder.due_at)
+            .order_by(DocumentReminder.urgent.desc(), DocumentReminder.due_at)
             .limit(50)
             .with_for_update(of=DocumentReminder, skip_locked=True)
         )

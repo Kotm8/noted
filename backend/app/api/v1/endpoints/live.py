@@ -46,11 +46,15 @@ async def connect(socket: WebSocket) -> None:
     hub.peers.add(peer)
     try:
         await asyncio.to_thread(authenticate, socket)
+        await socket.send_json({"type": "hello", "server_time": utc_now().isoformat()})
     except AuthenticationError:
         hub.peers.discard(peer)
-        await socket.close(code=1000)
+        with suppress(WebSocketDisconnect):
+            await socket.close(code=1000)
         return
-    await socket.send_json({"type": "hello", "server_time": utc_now().isoformat()})
+    except WebSocketDisconnect:
+        hub.peers.discard(peer)
+        return
 
     async def receive() -> None:
         while True:

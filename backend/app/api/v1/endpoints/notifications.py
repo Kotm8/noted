@@ -13,13 +13,10 @@ from app.notifications.schemas import (
     NotificationSettings,
     PresenceInput,
     PushTestResult,
-    SubscriptionInput,
 )
 from app.notifications.service import (
-    notification_key,
     remove_subscription,
     save_presence,
-    save_subscription,
 )
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -38,19 +35,12 @@ def reconcile(
 
 @router.post("/test", response_model=PushTestResult)
 def test_push(
+    device_id: UUID | None = None,
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
     settings: Settings = Depends(get_app_settings),
 ) -> PushTestResult:
-    return send_phone_test(db, current, settings)
-
-
-@router.get("/config")
-def config(
-    db: Session = Depends(get_db), current: AuthenticatedSession = Depends(get_current_session)
-) -> dict[str, str]:
-    public, _ = notification_key(db)
-    return {"public_key": public}
+    return send_phone_test(db, current, settings, device_id)
 
 
 @router.get("/settings", response_model=NotificationSettings)
@@ -69,15 +59,6 @@ def settings(
     current.user.notification_preferences = data.model_dump()
     db.commit()
     return data
-
-
-@router.post("/subscriptions", status_code=204)
-def subscribe(
-    data: SubscriptionInput,
-    db: Session = Depends(get_db),
-    current: AuthenticatedSession = Depends(get_current_session),
-) -> None:
-    save_subscription(db, current, data)
 
 
 @router.delete("/subscriptions/{device_id}", status_code=204)

@@ -1,7 +1,8 @@
 .finance-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden auto;
+  scrollbar-gutter: stable both-edges;
   container-type: inline-size;
   --finance-positive: #78b88b;
   --finance-negative: #df8a82;
@@ -12,10 +13,14 @@
   padding: 0 34px 40px;
 }
 .finance-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   gap: 28px;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 34px;
+  background: var(--surface-main);
 }
 .finance-tabs button {
   padding: 20px 0 16px;
@@ -71,6 +76,44 @@
 .finance-balance-summary strong {
   font-size: 15px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.finance-account-balances {
+  margin-bottom: 24px;
+}
+.finance-account-balances h3 {
+  margin-bottom: 8px;
+  font-size: var(--font-md);
+}
+.finance-account-balances ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.finance-account-balances li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font-size: var(--font-sm);
+}
+.finance-account-balances li > span {
+  overflow-wrap: anywhere;
+}
+.finance-account-balances small {
+  display: block;
+  color: var(--text-muted);
+}
+.finance-account-balances li > small {
+  grid-column: 1 / -1;
+}
+.finance-account-balances strong {
   font-variant-numeric: tabular-nums;
 }
 .finance-split {
@@ -641,12 +684,16 @@
   font-weight: 500;
 }
 .finance-import-pending span,
-.finance-import-result a {
+.finance-import-result button {
   font-size: 11px;
   color: var(--text-muted);
 }
-.finance-import-result a {
-  color: var(--accent);
+.finance-source-photo {
+  display: block;
+  max-width: 100%;
+  max-height: 68dvh;
+  margin: 0 auto;
+  object-fit: contain;
 }
 .finance-loading {
   height: 330px;
@@ -700,6 +747,35 @@
   }
 }
 @media (max-width: 600px) {
+  .finance-month-heading,
+  .finance-tabs {
+    margin-bottom: 16px;
+  }
+  .finance-month-heading {
+    gap: 12px;
+  }
+  .finance-balance-summary {
+    margin-left: 0;
+  }
+  .finance-gauge {
+    width: 300px;
+  }
+  .finance-gauge text {
+    font-size: 14px;
+  }
+  .finance-account-balances {
+    margin-bottom: 18px;
+  }
+  .finance-gauge > strong {
+    font-size: 32px;
+    overflow-wrap: anywhere;
+  }
+  .finance-gauge > span {
+    font-size: 12px;
+  }
+  .finance-income-spent {
+    padding-top: 16px;
+  }
   .finance-import-area {
     margin: 0 12px 12px;
   }

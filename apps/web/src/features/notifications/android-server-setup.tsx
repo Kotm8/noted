@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Notice } from "../../components/ui/notice";
 import { request } from "../../lib/http";
+import { isAndroidPilot } from "../../lib/android-pilot";
 import { AndroidNotificationsStep } from "../installer/components/android-notifications-step";
 import { firebaseError } from "../installer/firebase";
 import {
@@ -51,7 +52,11 @@ export function AndroidServerSetup({
       );
       setDraft({ ...initialInstallation, androidNotifications: true });
       setEditing(false);
-      client.setQueryData(["android-server-configuration"], saved);
+      if (isAndroidPilot)
+        await client.invalidateQueries({
+          queryKey: ["android-server-configuration"],
+        });
+      else client.setQueryData(["android-server-configuration"], saved);
       await client.invalidateQueries({ queryKey: ["device-push-state"] });
       toast.success(
         "Firebase configured. Enable notifications in the Android app to connect your phone.",

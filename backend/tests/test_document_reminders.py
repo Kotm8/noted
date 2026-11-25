@@ -57,7 +57,6 @@ def test_named_document_reminders_retry_and_follow_the_document(owner, channel, 
 
 def test_document_reminder_delivery_opens_note_and_reconciles(owner, channel, db, monkeypatch):
     notes, reminder, _, _ = create(owner, channel)
-    owner.get(f"{API}/notifications/config")
     subscribe(owner)
     identifier = UUID(reminder["id"])
     db.execute(
@@ -66,13 +65,13 @@ def test_document_reminder_delivery_opens_note_and_reconciles(owner, channel, db
         .values(due_at=utc_now() - timedelta(seconds=1))
     )
     db.commit()
-    send = Mock()
-    monkeypatch.setattr("pywebpush.webpush", send)
+    send = Mock(return_value="accepted")
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
     settings = Settings(app_origin="https://noted.example.com")
     dispatch_document_reminders(db.get_bind(), settings)
     dispatch_document_reminders(db.get_bind(), settings)
     assert send.call_count == 1
-    payload = json.loads(send.call_args.kwargs["data"])
+    payload = json.loads(send.call_args.args[3])
     assert payload["body"] == "Call the dentist"
     assert payload["kind"] == "document"
     assert (

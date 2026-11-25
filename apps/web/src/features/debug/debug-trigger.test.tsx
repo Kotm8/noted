@@ -10,7 +10,6 @@ vi.mock("./diagnostics", () => ({
     client: "Web",
     checks: [{ label: "Server connection", value: "ok (12 ms)", state: "ok" }],
   })),
-  testDeviceNotification: vi.fn(),
   testPhoneNotification: vi.fn(
     async () => "Push service accepted the test for 1 phone. Check your phone.",
   ),

@@ -14,7 +14,9 @@ import {
   CornerDownRight,
   ImagePlus,
   LoaderCircle,
+  Maximize2,
   MessageSquare,
+  Minimize2,
   PenLine,
   Settings,
   Sparkles,
@@ -36,6 +38,8 @@ import { Button } from "../../../components/ui/button";
 import { Notice } from "../../../components/ui/notice";
 import { DatePicker } from "../../../components/ui/date-picker";
 import { useAndroidBackLayer } from "../../../lib/android-navigation";
+import { isAndroidPilot } from "../../../lib/android-pilot";
+import { useMobileLayout } from "../../../lib/layout";
 import { toast } from "sonner";
 import { habitsApi } from "../../habits/api";
 import { dayLabel, minuteLabel } from "../../schedule/dates";
@@ -69,6 +73,8 @@ export function AssistantPanel({
   const following = useRef(true);
   const position = useRef(0);
   const [away, setAway] = useState(false);
+  const phone = useMobileLayout() && isAndroidPilot;
+  const [fullHeight, setFullHeight] = useState(false);
   const [confirmDeletion, setConfirmDeletion] = useState(false);
   const [width, setWidth] = useState(() =>
     Math.max(
@@ -156,6 +162,7 @@ export function AssistantPanel({
   return (
     <aside
       className="shared-ai-panel"
+      data-phone-height={phone ? (fullHeight ? "full" : "half") : undefined}
       aria-label="AI assistant"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -258,6 +265,15 @@ export function AssistantPanel({
             </MenuItem>
           )}
         </Menu>
+        {phone && (
+          <button
+            className="icon-button"
+            aria-label={fullHeight ? "Reduce assistant" : "Expand assistant"}
+            onClick={() => setFullHeight((value) => !value)}
+          >
+            {fullHeight ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+        )}
         <button
           className="icon-button"
           aria-label="AI settings"

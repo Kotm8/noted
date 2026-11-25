@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { DatePicker } from "../../components/ui/date-picker";
 import { Notice } from "../../components/ui/notice";
+import { Modal } from "../../components/ui/dialog";
 import { request } from "../../lib/http";
 import { financeApi, photoUrl, useFinanceAction } from "./api";
 import { itemsOf, type FinanceBoard, type Item } from "./types";
@@ -42,6 +43,7 @@ export function ImportDock({
   const [error, setError] = useState("");
   const [resultId, setResultId] = useState<string | null>(null);
   const [history, setHistory] = useState(false);
+  const [source, setSource] = useState<string | null>(null);
   const photo = useRef<{ id: string; file: File } | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const attempt = useRef<string | null>(null);
@@ -174,19 +176,35 @@ export function ImportDock({
               </div>
             ))}
         {batch.fields.photo_ids[0] && (
-          <a
-            href={photoUrl(batch.fields.photo_ids[0])}
-            target="_blank"
-            rel="noreferrer"
+          <Button
+            variant="ghost"
+            size="small"
+            onClick={() => setSource(batch.fields.photo_ids[0])}
           >
             View source image
-          </a>
+          </Button>
         )}
       </section>
     );
   }
   return (
     <div className="finance-import-area">
+      {source && (
+        <Modal
+          open
+          title="Source image"
+          description="The original photo for this import."
+          onOpenChange={(open) => {
+            if (!open) setSource(null);
+          }}
+        >
+          <img
+            className="finance-source-photo"
+            src={photoUrl(source)}
+            alt="Imported spending"
+          />
+        </Modal>
+      )}
       {result && review(result)}
       {history &&
         imports

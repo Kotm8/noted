@@ -121,6 +121,10 @@ label > small {
   background: var(--surface-selected);
 }
 
+.dropdown-content[data-touch-menu] .dropdown-item {
+  min-height: 44px;
+}
+
 .dropdown-item > svg {
   flex-shrink: 0;
 }

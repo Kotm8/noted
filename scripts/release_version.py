@@ -14,12 +14,22 @@ def release_version(root: Path = ROOT) -> str:
         "apps/desktop/src-tauri/tauri.conf.json",
     ):
         versions[name] = json.loads((root / name).read_text())["version"]
+    for name in ("apps/web/package-lock.json", "apps/desktop/package-lock.json"):
+        lock = json.loads((root / name).read_text())
+        versions[name] = lock["version"]
+        versions[f"{name} root package"] = lock["packages"][""]["version"]
     versions["backend"] = tomllib.loads((root / "backend/pyproject.toml").read_text())["project"][
         "version"
     ]
     versions["desktop"] = tomllib.loads((root / "apps/desktop/src-tauri/Cargo.toml").read_text())[
         "package"
     ]["version"]
+    for name, package in (
+        ("backend/uv.lock", "noted-backend"),
+        ("apps/desktop/src-tauri/Cargo.lock", "noted-desktop"),
+    ):
+        locked = tomllib.loads((root / name).read_text(encoding="utf-8"))["package"]
+        versions[name] = next(item["version"] for item in locked if item["name"] == package)
     for name, pattern in (
         (
             "backend/app/core/config.py",

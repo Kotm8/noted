@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Android now uses Noted's shared interface in a single Capacitor phone app. Home shows habit, nutrition, and time-tracking progress. Finance is in the bottom navigation, and Calendar has more room on phones.
+- Press and hold a message for actions. Android Back unwinds in-app navigation. Tapping outside the composer dismisses the keyboard and keeps the draft.
+- See upload and download progress on Android. Open Log meal from the launcher, camera, or Android image sharing, and choose whether to discard an unfinished meal.
+- Android keeps recently opened notes, documents, journals, threads, and images available offline. Drafts and queued attachments survive a restart. Existing Android drafts and queued messages can be exported from Server settings after upgrading.
+- Android and Windows renew valid sessions while the app is in use. Reminders use native notifications on Android and Wear OS. Browser push subscriptions are retired.
+
 ## 0.4.4
 
 - Open desktop Settings as a dedicated destination with live message previews, semantic color editing, CSV import/export and four customizable Dark/Light profiles: Modern, Comic, Snow and Stars.

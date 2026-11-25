@@ -11,9 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.google.android.gms.tasks.Tasks
-import com.google.android.gms.wearable.CapabilityClient
-import com.google.android.gms.wearable.Wearable
+import android.content.Context
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.noted.wear.R
@@ -22,7 +20,6 @@ import com.noted.wear.data.WatchStore
 import com.noted.wear.navigation.WatchIntentRouter
 import com.noted.wear.ui.WatchActivity
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 import org.json.JSONObject
 
 class WatchMessagingService : FirebaseMessagingService() {
@@ -42,11 +39,14 @@ class WatchMessagingService : FirebaseMessagingService() {
             val payload = JSONObject(raw)
             if (payload.optString("kind") == "sync") {
                 WatchRepository(this).refresh()
-            } else if (payload.optString("kind") == "dismiss") dismiss(payload)
+                WatchNotificationWorker.enqueue(this, credentials)
+            } else if (payload.optString("kind") == "dismiss") {
+                WatchNotifications.dismiss(this, payload.optString("id"), payload.optInt("revision"))
+            }
             else if (payload.optString("kind") == "diagnostic") {
                 recordTest(payload)
-                show(payload, credentials, snapshot)
-            } else if (!phoneNearby()) show(payload, credentials, snapshot)
+                WatchNotifications.show(this, payload, credentials, snapshot)
+            } else WatchNotificationWorker.enqueue(this, credentials, payload)
         }
     }
 
@@ -57,61 +57,68 @@ class WatchMessagingService : FirebaseMessagingService() {
         WatchStore(this).saveTestArrival(id)
     }
 
-    /** The phone's own notification is mirrored here, so only alert when it can't be. */
-    private fun phoneNearby(): Boolean = runCatching {
-        Tasks.await(
-                Wearable.getCapabilityClient(this)
-                    .getCapability("noted_phone", CapabilityClient.FILTER_REACHABLE),
-                3,
-                TimeUnit.SECONDS,
-            )
-            .nodes
-            .isNotEmpty()
+    override fun onNewToken(token: String) {
+        if (WatchStore(this).credentials() != null)
+            runCatching {
+                WatchRepository(this).request("push", JSONObject().put("token", token), "PUT")
+            }
     }
-        .getOrDefault(false)
 
-    private fun dismiss(payload: JSONObject) {
-        val id = payload.optString("id")
+    companion object {
+        const val CHANNEL = "noted_watch_reminders"
+    }
+}
+
+internal object WatchNotifications {
+    fun dismiss(context: Context, id: String, revision: Int) {
         if (runCatching { UUID.fromString(id) }.isFailure) return
         val shown =
-            getSystemService(NotificationManager::class.java)
+            context.getSystemService(NotificationManager::class.java)
                 .activeNotifications
                 .find { it.tag == id && it.id == 0 }
                 ?.notification
                 ?.extras
                 ?.getInt("noted_revision") ?: return
-        if (shown <= payload.optInt("revision")) NotificationManagerCompat.from(this).cancel(id, 0)
+        if (shown <= revision) NotificationManagerCompat.from(context).cancel(id, 0)
     }
 
-    private fun show(payload: JSONObject, credentials: JSONObject, snapshot: JSONObject) {
+    fun kind(payload: JSONObject) = payload.optString("kind").ifBlank { "reminder" }
+
+    fun id(payload: JSONObject) = payload.optString(when (kind(payload)) {
+        "plan" -> "promptId"
+        "habit" -> "habitReminderId"
+        "writing" -> "writingPromptId"
+        "diagnostic" -> "testId"
+        else -> "messageId"
+    }).takeIf { runCatching { UUID.fromString(it) }.isSuccess }
+
+    fun show(context: Context, payload: JSONObject, credentials: JSONObject, snapshot: JSONObject) {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                     PackageManager.PERMISSION_GRANTED
         )
             return
-        val plan = payload.optString("kind") == "plan"
-        val writing = payload.optString("kind") == "writing"
+        val kind = kind(payload)
+        val plan = kind == "plan"
+        val reminder = kind == "reminder"
         val ended = plan && payload.optString("phase") == "end"
-        val id =
-            payload.optString(
-                if (plan) "promptId"
-                else if (writing) "writingPromptId"
-                else if (payload.optString("kind") == "diagnostic") "testId" else "messageId",
-            )
-        if (runCatching { UUID.fromString(id) }.isFailure) return
-        val manager = getSystemService(NotificationManager::class.java)
+        val id = id(payload) ?: return
+        val revision = payload.optInt("revision")
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val shown = manager.activeNotifications.find { it.tag == id && it.id == 0 }
+        if (shown != null && shown.notification.extras.getInt("noted_revision") >= revision) return
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Noted reminders", NotificationManager.IMPORTANCE_HIGH),
+            NotificationChannel(WatchMessagingService.CHANNEL, "Noted reminders", NotificationManager.IMPORTANCE_HIGH),
         )
         val open =
-            Intent(this, WatchActivity::class.java).setData(Uri.parse("noted-watch://open/$id"))
-        if (!writing)
+            Intent(context, WatchActivity::class.java).setData(Uri.parse("noted-watch://open/$id"))
+        if (plan || reminder)
             open.putExtra(if (plan) WatchIntentRouter.PROMPT else WatchIntentRouter.MESSAGE, id)
         val hide = snapshot.optJSONObject("settings")?.optBoolean("hide_contents") == true
         val body = if (hide) "Open Noted to view." else payload.optString("body").take(2000)
         val builder =
-            NotificationCompat.Builder(this, CHANNEL)
+            NotificationCompat.Builder(context, WatchMessagingService.CHANNEL)
                 .setSmallIcon(R.drawable.ic_noted)
                 .setContentTitle(
                     if (hide) "Noted reminder" else payload.optString("title", "Noted").take(150),
@@ -120,7 +127,7 @@ class WatchMessagingService : FirebaseMessagingService() {
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setContentIntent(
                     PendingIntent.getActivity(
-                        this,
+                        context,
                         0,
                         open,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -132,12 +139,12 @@ class WatchMessagingService : FirebaseMessagingService() {
                 .addExtras(
                     android.os.Bundle().apply {
                         putInt("noted_revision", payload.optInt("revision"))
+                        putString("noted_token", "$kind:$id:$revision")
                     },
                 )
-        val revision = payload.optInt("revision")
-        if (revision > 0 && !writing) {
+        if (revision > 0 && (plan || reminder)) {
             val action =
-                Intent(this, WatchActionReceiver::class.java)
+                Intent(context, WatchActionReceiver::class.java)
                     .setData(Uri.parse("noted-watch://action/$id/$revision"))
                     .putExtra("device_id", credentials.getString("device_id"))
                     .putExtra("id", id)
@@ -156,14 +163,14 @@ class WatchMessagingService : FirebaseMessagingService() {
                 if (ended) "No activity" else if (plan) "Start activity" else "Done",
                 if (plan)
                     PendingIntent.getActivity(
-                        this,
+                        context,
                         0,
                         command,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                     )
                 else
                     PendingIntent.getBroadcast(
-                        this,
+                        context,
                         0,
                         action,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -174,7 +181,7 @@ class WatchMessagingService : FirebaseMessagingService() {
                     0,
                     if (ended) "Snooze" else "Delay / other activity",
                     PendingIntent.getActivity(
-                        this,
+                        context,
                         0,
                         Intent(open)
                             .setData(Uri.parse("noted-watch://delay/$id"))
@@ -192,7 +199,7 @@ class WatchMessagingService : FirebaseMessagingService() {
                     0,
                     "Snooze",
                     PendingIntent.getBroadcast(
-                        this,
+                        context,
                         0,
                         snooze,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -200,19 +207,6 @@ class WatchMessagingService : FirebaseMessagingService() {
                 )
             }
         }
-        NotificationManagerCompat.from(this).notify(id, 0, builder.build())
-    }
-
-    override fun onNewToken(token: String) {
-        if (WatchStore(this).credentials() != null)
-            runCatching {
-                com.noted.wear.data
-                    .WatchRepository(this)
-                    .request("push", JSONObject().put("token", token), "PUT")
-            }
-    }
-
-    companion object {
-        const val CHANNEL = "noted_watch_reminders"
+        NotificationManagerCompat.from(context).notify(id, 0, builder.build())
     }
 }

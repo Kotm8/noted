@@ -3,9 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Notice } from "../../components/ui/notice";
 import { notificationsApi, type NotificationPreferences } from "./api";
-import { isAndroidApp } from "./android";
 import { AndroidNotificationsPanel } from "./android-notifications-panel";
-import { DevicePushControls } from "./device-push-controls";
 import { Select } from "../../components/ui/select";
 import { TimeField } from "../schedule/components/time-field";
 
@@ -41,8 +39,8 @@ export function NotificationsPanel() {
     <section className="settings-panel">
       <h2>Notifications</h2>
       <p>
-        Reminder settings follow your account. Notification permission belongs
-        to this device.
+        Reminder settings follow your account. Notifications are delivered to
+        your Android phone and watch.
       </p>
       {settings.isError && (
         <Notice tone="error">{settings.error.message}</Notice>
@@ -153,12 +151,6 @@ export function NotificationsPanel() {
             {save.isPending ? "Saving..." : ""}
           </p>
         </div>
-      )}
-      {!isAndroidApp() && (
-        <section className="browser-notification-settings">
-          <h3>This browser</h3>
-          <DevicePushControls />
-        </section>
       )}
       <AndroidNotificationsPanel
         preferences={settings.data}

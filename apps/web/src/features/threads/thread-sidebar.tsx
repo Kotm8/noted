@@ -53,7 +53,9 @@ export function ThreadSidebar({
   const client = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Note | null>(null);
-  const { draft, setDraft, clearSentDraft } = useDraft(`thread.${rootId}`);
+  const { draft, setDraft, clearSentDraft, ready } = useDraft(
+    `thread.${rootId}`,
+  );
   const assistant = useOptionalAssistant();
   const aiConnected = useAiStatus().data?.connected ?? false;
   const ask = (chosen: Note[]) =>
@@ -99,7 +101,9 @@ export function ThreadSidebar({
     ]);
   const replyRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { files, setFiles, addFiles } = useComposerFiles();
+  const { files, setFiles, addFiles, filesLoading } = useComposerFiles(
+    `thread.${rootId}`,
+  );
   const mentions = useMentionPicker(replyRef, draft);
   const formatting = useFormatting(replyRef);
   const [formattingVisible, toggleFormatting] = useFormattingVisible();
@@ -148,7 +152,13 @@ export function ThreadSidebar({
       .reverse()
       .flatMap((page) => page.replies.items) ?? [];
   function submit() {
-    if ((!draft.trim() && !files.length) || send.isPending) return;
+    if (
+      !ready ||
+      filesLoading ||
+      (!draft.trim() && !files.length) ||
+      send.isPending
+    )
+      return;
     scroll.followLatestNotes();
     send.mutate({ content: draft, files: [...files] });
   }
@@ -252,7 +262,12 @@ export function ThreadSidebar({
                   event.preventDefault();
               }}
               onDrop={(event) => {
-                if (send.isPending || !event.dataTransfer.files.length) return;
+                if (
+                  send.isPending ||
+                  filesLoading ||
+                  !event.dataTransfer.files.length
+                )
+                  return;
                 event.preventDefault();
                 addFiles(Array.from(event.dataTransfer.files));
               }}
@@ -265,7 +280,7 @@ export function ThreadSidebar({
               {formattingVisible && formatting.toolbar}
               <PendingFiles
                 files={files}
-                disabled={send.isPending}
+                disabled={send.isPending || filesLoading}
                 onRemove={(index) =>
                   setFiles((current) =>
                     current.filter((_, position) => position !== index),
@@ -278,7 +293,7 @@ export function ThreadSidebar({
                 type="file"
                 multiple
                 aria-label="Attach reply files"
-                disabled={send.isPending}
+                disabled={send.isPending || filesLoading}
                 onChange={(event) => {
                   addFiles(Array.from(event.target.files ?? []));
                   event.target.value = "";
@@ -289,7 +304,7 @@ export function ThreadSidebar({
                 type="button"
                 aria-label="Add reply files"
                 title="Add files"
-                disabled={send.isPending}
+                disabled={send.isPending || filesLoading}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Plus size={18} />
@@ -300,6 +315,7 @@ export function ThreadSidebar({
                 aria-label="Thread reply"
                 placeholder="Reply in thread"
                 value={draft}
+                readOnly={!ready}
                 maxLength={40000}
                 rows={1}
                 onChange={(event) => {
@@ -310,7 +326,7 @@ export function ThreadSidebar({
                 onSelect={mentions.onSelect}
                 onPaste={(event) => {
                   const pasted = Array.from(event.clipboardData.files);
-                  if (pasted.length && !send.isPending) {
+                  if (pasted.length && !send.isPending && !filesLoading) {
                     event.preventDefault();
                     addFiles(pasted);
                   }
@@ -339,7 +355,11 @@ export function ThreadSidebar({
                 className="thread-send"
                 type="submit"
                 aria-label="Send reply"
-                disabled={(!draft.trim() && !files.length) || send.isPending}
+                disabled={
+                  filesLoading ||
+                  (!draft.trim() && !files.length) ||
+                  send.isPending
+                }
               >
                 {send.isPending ? (
                   <LoaderCircle size={17} className="spin" />

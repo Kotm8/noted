@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.services.rate_limit import RateLimitService
 from app.auth.services.sessions import AuthenticatedSession, SessionService
 from app.core.config import Settings
 from app.core.errors import ConflictError, NotFoundError
@@ -81,6 +82,29 @@ def snapshot(
     settings: Settings = Depends(get_settings),
 ) -> WatchSnapshot:
     return service.snapshot(db, current, settings)
+
+
+@router.get("/notifications/reconcile")
+def reconcile_notifications(
+    items: list[str] = Query(default=[], max_length=100),
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(watch_session),
+) -> dict[str, list[str]]:
+    from app.notifications.reconciliation import stale_notifications
+
+    return {"stale": stale_notifications(db, current.user.id, items)}
+
+
+@router.post("/session/renew", status_code=204)
+def renew(
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(watch_session),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    RateLimitService(db).check_renewal(current.session.id)
+    SessionService(db).extend(
+        current, settings.watch_session_hours, settings.watch_session_absolute_hours
+    )
 
 
 @router.post("/tracker", response_model=TrackerResponse)

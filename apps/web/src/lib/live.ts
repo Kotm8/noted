@@ -142,8 +142,23 @@ export function invalidateLiveEvent(client: QueryClient, event: LiveEvent) {
   }
 }
 
+type Connect = (
+  message: (data: unknown) => void,
+  closed: (code: number) => void,
+) => { close: () => void };
+
+const connectWebSocket: Connect = (message, closed) => {
+  const url = new URL("/api/v1/live", window.location.origin);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(url);
+  socket.onmessage = ({ data }) => message(data);
+  socket.onclose = ({ code }) => closed(code);
+  socket.onerror = () => socket.close();
+  return socket;
+};
+
 export class LiveConnection {
-  private socket: WebSocket | null = null;
+  private socket: ReturnType<Connect> | null = null;
   private reconnect: ReturnType<typeof setTimeout> | undefined;
   private watchdog: ReturnType<typeof setInterval> | undefined;
   private stopped = true;
@@ -151,7 +166,10 @@ export class LiveConnection {
   private opened = 0;
   private lastMessage = 0;
 
-  constructor(private client: QueryClient) {}
+  constructor(
+    private client: QueryClient,
+    private connect: Connect = connectWebSocket,
+  ) {}
 
   start() {
     this.stopped = false;
@@ -180,7 +198,7 @@ export class LiveConnection {
     if (this.stopped) return;
     if (this.socket && Date.now() - this.lastMessage > 70000)
       this.socket.close();
-    if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
+    if (!this.socket) {
       clearTimeout(this.reconnect);
       this.open();
     }
@@ -188,16 +206,8 @@ export class LiveConnection {
 
   private open() {
     if (this.stopped) return;
-    const url = new URL("/api/v1/live", window.location.origin);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const socket = new WebSocket(url);
-    this.socket = socket;
     this.opened = this.lastMessage = Date.now();
-    clearInterval(this.watchdog);
-    this.watchdog = setInterval(() => {
-      if (Date.now() - this.lastMessage > 70000) socket.close();
-    }, 10000);
-    socket.onmessage = ({ data }) => {
+    const message = (data: unknown) => {
       if (
         this.socket !== socket ||
         typeof data !== "string" ||
@@ -221,8 +231,7 @@ export class LiveConnection {
         return;
       }
     };
-    socket.onerror = () => socket.close();
-    socket.onclose = ({ code }) => {
+    const closed = (code: number) => {
       if (this.socket !== socket || this.stopped) return;
       this.socket = null;
       clearInterval(this.watchdog);
@@ -242,5 +251,11 @@ export class LiveConnection {
         delay * (0.75 + Math.random() * 0.25),
       );
     };
+    const socket = this.connect(message, closed);
+    this.socket = socket;
+    clearInterval(this.watchdog);
+    this.watchdog = setInterval(() => {
+      if (Date.now() - this.lastMessage > 70000) socket.close();
+    }, 10000);
   }
 }

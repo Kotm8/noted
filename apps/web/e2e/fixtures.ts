@@ -1,10 +1,14 @@
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { test as base } from "@playwright/test";
 
 const execute = promisify(execFile);
 const backend = fileURLToPath(new URL("../../../backend/", import.meta.url));
+export const { version: clientVersion } = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { version: string };
 
 export const test = base.extend<{ isolatedState: void }>({
   isolatedState: [

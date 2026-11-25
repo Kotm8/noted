@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.core.config import Settings
 from app.finance.models import FinanceDelivery, FinanceItem, FinanceProfile
-from app.notifications.routing import deliver, dismiss_handled
+from app.notifications.routing import deliver, dismiss_handled, pending_delivery
 from app.notifications.schemas import NotificationSettings
 from app.time_tracking.models import TrackerState
 
@@ -46,6 +46,7 @@ def dispatch_finance(engine: Engine, settings: Settings, now: datetime) -> None:
                     >= (now.date() - timedelta(days=2)).isoformat(),
                     FinanceItem.fields["due_on"].astext
                     <= (now.date() + timedelta(days=31)).isoformat(),
+                    pending_delivery(FinanceDelivery, FinanceItem, FinanceItem.owner_id),
                 )
                 .order_by(FinanceItem.created_at)
                 .limit(500)

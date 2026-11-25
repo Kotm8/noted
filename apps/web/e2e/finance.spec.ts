@@ -155,6 +155,12 @@ test("Finance uses the split layout and saves money settings and purchases", asy
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("tab", { name: "Tracking", exact: true }).click();
   await expect(
+    page.getByRole("heading", { name: "Account balances" }),
+  ).toBeVisible();
+  await expect(page.locator(".finance-account-balances")).toContainText(
+    board.accounts[0].name,
+  );
+  await expect(
     page.locator(".finance-transaction-row").filter({ hasText: "Headphones" }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -166,6 +172,13 @@ test("Finance uses the split layout and saves money settings and purchases", asy
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  const tabs = page.getByRole("tablist", { name: "Finance view" });
+  const before = await tabs.boundingBox();
+  await page
+    .getByRole("tab", { name: "Planned purchases", exact: true })
+    .click();
+  const after = await tabs.boundingBox();
+  expect(after).toEqual(before);
   await page.screenshot({ path: "../../.local/finance-implemented-phone.png" });
   expect(errors).toEqual([]);
 });

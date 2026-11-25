@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Camera, ChevronRight, Plus, Utensils } from "lucide-react";
-import { Modal } from "../../../components/ui/dialog";
+import { Button } from "../../../components/ui/button";
 import { Notice } from "../../../components/ui/notice";
 import { liveInterval } from "../../../lib/live";
 import { useNutritionEnabled } from "../../ai/queries";
 import { nutritionApi } from "../../nutrition/api";
-import { LogDock } from "../../nutrition/log-dock";
+import { LogMealDialog } from "../../nutrition/log-meal-dialog";
 import { MealPhoto, Ring } from "../../nutrition/parts";
 import { kcal, SLOTS, totals } from "../../nutrition/types";
 import { addDays, minuteLabel, zonedParts } from "../../schedule/dates";
@@ -16,11 +16,13 @@ export function HomeFood({
   timezone,
   now,
   onOpen,
+  compact = false,
 }: {
   today: string;
   timezone: string;
   now: number;
   onOpen: () => void;
+  compact?: boolean;
 }) {
   const enabled = useNutritionEnabled();
   const [logging, setLogging] = useState(false);
@@ -34,18 +36,22 @@ export function HomeFood({
   const meals = useQuery({
     queryKey: ["nutrition", "meals", day],
     queryFn: () => nutritionApi.meals(day, day),
-    enabled: enabled && Boolean(state.data?.target),
+    enabled:
+      enabled &&
+      Boolean(state.data) &&
+      (compact || Boolean(state.data?.target)),
     refetchInterval: () => liveInterval(30000),
   });
   const days = useQuery({
     queryKey: ["nutrition", "days", addDays(day, -6), day],
     queryFn: () => nutritionApi.days(addDays(day, -6), day),
-    enabled: enabled && Boolean(state.data?.target),
+    enabled: !compact && enabled && Boolean(state.data?.target),
     refetchInterval: () => liveInterval(60000),
   });
   const list = meals.data ?? [];
   const eaten = totals(list.flatMap((meal) => meal.items));
   const target = state.data?.target;
+  const remaining = target ? target.kcal - eaten.kcal : undefined;
   const missing = SLOTS.filter(
     (slot) => slot !== "Snack" && !list.some((meal) => meal.slot === slot),
   )[0];
@@ -55,25 +61,28 @@ export function HomeFood({
   if (!enabled) return null;
   return (
     <section className="home-b-section home-b-food" aria-label="Food summary">
-      <div className="home-b-section-heading">
-        <h2>Food</h2>
-        <div>
-          {enabled && target && (
-            <button
-              className="home-small-button"
-              onClick={() => setLogging(true)}
-            >
-              <Camera size={13} />
-              Log meal
+      {!compact && (
+        <div className="home-b-section-heading">
+          <h2>Food</h2>
+          <div>
+            {target && (
+              <button
+                className="home-small-button"
+                onClick={() => setLogging(true)}
+              >
+                <Camera size={13} />
+                Log meal
+              </button>
+            )}
+            <button className="home-text-button" onClick={onOpen}>
+              Nutrition
+              <ChevronRight size={13} />
             </button>
-          )}
-          <button className="home-text-button" onClick={onOpen}>
-            Nutrition
-            <ChevronRight size={13} />
-          </button>
+          </div>
         </div>
-      </div>
-      {state.isPending ? (
+      )}
+      {state.isPending ||
+      (state.data && (compact || target) && meals.isPending) ? (
         <p className="home-empty">Loading food…</p>
       ) : state.error || meals.error ? (
         <Notice tone="error">
@@ -87,6 +96,46 @@ export function HomeFood({
             Retry
           </button>
         </Notice>
+      ) : compact ? (
+        <>
+          <button
+            className="phone-food-total"
+            onClick={onOpen}
+            aria-label={
+              target
+                ? `${kcal(eaten.kcal)} of ${kcal(target.kcal)} calories. Open nutrition.`
+                : `${kcal(eaten.kcal)} calories. Open nutrition.`
+            }
+          >
+            <Ring
+              eaten={eaten.kcal}
+              target={target?.kcal ?? 0}
+              size={90}
+              stroke={6}
+              showEaten
+            />
+            {remaining !== undefined && (
+              <span
+                className={`phone-food-remaining${remaining < 0 ? " over" : ""}`}
+              >
+                {kcal(Math.abs(remaining))} kcal{" "}
+                {remaining < 0 ? "over" : "left"}
+              </span>
+            )}
+          </button>
+          <Button
+            className="phone-log-meal"
+            onClick={target ? () => setLogging(true) : onOpen}
+          >
+            {target ? (
+              <>
+                <Camera size={15} /> Log meal
+              </>
+            ) : (
+              "Set a target"
+            )}
+          </Button>
+        </>
       ) : !target ? (
         <p className="home-empty">
           Set your nutrition target to see your day here.{" "}
@@ -152,19 +201,15 @@ export function HomeFood({
         </>
       )}
       {logging && state.data && (
-        <Modal
-          open
-          title="Log meal"
-          description={day}
-          className="home-meal-dialog"
-          onOpenChange={setLogging}
-        >
-          <LogDock
-            state={state.data}
-            day={day}
-            nowMinute={zonedParts(now, state.data.timezone ?? timezone).minute}
-          />
-        </Modal>
+        <LogMealDialog
+          state={state.data}
+          day={day}
+          minute={zonedParts(now, state.data.timezone ?? timezone).minute}
+          className={
+            compact ? "home-meal-dialog phone-home-sheet" : "home-meal-dialog"
+          }
+          close={() => setLogging(false)}
+        />
       )}
     </section>
   );

@@ -2,8 +2,10 @@ package com.noted.android.notifications
 
 import android.content.Context
 import android.util.Base64
-import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessaging
+import com.noted.android.data.NativeApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.security.SecureRandom
 import java.util.UUID
 import org.json.JSONObject
@@ -16,7 +18,7 @@ object PushRegistration {
             PushHttp.request(
                 origin,
                 "/api/v1/notifications/android/prepare",
-                body = JSONObject().put("ticket", ticket),
+                body = JSONObject().put("ticket", ticket).put("package_name", context.packageName),
             )
         val client = prepared.getJSONObject("client")
         val previous = store.read()
@@ -31,22 +33,55 @@ object PushRegistration {
                 .put("origin", origin)
                 .put("client", client)
                 .put("binding", UUID.randomUUID().toString())
-        store.write(state)
-        FirebaseRuntime.initialize(context, client)
-        val token = FirebaseRuntime.token()
-        PushHttp.request(
-            origin,
-            "/api/v1/notifications/android/complete",
-            body = JSONObject().put("ticket", ticket).put("token", token).put("secret", secret),
-        )
+        val token = try {
+            FirebaseRuntime.initialize(context, client)
+            val value = FirebaseRuntime.token()
+            PushHttp.request(
+                origin,
+                "/api/v1/notifications/android/complete",
+                body = JSONObject().put("ticket", ticket).put("token", value)
+                    .put("secret", secret).put("package_name", context.packageName),
+            )
+            value
+        } catch (error: Exception) {
+            FirebaseRuntime.restore(context)
+            throw error
+        }
         store.write(
             state
                 .put("secret", secret)
                 .put("device_id", prepared.getString("device_id"))
                 .put("token", token),
         )
+        options(context).edit().putBoolean("push_enabled", true).apply()
         FirebaseMessaging.getInstance().isAutoInitEnabled = true
     }
+
+    @Synchronized
+    fun deviceId(context: Context): String {
+        val preferences = options(context)
+        return preferences.getString("id", null) ?: UUID.randomUUID().toString().also {
+            preferences.edit().putString("id", it).apply()
+        }
+    }
+
+    fun wasEnabled(context: Context): Boolean =
+        options(context).getBoolean("push_enabled", false) ||
+            PushState(context).read()?.optString("secret")?.isNotBlank() == true
+
+    fun disable(context: Context) {
+        disconnect(context)
+        options(context).edit().putBoolean("push_enabled", false).apply()
+    }
+
+    suspend fun enable(context: Context, api: NativeApi) = withContext(Dispatchers.IO) {
+        val ticket = JSONObject(api.request("/notifications/android/pairings", "POST",
+            JSONObject().put("device_id", deviceId(context)))).getString("ticket")
+        pair(context, api.origin, ticket)
+    }
+
+    private fun options(context: Context) =
+        context.getSharedPreferences("native_device", Context.MODE_PRIVATE)
 
     fun refresh(context: Context, token: String, binding: String) {
         val state = PushState(context).read() ?: return
@@ -78,8 +113,11 @@ object PushRegistration {
     }
 
     fun forget(context: Context) {
-        PushState(context).clear()
-        NotificationManagerCompat.from(context).cancelAll()
+        if (wasEnabled(context)) options(context).edit().putBoolean("push_enabled", true).apply()
+        val store = PushState(context)
+        val origin = store.read()?.optString("origin")
+        store.clear()
+        if (origin != null) PushNotifications.clear(context, origin)
         runCatching {
             FirebaseMessaging.getInstance().isAutoInitEnabled = false
             FirebaseMessaging.getInstance().deleteToken()

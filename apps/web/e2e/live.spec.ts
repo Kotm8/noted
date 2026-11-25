@@ -79,7 +79,9 @@ test("two signed-in windows receive messages immediately over the live socket", 
     .getByRole("textbox", { name: "Message live-notes" })
     .press("Enter");
   await expect(
-    other.getByText("Across windows instantly", { exact: true }),
+    other
+      .locator(".note:not(.outgoing-note)")
+      .getByText("Across windows instantly", { exact: true }),
   ).toBeVisible({ timeout: 2000 });
   expect(Date.now() - started).toBeLessThan(2000);
   expect(reads.length).toBeGreaterThan(0);
@@ -95,7 +97,9 @@ test("two signed-in windows receive messages immediately over the live socket", 
     .getByRole("textbox", { name: "Message live-notes" })
     .press("Enter");
   await expect(
-    other.getByText("Polling still works", { exact: true }),
+    other
+      .locator(".note:not(.outgoing-note)")
+      .getByText("Polling still works", { exact: true }),
   ).toBeVisible({ timeout: 18000 });
   await other.close();
 });

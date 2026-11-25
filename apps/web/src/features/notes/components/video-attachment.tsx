@@ -4,7 +4,7 @@ import { useVideoPlayback } from "../hooks/use-video-playback";
 import type { Attachment } from "../types";
 import { ContextMenu } from "../../../components/ui/context-menu";
 import { MenuItem } from "../../../components/ui/menu";
-import { downloadAttachments } from "../share";
+import { downloadAttachments, downloadOnAndroid } from "../share";
 
 export function VideoAttachment({ file }: { file: Attachment }) {
   const playback = useVideoPlayback();
@@ -81,6 +81,7 @@ export function VideoAttachment({ file }: { file: Attachment }) {
             className="icon-button"
             href={file.download_url}
             download={file.original_filename}
+            onClick={(event) => downloadOnAndroid(event, file)}
             aria-label={`Download ${file.original_filename}`}
             title="Download original"
           >

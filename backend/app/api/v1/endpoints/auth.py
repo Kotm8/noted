@@ -3,10 +3,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
-from app.auth.cookies import clear_session_cookies, set_session_cookies
+from app.auth.cookies import CSRF_COOKIE, SESSION_COOKIE, clear_session_cookies, set_session_cookies
 from app.auth.models import User
 from app.auth.schemas import LoginRequest, SessionResponse, SetupRequest, UserResponse
 from app.auth.services.auth import AuthService
+from app.auth.services.rate_limit import RateLimitService
 from app.auth.services.sessions import AuthenticatedSession, SessionService
 from app.core.config import Settings
 from app.dependencies.auth import get_current_session
@@ -56,6 +57,21 @@ def login(
 @router.get("/session", response_model=UserResponse)
 def get_session(current: AuthenticatedSession = Depends(get_current_session)) -> User:
     return current.user
+
+
+@router.post("/renew", status_code=204)
+def renew(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current: AuthenticatedSession = Depends(get_current_session),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    RateLimitService(db).check_renewal(current.session.id)
+    tokens = SessionService(db).renew(
+        current, request.cookies[SESSION_COOKIE], request.cookies[CSRF_COOKIE], settings
+    )
+    set_session_cookies(response, tokens, settings)
 
 
 @router.post("/logout", status_code=204)

@@ -1,4 +1,3 @@
-import base64
 import io
 import json
 import zipfile
@@ -8,7 +7,10 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session
 
+from app.auth.services.sessions import SessionService
+from app.core.config import Settings
 from app.core.security import utc_now
 from app.notes.models import Message
 from app.notifications.models import DevicePresence, NotificationDelivery, PushSubscription
@@ -45,27 +47,33 @@ def reminder_channel(owner, channel):
     return response.json()
 
 
-def subscribe(owner, kind="desktop"):
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric import ec
-
-    public = (
-        ec.generate_private_key(ec.SECP256R1())
-        .public_key()
-        .public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
-    )
-
-    def encode(data):
-        return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-
+def subscribe(owner, kind="mobile"):
     body = {
         "device_id": str(uuid4()),
         "kind": kind,
-        "endpoint": f"https://fcm.googleapis.com/fcm/send/{uuid4()}",
-        "keys": {"p256dh": encode(public), "auth": encode(b"a" * 16)},
+        "endpoint": f"fcm:fixture:{uuid4()}",
+        "keys": {},
     }
-    response = owner.post(f"{API}/notifications/subscriptions", json=body)
-    assert response.status_code == 204, response.text
+    with Session(owner.app.state.engine) as db:
+        session = SessionService(db).authenticate(owner.cookies["noted_session"]).session
+        db.add(
+            PushSubscription(
+                session_id=session.id, **{**body, "device_id": UUID(body["device_id"])}
+            )
+        )
+        db.commit()
+    return body
+
+
+def legacy_subscription(owner, kind="desktop"):
+    body = subscribe(owner, kind)
+    with Session(owner.app.state.engine) as db:
+        row = db.scalar(
+            select(PushSubscription).where(PushSubscription.endpoint == body["endpoint"])
+        )
+        body["endpoint"] = f"https://fcm.googleapis.com/fcm/send/{uuid4()}"
+        row.endpoint = body["endpoint"]
+        db.commit()
     return body
 
 
@@ -186,54 +194,35 @@ def test_repeating_reminder_advances_instead_of_completing(owner, channel):
     )
 
 
-def test_push_config_stable_and_private_endpoints_rejected(owner):
-    first = owner.get(f"{API}/notifications/config")
-    assert first.status_code == 200, first.text
-    assert first.json() == owner.get(f"{API}/notifications/config").json()
-    assert set(first.json()) == {"public_key"}
-    subscription = subscribe(owner)
-    subscription["endpoint"] = "https://127.0.0.1/private"
-    assert owner.post(f"{API}/notifications/subscriptions", json=subscription).status_code == 422
+def test_browser_push_registration_and_config_are_removed(owner):
+    assert owner.get(f"{API}/notifications/config").status_code == 404
+    assert owner.post(f"{API}/notifications/subscriptions", json={}).status_code == 404
 
 
-def test_notification_delivery_deduplicates_and_suppresses_phone(owner, channel, db, monkeypatch):
-    owner.get(f"{API}/notifications/config")
-    desktop = subscribe(owner)
-    phone = subscribe(owner, "mobile")
-    owner.post(
-        f"{API}/notifications/presence",
-        json={**{key: desktop[key] for key in ("device_id", "kind")}, "focused": True},
-    )
+def test_notification_delivery_deduplicates_and_ignores_legacy_browsers(
+    owner, channel, db, app, monkeypatch
+):
+    legacy_subscription(owner)
+    legacy_subscription(owner, "mobile")
+    phone = subscribe(owner)
     message = create(owner, channel)
-    db.execute(
-        update(Reminder)
-        .where(Reminder.message_id == UUID(message["id"]))
-        .values(due_at=utc_now() - timedelta(seconds=1))
-    )
+    db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
     db.commit()
-    send = Mock()
-    monkeypatch.setattr("pywebpush.webpush", send)
-    dispatch_due(db.get_bind(), "https://noted.example.com")
-    dispatch_due(db.get_bind(), "https://noted.example.com")
+    send = Mock(return_value="accepted")
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
+    for _ in range(2):
+        dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
     assert send.call_count == 1
-    assert send.call_args.kwargs["subscription_info"]["endpoint"] == desktop["endpoint"]
-    payload = json.loads(send.call_args.kwargs["data"])
-    assert "Programming / #python" == payload["title"]
-    assert message["content"] == payload["body"]
-    assert db.scalar(select(func.count()).select_from(NotificationDelivery)) == 2
-    owner.post(
-        f"{API}/notifications/presence",
-        json={**{key: desktop[key] for key in ("device_id", "kind")}, "focused": False},
-    )
-    dispatch_due(db.get_bind(), "https://noted.example.com")
-    assert send.call_count == 1
-    assert phone["endpoint"] != desktop["endpoint"]
+    assert send.call_args.args[0] == phone["endpoint"]
+    payload = json.loads(send.call_args.args[3])
+    assert payload["title"] == "Programming / #python"
+    assert payload["body"] == message["content"]
+    assert db.scalar(select(func.count()).select_from(NotificationDelivery)) == 1
 
 
 def test_backup_restores_reminders_without_notification_credentials(owner, channel, db):
     channel = reminder_channel(owner, channel)
     create(owner, channel, repeat="weekdays")
-    owner.get(f"{API}/notifications/config")
     _, raw = export(owner)
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         content = json.loads(archive.read("content.json"))
@@ -251,73 +240,89 @@ def test_backup_restores_reminders_without_notification_credentials(owner, chann
 
 
 def test_delivery_retries_failures_and_forgets_expired_subscriptions(
-    owner, channel, db, monkeypatch
+    owner, channel, db, app, monkeypatch
 ):
-    from pywebpush import WebPushException
-    from requests import Response
-
-    owner.get(f"{API}/notifications/config")
     subscribe(owner)
-    message = create(owner, channel)
-    db.execute(
-        update(Reminder)
-        .where(Reminder.message_id == UUID(message["id"]))
-        .values(due_at=utc_now() - timedelta(seconds=1))
-    )
+    create(owner, channel)
+    db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
     db.commit()
-    send = Mock(side_effect=WebPushException("Temporary failure"))
-    monkeypatch.setattr("pywebpush.webpush", send)
-    dispatch_due(db.get_bind(), "https://noted.example.com")
-    dispatch_due(db.get_bind(), "https://noted.example.com")
+    send = Mock(return_value="failed")
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
+    for _ in range(2):
+        dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
     assert send.call_count == 1
     db.execute(update(NotificationDelivery).values(retry_at=utc_now() - timedelta(seconds=1)))
     db.commit()
-    response = Response()
-    response.status_code = 410
-    send.side_effect = WebPushException("Expired subscription", response=response)
-    dispatch_due(db.get_bind(), "https://noted.example.com")
+    send.return_value = "expired"
+    dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
     assert db.scalar(select(func.count()).select_from(PushSubscription)) == 0
     assert db.scalar(select(func.count()).select_from(NotificationDelivery)) == 0
 
 
-def test_stale_desktop_presence_does_not_suppress_phone(owner, channel, db, monkeypatch):
-    owner.get(f"{API}/notifications/config")
-    desktop = subscribe(owner)
-    phone = subscribe(owner, "mobile")
+def test_stale_desktop_presence_does_not_suppress_phone(owner, channel, db, app, monkeypatch):
+    phone = subscribe(owner)
     owner.post(
         f"{API}/notifications/presence",
-        json={"device_id": desktop["device_id"], "kind": "desktop", "focused": True},
+        json={"device_id": str(uuid4()), "kind": "desktop", "focused": True},
     )
     create(owner, channel)
     db.execute(update(DevicePresence).values(seen_at=utc_now() - timedelta(minutes=1)))
     db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
     db.commit()
-    send = Mock()
-    monkeypatch.setattr("pywebpush.webpush", send)
-    dispatch_due(db.get_bind(), "https://noted.example.com")
+    send = Mock(return_value="accepted")
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
+    dispatch_due(db.get_bind(), app.state.settings.app_origin, app.state.settings)
     assert send.call_count == 1
-    assert send.call_args.kwargs["subscription_info"]["endpoint"] == phone["endpoint"]
+    assert send.call_args.args[0] == phone["endpoint"]
 
 
-def test_real_push_encryption_and_vapid_signing(owner, channel, db, monkeypatch):
-    from requests import Response
+def test_legacy_endpoints_never_reach_a_push_transport(monkeypatch):
+    from app.notifications.delivery import send_push
 
-    owner.get(f"{API}/notifications/config")
-    subscribe(owner)
+    send = Mock()
+    monkeypatch.setattr("app.notifications.delivery.send_firebase", send)
+    subscription = PushSubscription(endpoint="https://fcm.googleapis.com/fcm/send/legacy")
+    assert (
+        send_push(subscription, "https://notes.example.com", "{}", settings=Settings()) == "expired"
+    )
+    send.assert_not_called()
+
+
+def test_native_push_migration_removes_browser_credentials_and_preserves_phone_delivery(
+    owner, channel, db, engine
+):
+    from pathlib import Path
+
+    from alembic.config import Config
+    from sqlalchemy import inspect, text
+
+    from alembic import command
+
+    phone = subscribe(owner)
+    browser = legacy_subscription(owner)
     message = create(owner, channel)
-    message = owner.put(f"{API}/messages/{message['id']}", json={"content": "📝" * 500}).json()
-    db.execute(update(Reminder).values(due_at=utc_now() - timedelta(seconds=1)))
+    for endpoint in (phone["endpoint"], browser["endpoint"]):
+        subscription = db.scalar(
+            select(PushSubscription).where(PushSubscription.endpoint == endpoint)
+        )
+        db.add(
+            NotificationDelivery(
+                message_id=UUID(message["id"]),
+                subscription_id=subscription.id,
+                revision=1,
+                attempts=1,
+                delivered_at=utc_now(),
+            )
+        )
     db.commit()
-    response = Response()
-    response.status_code = 201
-    response._content = b""
-    transport = Mock(return_value=response)
-    monkeypatch.setattr("requests.post", transport)
-    dispatch_due(db.get_bind(), "https://noted.example.com")
-    assert transport.call_count == 1
-    sent = transport.call_args.kwargs
-    assert sent["headers"]["content-encoding"] == "aes128gcm"
-    assert sent["headers"]["authorization"].startswith("vapid ")
-    assert message["content"].encode() not in sent["data"]
-    assert len(sent["data"]) < 4096
-    assert db.scalar(select(NotificationDelivery.delivered_at)) is not None
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0034_document_reminders")
+        connection.execute(text("INSERT INTO notification_keys VALUES (1, 'legacy-key')"))
+        command.upgrade(config, "head")
+        assert not inspect(connection).has_table("notification_keys")
+    db.expire_all()
+    assert list(db.scalars(select(PushSubscription.endpoint))) == [phone["endpoint"]]
+    assert db.scalar(select(func.count()).select_from(NotificationDelivery)) == 1
+    assert owner.get(f"{API}/auth/session").status_code == 200

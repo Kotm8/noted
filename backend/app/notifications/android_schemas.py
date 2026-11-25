@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr
 
-from app.notifications.firebase import FirebaseClient
+from app.notifications.firebase import AndroidPackage, FirebaseClient
 
 
 class AndroidStatus(BaseModel):
@@ -24,6 +24,7 @@ class PairingResponse(BaseModel):
 
 class TicketInput(BaseModel):
     ticket: SecretStr = Field(min_length=43, max_length=128)
+    package_name: AndroidPackage = "com.noted.android"
 
 
 class PairingConfiguration(BaseModel):

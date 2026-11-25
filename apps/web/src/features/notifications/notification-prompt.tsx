@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
-import { registerPush } from "./browser";
 import { devicePushState, enableDevicePush } from "./device-push";
 
 export function NotificationPrompt() {
@@ -25,7 +24,6 @@ export function NotificationPrompt() {
           setVisible(false);
           setNativeLink(null);
         }
-        if (!state.native) await registerPush();
       }
     };
     const resume = () => {

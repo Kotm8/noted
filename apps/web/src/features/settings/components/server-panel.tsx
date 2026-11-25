@@ -1,6 +1,8 @@
 import { Notice } from "../../../components/ui/notice";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "../../../components/ui/button";
+import { androidPilot, isAndroidPilot } from "../../../lib/android-pilot";
 import { settingsApi } from "../api";
 import { PasswordForm } from "./password-form";
 import { SessionsPanel } from "./sessions-panel";
@@ -17,7 +19,39 @@ export function ServerPanel() {
       <h2>Server</h2>
       {isAndroidApp() && <SwitchServerButton />}
       <ServerContent />
+      {isAndroidPilot && <LegacyWork />}
     </section>
+  );
+}
+
+function LegacyWork() {
+  const work = useQuery({
+    queryKey: ["android-unsent-recovery"],
+    queryFn: () => androidPilot.legacyWorkAvailable(),
+  });
+  const save = useMutation({
+    mutationFn: () => androidPilot.exportLegacyWork(),
+    onSuccess: ({ saved }) => {
+      if (saved) toast.success("Unsent work exported.");
+    },
+  });
+  if (!work.data?.available) return null;
+  return (
+    <div className="settings-section">
+      <h3>Recover unsent work</h3>
+      <p>
+        Save drafts and queued messages from your earlier Android app to a file
+        so you can copy them into Noted.
+      </p>
+      {save.error && <Notice tone="error">{save.error.message}</Notice>}
+      <Button
+        disabled={save.isPending}
+        variant="secondary"
+        onClick={() => save.mutate()}
+      >
+        {save.isPending ? "Saving..." : "Export unsent work"}
+      </Button>
+    </div>
   );
 }
 
@@ -73,13 +107,24 @@ function ServerContent() {
       <p className="settings-hint">
         Additional accounts and invitations are planned for a later version.
       </p>
-      <UpdatesPanel />
+      {isAndroidPilot ? (
+        <div className="settings-section">
+          <h3>Server maintenance</h3>
+          <p>
+            Use Noted on desktop to install server updates or manage hosting.
+          </p>
+        </div>
+      ) : (
+        <UpdatesPanel />
+      )}
       <PasswordForm />
       <SessionsPanel />
-      <HostPanel
-        ownerUsername={query.data.owner_username}
-        instance={query.data.instance_url}
-      />
+      {!isAndroidPilot && (
+        <HostPanel
+          ownerUsername={query.data.owner_username}
+          instance={query.data.instance_url}
+        />
+      )}
       <ServerAddressPanel />
     </>
   );

@@ -10,10 +10,12 @@ import {
   Pencil,
   Repeat,
   Trash2,
+  Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { Modal } from "../../components/ui/dialog";
 import { nutritionApi } from "./api";
 import { MealEditor } from "./meal-editor";
 import { MealPhoto } from "./parts";
@@ -29,6 +31,7 @@ export function MealCard({
   savedNames,
   logDay,
   nowMinute,
+  compact = false,
 }: {
   meal: Meal;
   open: boolean;
@@ -36,6 +39,7 @@ export function MealCard({
   savedNames: string[];
   logDay: string;
   nowMinute: number;
+  compact?: boolean;
 }) {
   const client = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -99,9 +103,10 @@ export function MealCard({
     onError: (error) => toast.error(error.message),
   });
 
-  if (editing)
-    return (
+  if (editing) {
+    const editor = (
       <MealEditor
+        manual={compact && meal.source === "manual"}
         initial={{
           name: meal.name,
           slot: meal.slot,
@@ -126,6 +131,22 @@ export function MealCard({
         }
       />
     );
+    return compact ? (
+      <Modal
+        open
+        title="Edit meal"
+        description={meal.name}
+        className="phone-nutrition-sheet"
+        onOpenChange={(open) => {
+          if (!open && !edit.isPending) setEditing(false);
+        }}
+      >
+        {editor}
+      </Modal>
+    ) : (
+      editor
+    );
+  }
 
   return (
     <ContextMenu
@@ -176,18 +197,26 @@ export function MealCard({
             <span className="meal-glyph">
               {meal.saved_meal_id ? (
                 <Bookmark size={16} />
+              ) : compact ? (
+                <Utensils size={19} />
               ) : (
                 <Apple size={16} />
               )}
             </span>
           )}
           <span className="meal-name">
-            <strong>{meal.name}</strong>
-            <small>
-              {time(meal.minute)}
-              {meal.saved_meal_id ? " · Saved meal" : ""} · {meal.items.length}{" "}
-              item{meal.items.length === 1 ? "" : "s"}
-            </small>
+            <strong>{compact ? meal.slot : meal.name}</strong>
+            {compact ? (
+              <small>
+                {meal.name} · {time(meal.minute)}
+              </small>
+            ) : (
+              <small>
+                {time(meal.minute)}
+                {meal.saved_meal_id ? " · Saved meal" : ""} ·{" "}
+                {meal.items.length} item{meal.items.length === 1 ? "" : "s"}
+              </small>
+            )}
           </span>
           <span className="meal-kcal">
             <strong>{kcal(sum.kcal)}</strong>

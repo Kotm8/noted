@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Check,
@@ -15,18 +15,31 @@ import { useTracking } from "../use-tracking";
 import { startsTogether, usePlanPrompts } from "../../schedule/prompts";
 import { useAndroidBackLayer } from "../../../lib/android-navigation";
 import { PlannedTaskPrompt } from "./planned-task-prompt";
+import { minuteLabel, zonedParts } from "../../schedule/dates";
 
-export function TimeTracker({ onSettings }: { onSettings: () => void }) {
+export function TimeTracker({
+  onSettings,
+  embedded = false,
+  initiallyExpanded = false,
+}: {
+  onSettings: () => void;
+  embedded?: boolean;
+  initiallyExpanded?: boolean;
+}) {
   const { tracker, activities, action } = useTracking();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const prompts = usePlanPrompts();
   const location = useLocation();
   const preferred = new URLSearchParams(location.search).get("prompt");
-  const prompt =
-    prompts.data?.find((item) => item.id === preferred) ?? prompts.data?.[0];
+  const prompt = embedded
+    ? prompts.data?.find((item) => item.id === preferred)
+    : (prompts.data?.find((item) => item.id === preferred) ??
+      prompts.data?.[0]);
   const [closedPrompt, setClosedPrompt] = useState("");
   const promptKey = prompt ? `${prompt.id}:${prompt.revision}` : "";
-  const showPrompt = Boolean(prompt && promptKey !== closedPrompt);
+  const showPrompt = Boolean(
+    prompt && (!embedded || preferred) && promptKey !== closedPrompt,
+  );
   const open = expanded || showPrompt;
   const collapse = () => {
     setClosedPrompt(promptKey);
@@ -68,6 +81,13 @@ export function TimeTracker({ onSettings }: { onSettings: () => void }) {
   return (
     <div
       className={`time-tracker ${data?.active ? "is-running" : ""}`}
+      data-embedded={embedded || undefined}
+      data-has-activity={Boolean(current)}
+      style={
+        embedded && current
+          ? ({ "--tracker-color": current.color } as CSSProperties)
+          : undefined
+      }
       data-expanded={open}
       onKeyDown={(event) => {
         if (event.key === "Escape" && open) {
@@ -79,38 +99,51 @@ export function TimeTracker({ onSettings }: { onSettings: () => void }) {
     >
       <button
         className="tracker-trigger"
-        aria-label="Choose current activity"
+        aria-label={
+          embedded && !current ? "Start tracking" : "Choose current activity"
+        }
         aria-expanded={open}
         aria-controls={id}
         onClick={() => {
           if (open) collapse();
-          else if (prompt) setClosedPrompt("");
+          else if (prompt && (!embedded || preferred)) setClosedPrompt("");
           else setExpanded(true);
         }}
       >
         {current ? <ActivityIcon activity={current} /> : <Timer size={20} />}
         <span className="tracker-label">
-          <strong>{current?.name ?? "What are you doing?"}</strong>
+          <strong>
+            {current?.name ??
+              (embedded ? "Start tracking" : "What are you doing?")}
+          </strong>
           {current ? (
             <span>
               <time className="tracker-elapsed">{clock}</time>
-              <small>{data?.active ? "Tracking" : "Paused"}</small>
+              <small>
+                {data?.active
+                  ? embedded
+                    ? `Since ${minuteLabel(zonedParts(data.active.started_at, data.preferences.timezone).minute)}`
+                    : "Tracking"
+                  : "Paused"}
+              </small>
             </span>
           ) : (
-            <small>
-              {prompt
-                ? "A planned activity is ready"
-                : tracker.isError
-                  ? "Reconnect to track time"
-                  : tracker.isPending
-                    ? "Connecting…"
-                    : "Start tracking your time"}
-            </small>
+            !(embedded && data && !prompt) && (
+              <small>
+                {prompt
+                  ? "A planned activity is ready"
+                  : tracker.isError
+                    ? "Reconnect to track time"
+                    : tracker.isPending
+                      ? "Connecting…"
+                      : "Start tracking your time"}
+              </small>
+            )
           )}
         </span>
         <ChevronDown size={14} />
       </button>
-      {prompt && !open && (
+      {prompt && !open && !embedded && (
         <button
           className="tracker-prompt-badge"
           onClick={() => setClosedPrompt("")}
@@ -189,7 +222,9 @@ export function TimeTracker({ onSettings }: { onSettings: () => void }) {
       </div>
       {current && (
         <div className="tracker-transport">
-          <span>{data?.active ? "Session in progress" : "Timer paused"}</span>
+          {!embedded && (
+            <span>{data?.active ? "Session in progress" : "Timer paused"}</span>
+          )}
           <button
             className="icon-button"
             disabled={action.isPending}

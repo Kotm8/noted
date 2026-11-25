@@ -1,80 +1,12 @@
-import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { request } from "../../lib/http";
+import { androidPilot, isAndroidPilot } from "../../lib/android-pilot";
 import { remindersApi } from "../reminders/api";
-import { createDeviceId, notificationDevice } from "./browser";
-
-/**
- * A window can stay focused and "visible" while the owner works on another virtual desktop
- * or walks away, and a focused desktop keeps phone alerts quiet. So it only counts as
- * present after recent input.
- */
-const IDLE_AFTER_MS = 3 * 60 * 1000;
-const ACTIVITY_EVENTS = [
-  "pointerdown",
-  "pointermove",
-  "keydown",
-  "wheel",
-  "touchstart",
-];
 
 export function useNotifications() {
   const queryClient = useQueryClient();
   useEffect(() => {
-    const device = { ...notificationDevice(), device_id: createDeviceId() };
-    let lastInput = Date.now();
-    let reported: boolean | null = null;
-    const present = () =>
-      document.visibilityState === "visible" &&
-      document.hasFocus() &&
-      Date.now() - lastInput < IDLE_AFTER_MS;
-    const heartbeat = () => {
-      if ("serviceWorker" in navigator)
-        void navigator.serviceWorker
-          .getRegistration("/")
-          .then((registration) => {
-            registration?.active?.postMessage({
-              type: "noted:reconcile-notifications",
-            });
-          })
-          .catch(() => {});
-      reported = present();
-      void request("/notifications/presence", "POST", {
-        ...device,
-        focused: reported,
-      }).catch(() => {});
-    };
-    const active = () => {
-      lastInput = Date.now();
-      // Coming back from idle is reported at once, not at the next heartbeat.
-      if (reported === false && present()) heartbeat();
-    };
-    heartbeat();
-    const timer = window.setInterval(heartbeat, 15000);
-    let reconcileTimer: number | undefined;
-    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
-      if (reconcileTimer !== undefined) return;
-      reconcileTimer = window.setTimeout(() => {
-        reconcileTimer = undefined;
-        if ("serviceWorker" in navigator)
-          void navigator.serviceWorker
-            .getRegistration("/")
-            .then((registration) => {
-              registration?.active?.postMessage({
-                type: "noted:reconcile-notifications",
-              });
-            })
-            .catch(() => {});
-      }, 750);
-    });
-    window.addEventListener("focus", heartbeat);
-    window.addEventListener("online", heartbeat);
-    window.addEventListener("pageshow", heartbeat);
-    window.addEventListener("blur", heartbeat);
-    document.addEventListener("visibilitychange", heartbeat);
-    for (const name of ACTIVITY_EVENTS)
-      window.addEventListener(name, active, { passive: true, capture: true });
     const url = new URL(window.location.href);
     const action = url.searchParams.get("reminderAction");
     const id = url.searchParams.get("note");
@@ -105,21 +37,19 @@ export function useNotifications() {
         })
         .catch((error: Error) => toast.error(error.message));
     }
+  }, [queryClient]);
+  useEffect(() => {
+    if (!isAndroidPilot) return;
+    const reconcile = () => {
+      if (document.visibilityState === "visible")
+        void androidPilot.reconcileNotifications().catch(() => {});
+    };
+    const timer = window.setInterval(reconcile, 60000);
+    reconcile();
+    window.addEventListener("online", reconcile);
     return () => {
       window.clearInterval(timer);
-      window.clearTimeout(reconcileTimer);
-      unsubscribe();
-      window.removeEventListener("focus", heartbeat);
-      window.removeEventListener("online", heartbeat);
-      window.removeEventListener("pageshow", heartbeat);
-      window.removeEventListener("blur", heartbeat);
-      document.removeEventListener("visibilitychange", heartbeat);
-      for (const name of ACTIVITY_EVENTS)
-        window.removeEventListener(name, active, { capture: true });
-      void request("/notifications/presence", "POST", {
-        ...device,
-        focused: false,
-      }).catch(() => {});
+      window.removeEventListener("online", reconcile);
     };
-  }, [queryClient]);
+  }, []);
 }

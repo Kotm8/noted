@@ -399,6 +399,33 @@
   gap: 8px;
   padding: 0 22px 18px;
 }
+.log-meal-dialog .nutrition-dock {
+  padding: 0;
+  min-width: 0;
+  container-type: inline-size;
+}
+.log-meal-dialog .nutrition-estimate {
+  min-width: 0;
+  box-shadow: none;
+}
+.log-meal-dialog .nutrition-estimate > footer {
+  flex-wrap: wrap;
+}
+@container (max-width: 490px) {
+  .log-meal-dialog .estimate-items li {
+    grid-template-columns: minmax(0, 1fr) 52px 24px;
+    column-gap: 5px;
+  }
+  .log-meal-dialog .estimate-items .item-name {
+    grid-column: 1 / -1;
+  }
+  .log-meal-dialog .estimate-items.readonly li {
+    grid-template-columns: minmax(0, 1fr) 52px;
+  }
+  .log-meal-dialog .nutrition-estimate .remember {
+    flex-basis: 100%;
+  }
+}
 .nutrition-composer {
   border: 1px solid var(--border-default);
   border-radius: 7px;

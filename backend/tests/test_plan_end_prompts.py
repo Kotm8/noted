@@ -128,25 +128,26 @@ def test_plan_extension_moves_end_prompt_to_new_end(owner, clock):
     assert latest["phase"] == "end" and latest["revision"] > prompt["revision"]
 
 
-def test_end_delivery_is_once_per_revision_and_uses_existing_focus_rules(
-    owner, clock, db, monkeypatch
+@pytest.mark.parametrize("focused", [False, True])
+def test_end_delivery_is_once_per_revision_regardless_of_desktop_focus(
+    owner, clock, db, monkeypatch, focused
 ):
     ending(owner, clock)
-    desktop, _phone = subscribe(owner), subscribe(owner, "mobile")
+    phone = subscribe(owner)
     owner.post(
         f"{API}/notifications/presence",
         json={
-            "device_id": desktop["device_id"],
+            "device_id": phone["device_id"],
             "kind": "desktop",
-            "focused": True,
+            "focused": focused,
         },
     )
     send = Mock(return_value="accepted")
     monkeypatch.setattr(routing, "send_push", send)
     delivery.dispatch_plan_prompts(db.get_bind(), "https://notes.example.com", None)
     delivery.dispatch_plan_prompts(db.get_bind(), "https://notes.example.com", None)
-    assert send.call_count == 1
-    payload = json.loads(send.call_args.args[3])
+    send.assert_called_once()
+    payload = json.loads(send.call_args.args[2])
     assert payload["phase"] == "end"
     assert payload["title"] == "Reading has ended"
     assert "prompt=" in payload["url"]

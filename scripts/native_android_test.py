@@ -17,7 +17,7 @@ ORIGIN = "http://localhost:8123"
 PASSWORD = "native-test-password-only"
 
 
-def seed_extended(engine, client, jar, channels):
+def seed_extended(engine, client, jar, channels, fixture_url: str, origin: str):
     import io
 
     from PIL import Image
@@ -135,14 +135,14 @@ def seed_extended(engine, client, jar, channels):
             + f"\r\n--{boundary}--\r\n".encode()
         )
         headers = {
-            "Origin": ORIGIN,
+            "Origin": origin,
             "Content-Type": f"multipart/form-data; boundary={boundary}",
             "X-CSRF-Token": next(cookie.value for cookie in jar if cookie.name == "noted_csrf"),
         }
         destination = channels["note"] if filename.endswith(".png") else channels["media"]
         with client.open(
             Request(
-                ORIGIN + f"/api/v1/channels/{destination['id']}/messages/with-files",
+                fixture_url + f"/api/v1/channels/{destination['id']}/messages/with-files",
                 data=body,
                 headers=headers,
             ),
@@ -156,7 +156,7 @@ def seed_extended(engine, client, jar, channels):
                 db.commit()
 
 
-def serve(ready_file: Path, extended: bool = False) -> None:
+def serve(ready_file: Path, extended: bool = False, port: int = 8123, origin: str = ORIGIN) -> None:
     from alembic.config import Config
     from sqlalchemy import text
     from sqlalchemy.engine import make_url
@@ -167,6 +167,7 @@ def serve(ready_file: Path, extended: bool = False) -> None:
     from app.auth.services.auth import AuthService
     from app.db.database import create_database_engine
 
+    fixture_url = f"http://localhost:{port}"
     base_url = os.environ["NOTED_TEST_DATABASE_URL"]
     schema = f"noted_android_{uuid4().hex}"
     admin = create_database_engine(base_url)
@@ -186,7 +187,7 @@ def serve(ready_file: Path, extended: bool = False) -> None:
         environment = os.environ.copy()
         environment.update(
             NOTED_DATABASE_URL=url.render_as_string(hide_password=False),
-            NOTED_APP_ORIGIN=ORIGIN,
+            NOTED_APP_ORIGIN=origin,
             NOTED_COOKIE_SECURE="false",
             NOTED_BACKGROUND_WORKER="false",
             NOTED_STORAGE_PATH=storage.name,
@@ -202,7 +203,7 @@ def serve(ready_file: Path, extended: bool = False) -> None:
                 "--host",
                 "127.0.0.1",
                 "--port",
-                "8123",
+                str(port),
                 "--no-access-log",
             ],
             cwd=ROOT / "backend",
@@ -212,7 +213,7 @@ def serve(ready_file: Path, extended: bool = False) -> None:
             if server.poll() is not None:
                 raise RuntimeError("The disposable Android test server stopped.")
             try:
-                with urlopen(ORIGIN + "/api/v1/health/ready", timeout=1) as response:
+                with urlopen(fixture_url + "/api/v1/health/ready", timeout=1) as response:
                     if response.status == 200:
                         break
             except (URLError, TimeoutError):
@@ -223,13 +224,13 @@ def serve(ready_file: Path, extended: bool = False) -> None:
         client = build_opener(HTTPCookieProcessor(jar))
 
         def request(path: str, body: dict | None = None, method: str | None = None):
-            headers = {"Origin": ORIGIN, "Content-Type": "application/json"}
+            headers = {"Origin": origin, "Content-Type": "application/json"}
             headers["X-CSRF-Token"] = next(
                 (cookie.value for cookie in jar if cookie.name == "noted_csrf"), ""
             )
             data = json.dumps(body).encode() if body is not None else None
             with client.open(
-                Request(ORIGIN + "/api/v1" + path, data=data, headers=headers, method=method),
+                Request(fixture_url + "/api/v1" + path, data=data, headers=headers, method=method),
                 timeout=20,
             ) as response:
                 raw = response.read()
@@ -352,14 +353,20 @@ def serve(ready_file: Path, extended: bool = False) -> None:
                 f"/workspaces/{project['id']}/channels",
                 {"name": "media", "kind": "note", "position": 5, "category_id": None},
             )
-            seed_extended(engine, client, jar, channels)
+            seed_extended(engine, client, jar, channels, fixture_url, origin)
         ready_file.write_text(
             json.dumps(
-                {"origin": ORIGIN, "username": "native", "password": PASSWORD, "channels": channels}
+                {
+                    "origin": origin,
+                    "fixture_url": fixture_url,
+                    "username": "native",
+                    "password": PASSWORD,
+                    "channels": channels,
+                }
             ),
             encoding="utf-8",
         )
-        print("Disposable native Android server ready at " + ORIGIN, flush=True)
+        print("Disposable native Android server ready at " + fixture_url, flush=True)
         server.wait()
     finally:
         if server is not None and server.poll() is None:
@@ -384,10 +391,12 @@ def main() -> None:
     )
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--extended", action="store_true")
+    parser.add_argument("--port", type=int, default=8123)
+    parser.add_argument("--origin", choices=[ORIGIN, "http://localhost:8125"], default=ORIGIN)
     parser.add_argument("--fixture", default=str(ROOT / ".local/native-android-fixture.json"))
     args = parser.parse_args()
     sys.path.insert(0, str(ROOT / "backend"))
-    serve(Path(args.fixture), args.extended)
+    serve(Path(args.fixture), args.extended, args.port, args.origin)
 
 
 if __name__ == "__main__":

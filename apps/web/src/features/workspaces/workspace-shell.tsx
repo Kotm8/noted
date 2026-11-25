@@ -3,12 +3,14 @@ import { useAssistant } from "../ai/assistant/context";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { isMobileLayout, useMobileLayout } from "../../lib/layout";
+import { isAndroidPilot } from "../../lib/android-pilot";
 import {
   syncAndroidRoute,
   useAndroidBackLayer,
 } from "../../lib/android-navigation";
 import { finishStartup } from "../../lib/startup";
 import { useLiveUpdates } from "../../lib/use-live-updates";
+import { usePilotOffline } from "../../lib/android-pilot";
 import { useOutboxSender } from "../notes/outbox";
 import { JournalSidebar } from "../journals/journal-sidebar";
 import { isAndroidApp } from "../notifications/android";
@@ -20,13 +22,17 @@ import { ThreadSidebar } from "../threads/thread-sidebar";
 import type { TrackingSection } from "../time-tracking/components/tracking-settings";
 import { StartupPrompt } from "../desktop/startup/startup-prompt";
 import { ChannelSidebar } from "./components/channel-sidebar";
+import { PhoneNavigation } from "./components/phone-navigation";
 import { ManagementDialog } from "./components/management-dialog";
 import { WorkspaceRail } from "./components/workspace-rail";
 import { MentionContext } from "../notes/mention-context";
 import { useAllChannels } from "./hooks/use-all-channels";
 import { useChannelNavigation } from "./hooks/use-channel-navigation";
 import { useSidebarSwipe } from "./hooks/use-sidebar-swipe";
-import { useWorkspaceNavigation } from "./hooks/use-workspace-navigation";
+import {
+  useWorkspaceChannels,
+  useWorkspaceNavigation,
+} from "./hooks/use-workspace-navigation";
 import type {
   NoteTarget,
   WorkspaceShell as ShellContext,
@@ -46,6 +52,7 @@ const LINKED_SETTINGS: readonly SettingsSection[] = [
   "saved-meals",
   "backups",
   "devices",
+  "notifications",
   "tracking",
 ];
 
@@ -65,11 +72,9 @@ const ChannelSchedulingDialog = lazy(() =>
   })),
 );
 
-function initialTargetNote() {
-  const id = new URLSearchParams(window.location.search).get("note");
-  return id
-    ? { channelId: window.location.pathname.split("/").at(-1) ?? "", id }
-    : null;
+function linkedTargetNote(pathname: string, search: string) {
+  const id = new URLSearchParams(search).get("note");
+  return id ? { channelId: pathname.split("/").at(-1) ?? "", id } : null;
 }
 
 function initialWriting(): WritingPanel | null {
@@ -96,7 +101,9 @@ export function WorkspaceShell({
 }) {
   const assistant = useAssistant();
   const mobileLayout = useMobileLayout();
+  const phone = isAndroidPilot && mobileLayout;
   useLiveUpdates();
+  const offline = usePilotOffline();
   useOutboxSender();
   useNotifications();
   const navigate = useNavigate();
@@ -201,8 +208,19 @@ export function WorkspaceShell({
   const [writing, setWritingPanel] = useState<WritingPanel | null>(
     initialWriting,
   );
-  const [targetNote, setTargetNote] = useState(initialTargetNote);
+  const [selectedNote, setTargetNote] =
+    useState<ReturnType<typeof linkedTargetNote>>(null);
+  const targetNote =
+    linkedTargetNote(location.pathname, location.search) ?? selectedNote;
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const [browsedWorkspaceId, setBrowsedWorkspaceId] = useState<string>();
+  const browsedWorkspace =
+    phone && mobileNavigationOpen
+      ? navigation.workspaces.find(
+          (workspace) => workspace.id === browsedWorkspaceId,
+        )
+      : undefined;
+  const browsed = useWorkspaceChannels(browsedWorkspace);
   const [trackerRequest, setTrackerRequest] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -211,11 +229,12 @@ export function WorkspaceShell({
     settingsOpen ||
       Boolean(management) ||
       Boolean(channelScheduling) ||
+      assistant.open ||
       searchOpen ||
       Boolean(writing),
     (open) => {
-      if (!open) cancelChannelNavigation();
-      setMobileNavigationOpen(open);
+      if (open) openNavigation();
+      else closeNavigation();
     },
   );
   useAndroidBackLayer(mobileNavigationOpen, () => closeNavigation());
@@ -235,8 +254,8 @@ export function WorkspaceShell({
     setSettingsOpen(false);
     setSearchOpen(false);
     setWritingPanel(null);
-    if (isMobileLayout()) setMobileNavigationOpen(true);
-  }, [location.key, location.search]);
+    if (isMobileLayout() && !phone) setMobileNavigationOpen(true);
+  }, [location.key, location.search, phone]);
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
@@ -280,6 +299,11 @@ export function WorkspaceShell({
     setMobileNavigationOpen(false);
   }
 
+  function openNavigation() {
+    setBrowsedWorkspaceId(undefined);
+    setMobileNavigationOpen(true);
+  }
+
   function openPage(path: string) {
     cancelChannelNavigation();
     navigate(path, { replace: isAndroidApp() && !navigation.isHome });
@@ -289,6 +313,15 @@ export function WorkspaceShell({
   }
 
   function openChannel(workspaceId: string, channelId: string, write = false) {
+    if (
+      phone &&
+      mobileNavigationOpen &&
+      !write &&
+      navigation.channel?.id === channelId
+    ) {
+      closeNavigation();
+      return;
+    }
     void channelNavigation.open({ workspaceId, channelId }, () => {
       openPage(`/w/${workspaceId}/c/${channelId}${write ? "?write=1" : ""}`);
       setTargetNote(null);
@@ -306,7 +339,7 @@ export function WorkspaceShell({
       { workspaceId, channelId, noteId, threadId, replyId },
       () => {
         openPage(`/w/${workspaceId}/c/${channelId}?note=${noteId}`);
-        setTargetNote({ channelId, id: noteId });
+        setTargetNote(null);
         if (threadId)
           setWriting({
             kind: "thread",
@@ -388,7 +421,7 @@ export function WorkspaceShell({
     openPage,
     openChannel,
     openNote,
-    openNavigation: () => setMobileNavigationOpen(true),
+    openNavigation,
     openSearch,
     openTracking,
     manage: setManagement,
@@ -416,11 +449,18 @@ export function WorkspaceShell({
 
         <WorkspaceRail
           workspaces={navigation.workspaces}
-          selectedId={navigation.workspace?.id}
+          selectedId={(browsedWorkspace ?? navigation.workspace)?.id}
           pendingId={channelNavigation.pending?.workspaceId}
-          onSelect={(workspace) =>
-            guardSettingsNavigation(() => selectWorkspace(workspace))
-          }
+          onSelect={(workspace) => {
+            if (phone && mobileNavigationOpen) {
+              cancelChannelNavigation();
+              setBrowsedWorkspaceId(
+                workspace.id === navigation.workspace?.id
+                  ? undefined
+                  : workspace.id,
+              );
+            } else guardSettingsNavigation(() => selectWorkspace(workspace));
+          }}
           onCreate={() => setManagement({ kind: "workspace" })}
           onManage={setManagement}
           onSettings={() => {
@@ -429,14 +469,36 @@ export function WorkspaceShell({
           settingsActive={desktopSettings}
         />
         <ChannelSidebar
-          workspace={navigation.workspace}
-          categories={navigation.categories}
-          channels={navigation.channels}
+          workspace={browsedWorkspace ?? navigation.workspace}
+          categories={
+            browsedWorkspace
+              ? (browsed.categories.data ?? [])
+              : navigation.categories
+          }
+          channels={
+            browsedWorkspace
+              ? (browsed.channels.data ?? [])
+              : navigation.channels
+          }
           selectedChannelId={navigation.channel?.id}
           pendingChannelId={channelNavigation.pending?.channelId}
-          isLoading={navigation.isLoading || navigation.isCategoriesLoading}
-          error={navigation.error}
-          onRetry={navigation.retry}
+          isLoading={
+            browsedWorkspace
+              ? browsed.categories.isPending || browsed.channels.isPending
+              : navigation.isLoading || navigation.isCategoriesLoading
+          }
+          error={
+            browsedWorkspace
+              ? (browsed.categories.error ?? browsed.channels.error)
+              : navigation.error
+          }
+          onRetry={() => {
+            if (!browsedWorkspace) navigation.retry();
+            else {
+              void browsed.categories.refetch();
+              void browsed.channels.refetch();
+            }
+          }}
           onSelect={(channel) => openChannel(channel.workspace_id, channel.id)}
           onManage={setManagement}
           scheduleActive={navigation.isSchedule}
@@ -452,6 +514,7 @@ export function WorkspaceShell({
           onSchedule={() => openPage("/schedule")}
           onTrackingSettings={() => openTracking("activities")}
           trackerRequest={trackerRequest}
+          hideTracker={phone && navigation.isHome}
         />
 
         {desktopSettings && (
@@ -477,12 +540,22 @@ export function WorkspaceShell({
         )}
         <main
           className={`main-panel ${desktopSettings ? "saved-page" : ""}`}
-          inert={desktopSettings || undefined}
+          inert={
+            desktopSettings || (phone && mobileNavigationOpen) || undefined
+          }
         >
+          {offline && (
+            <p className="pilot-offline-notice" role="status">
+              Offline. Showing saved content.
+            </p>
+          )}
           <NotificationPrompt />
           <Suspense fallback={null}>
             <Outlet context={shell} />
           </Suspense>
+          {phone && !activeWriting && !searchOpen && !settingsOpen && (
+            <PhoneNavigation active={location.pathname} openPage={openPage} />
+          )}
         </main>
 
         {!desktopSettings &&

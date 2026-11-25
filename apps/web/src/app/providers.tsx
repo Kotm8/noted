@@ -6,28 +6,46 @@ import {
 } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster, toast } from "sonner";
+import { AndroidTransferProgress } from "../components/android-transfer-progress";
 import { ApiError } from "../lib/http";
+import { getPilotOffline, isAndroidPilot } from "../lib/android-pilot";
 import { AppearanceProvider } from "../features/settings/appearance-provider";
 import { DesktopUpdateNotice } from "../features/desktop/updates/desktop-update-notice";
 
 function createQueryClient(): QueryClient {
   const queryClient = new QueryClient({
     queryCache: new QueryCache({
-      onError: (error) => {
-        if (error instanceof ApiError && error.status === 401) {
-          queryClient.clear();
-          window.location.assign("/");
+      onError: (error, query) => {
+        if (
+          error instanceof ApiError &&
+          error.status === 401 &&
+          query.queryKey[0] !== "session" &&
+          queryClient.getQueryData(["session"])
+        ) {
+          void queryClient.invalidateQueries(
+            { queryKey: ["session"], exact: true },
+            { cancelRefetch: false },
+          );
           return;
         }
-        toast.error(error.message);
+        if (
+          !(
+            getPilotOffline() &&
+            error instanceof ApiError &&
+            error.status === 503
+          )
+        )
+          toast.error(error.message);
       },
     }),
     defaultOptions: {
       queries: {
         staleTime: 30000,
         retry: false,
+        networkMode: isAndroidPilot ? "always" : "online",
         refetchOnWindowFocus: true,
       },
+      mutations: { networkMode: isAndroidPilot ? "always" : "online" },
     },
   });
 
@@ -44,6 +62,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           {children}
           <DesktopUpdateNotice />
         </BrowserRouter>
+        <AndroidTransferProgress />
         <Toaster
           theme="dark"
           position="top-right"

@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.auth.services.sessions import AuthenticatedSession
@@ -29,6 +29,7 @@ from app.notifications.android_service import (
     start_pairing,
 )
 from app.notifications.firebase import (
+    AndroidPackage,
     FirebaseConfiguration,
     FirebaseInput,
     load_configuration,
@@ -65,28 +66,35 @@ def require_configuration(settings: Settings) -> FirebaseConfiguration:
 @router.get("/status", response_model=AndroidStatus)
 def status(
     device_id: UUID | None = None,
+    package_name: AndroidPackage = "com.noted.android",
     db: Session = Depends(get_db),
     current: AuthenticatedSession = Depends(get_current_session),
     settings: Settings = Depends(get_settings),
 ) -> AndroidStatus:
     configuration = load_configuration(settings.storage_path)
+    firebase_client = configuration.client_for(package_name) if configuration else None
     subscribed = (
-        configuration is not None
+        firebase_client is not None
+        and device_id is not None
         and db.scalar(
             select(PushSubscription.id)
             .where(
                 PushSubscription.session_id == current.session.id,
                 PushSubscription.device_id == device_id,
-                PushSubscription.endpoint.startswith(f"fcm:{configuration.client.project_id}:"),
+                PushSubscription.endpoint.startswith(f"fcm:{firebase_client.project_id}:"),
+                func.coalesce(
+                    PushSubscription.keys["package_name"].as_string(), "com.noted.android"
+                )
+                == package_name,
             )
             .limit(1)
         )
         is not None
     )
     return AndroidStatus(
-        configured=configuration is not None,
+        configured=firebase_client is not None,
         subscribed=subscribed,
-        project_id=configuration.client.project_id if configuration else None,
+        project_id=firebase_client.project_id if firebase_client else None,
     )
 
 
@@ -119,9 +127,10 @@ def prepare(
     data: TicketInput, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
 ) -> PairingConfiguration:
     row = pairing(db, data.ticket.get_secret_value())
-    return PairingConfiguration(
-        client=require_configuration(settings).client, device_id=row.device_id
-    )
+    firebase_client = require_configuration(settings).client_for(data.package_name)
+    if firebase_client is None:
+        raise ConflictError("Add this Android package to the Firebase configuration first.")
+    return PairingConfiguration(client=firebase_client, device_id=row.device_id)
 
 
 @router.post("/complete", status_code=204)

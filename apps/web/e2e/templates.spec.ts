@@ -168,7 +168,9 @@ test("D01 edits horizontal blocks, applies under the right date, and opens a pho
     .locator(".sidebar-global-navigation")
     .getByRole("button", { name: "Calendar", exact: true })
     .click();
-  const useButton = page.locator(".day-use-template").first();
+  const useButton = page.locator(
+    ".schedule-week-row.selected-day .day-use-template",
+  );
   await useButton.scrollIntoViewIfNeeded();
   const destination = (await useButton.getAttribute("aria-label"))!.replace(
     "Use template on ",

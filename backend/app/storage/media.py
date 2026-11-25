@@ -89,7 +89,7 @@ def inspect_image(upload: UploadFile, required: bool) -> str:
                 content_type = IMAGE_TYPES[image.format or ""]
                 image.verify()
                 return content_type
-    except (UnidentifiedImageError, OSError, KeyError):
+    except (UnidentifiedImageError, OSError, KeyError, SyntaxError):
         if required or (upload.content_type or "").startswith("image/"):
             raise ValidationError("Choose a valid PNG, JPEG, GIF, or WebP image.") from None
         return "application/octet-stream"

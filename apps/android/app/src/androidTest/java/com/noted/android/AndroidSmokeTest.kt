@@ -1,31 +1,27 @@
 package com.noted.android
 
 import android.content.Intent
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.compose.ui.test.onNodeWithText
+import android.content.ComponentName
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.noted.android.data.SecretStore
-import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AndroidSmokeTest {
-    @get:Rule val compose = createEmptyComposeRule()
-
-    @Test fun opensNativeSignInWithoutABrowserOrFirebase() {
+    @Test fun opensThePackagedPhoneWithOneLauncher() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        runBlocking { (context.applicationContext as NotedApplication).repository.logout() }
-        ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNodeWithText("Server address").assertIsDisplayed()
-            compose.onNodeWithText("Username").assertIsDisplayed()
-            compose.onNodeWithText("Password").assertIsDisplayed()
-            compose.onNodeWithText("Sign in").assertIsDisplayed()
+        val launchers = context.packageManager.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName), 0,
+        )
+        assertEquals(listOf(ComponentName(context, MainActivity::class.java).className), launchers.map { it.activityInfo.name })
+        context.assets.open("public/index.html").use { assertTrue(it.read() >= 0) }
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { assertNotNull(it.bridge.getPlugin("NotedPilot")) }
         }
     }
 

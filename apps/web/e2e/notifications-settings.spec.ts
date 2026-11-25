@@ -28,6 +28,11 @@ test("skipped Android setup can be completed in settings and unlocks phone contr
   await dialog
     .getByRole("button", { name: "Notifications", exact: true })
     .click();
+  await expect(dialog.locator(".browser-notification-settings")).toHaveCount(0);
+  await expect(page.locator(".notification-prompt")).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Enable notifications", exact: true }),
+  ).toHaveCount(0);
   const quiet = dialog.getByRole("checkbox", { name: "Quiet hours" });
   await quiet.click();
   await expect(quiet).toBeChecked();

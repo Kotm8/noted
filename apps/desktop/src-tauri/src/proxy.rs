@@ -17,6 +17,8 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
         return failure(StatusCode::BAD_REQUEST, "Invalid API destination.");
     }
     let is_login = parts.uri.path() == "/api/v1/auth/login";
+    let is_session = parts.uri.path() == "/api/v1/auth/session";
+    let is_renewal = parts.uri.path() == "/api/v1/auth/renew";
     let _auth_guard = if parts.uri.path().starts_with("/api/v1/auth/") {
         Some(connection.auth_lock.lock().await)
     } else {
@@ -57,7 +59,7 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
             }
         }
     }
-    let response = match outgoing
+    let mut response = match outgoing
         .body(reqwest::Body::wrap_stream(body.into_data_stream()))
         .send()
         .await
@@ -87,16 +89,16 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
             "Couldn't securely remember this sign-in. Try again or turn off Keep me signed in.",
         );
     }
+    if is_renewal && response.status().is_success() {
+        let _ = connection.save_session(response.headers());
+    }
     let cleared = response
         .headers()
         .get_all("set-cookie")
         .iter()
         .filter_map(|value| value.to_str().ok())
         .any(|value| value.starts_with("noted_session=") && value.contains("Max-Age=0"));
-    if cleared
-        || (parts.uri.path() == "/api/v1/auth/session"
-            && response.status() == StatusCode::UNAUTHORIZED)
-    {
+    if cleared && parts.uri.path().starts_with("/api/v1/auth/") {
         let _ = connection.forget();
         connection.clear_cookies();
     }
@@ -109,6 +111,41 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
             result = result.header(name, value);
         }
     }
+    if is_session && response.status() == StatusCode::UNAUTHORIZED {
+        let json = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
+        let mut data = Vec::new();
+        let confirmed = json
+            && loop {
+                match response.chunk().await {
+                    Ok(Some(chunk)) if data.len() + chunk.len() <= 4096 => {
+                        data.extend_from_slice(&chunk)
+                    }
+                    Ok(None) => {
+                        break serde_json::from_slice::<serde_json::Value>(&data).is_ok_and(
+                            |value| {
+                                value.get("detail").and_then(|item| item.as_str())
+                                    == Some("Sign in to continue")
+                            },
+                        )
+                    }
+                    _ => break false,
+                }
+            };
+        if !confirmed {
+            return failure(
+                StatusCode::BAD_GATEWAY,
+                "Couldn't verify your sign-in with the selected Noted server.",
+            );
+        }
+        let _ = connection.forget();
+        connection.clear_cookies();
+        return result.body(Body::from(data)).unwrap();
+    }
     result
         .body(Body::from_stream(response.bytes_stream()))
         .unwrap()
@@ -118,6 +155,53 @@ pub async fn forward(connection: Connection, request: Request<Body>) -> Response
 mod tests {
     use super::*;
     use axum::Router;
+
+    #[tokio::test]
+    async fn proxy_retains_credentials_until_a_session_rejection_is_confirmed() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                Router::new().fallback(|request: Request<Body>| async move {
+                    let response = Response::builder().status(StatusCode::UNAUTHORIZED);
+                    if request.uri().query() == Some("confirmed=1") {
+                        assert!(request.headers()[header::COOKIE]
+                            .to_str()
+                            .unwrap()
+                            .contains("noted_session=test"));
+                        response
+                            .header(header::CONTENT_TYPE, "application/json")
+                            .body(Body::from(r#"{"detail":"Sign in to continue"}"#))
+                            .unwrap()
+                    } else {
+                        response
+                            .header(header::CONTENT_TYPE, "text/html")
+                            .body(Body::from("<p>Reverse proxy login</p>"))
+                            .unwrap()
+                    }
+                }),
+            )
+            .await
+            .unwrap();
+        });
+        let connection = Connection::new(format!("http://{address}").parse().unwrap()).unwrap();
+        connection
+            .cookies
+            .add_cookie_str("noted_session=test; Path=/api", &connection.url);
+        let session = |path| Request::builder().uri(path).body(Body::empty()).unwrap();
+        let ambiguous = forward(connection.clone(), session("/api/v1/auth/session")).await;
+        assert_eq!(ambiguous.status(), StatusCode::BAD_GATEWAY);
+        let confirmed = forward(
+            connection.clone(),
+            session("/api/v1/auth/session?confirmed=1"),
+        )
+        .await;
+        assert_eq!(confirmed.status(), StatusCode::UNAUTHORIZED);
+        let api = connection.url.join("/api/v1/auth/session").unwrap();
+        assert!(connection.cookies.cookies(&api).is_none());
+        server.abort();
+    }
 
     async fn upstream(request: Request<Body>) -> Response<Body> {
         if request.uri().path().ends_with("login") {

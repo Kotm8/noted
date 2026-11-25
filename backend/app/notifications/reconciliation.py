@@ -23,12 +23,14 @@ def current(db: Session, owner: UUID, kind: str, identifier: UUID, revision: int
             and note_reminder.revision == revision
             and note_reminder.status == "active"
             and note_reminder.due_at <= utc_now()
+            and note_reminder.read_revision < revision
         )
     if kind == "finance":
         from app.finance.models import FinanceItem
+        from app.finance.notifications import notify_at
 
         finance_item = db.get(FinanceItem, identifier)
-        return bool(
+        pending = bool(
             finance_item
             and finance_item.owner_id == owner
             and finance_item.kind == "occurrence"
@@ -36,6 +38,10 @@ def current(db: Session, owner: UUID, kind: str, identifier: UUID, revision: int
             and finance_item.revision == revision
             and finance_item.fields["status"] == "pending"
         )
+        if not pending or finance_item is None:
+            return False
+        due = notify_at(db, finance_item)
+        return due is not None and due <= utc_now()
     if kind == "reminder":
         message = db.get(Message, identifier)
         item = db.get(Reminder, identifier)

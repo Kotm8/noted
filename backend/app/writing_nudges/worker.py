@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.core.config import Settings
-from app.notifications.routing import deliver
+from app.notifications.routing import deliver, pending_delivery
 from app.notifications.schemas import NotificationSettings
 from app.workspaces.models import Channel, Workspace
 from app.writing_nudges.models import NudgeDelivery, WritingNudge, WritingNudgeRun
@@ -39,7 +39,11 @@ def dispatch_nudges(engine: Engine, settings: Settings) -> None:
             .join(User, User.id == WritingNudge.owner_id)
             .join(Channel, Channel.id == WritingNudge.channel_id)
             .join(Workspace, Workspace.id == Channel.workspace_id)
-            .where(WritingNudge.completed_at.is_(None))
+            .where(
+                WritingNudge.completed_at.is_(None),
+                WritingNudge.read_revision < WritingNudge.revision,
+                pending_delivery(NudgeDelivery, WritingNudge, WritingNudge.owner_id, 4),
+            )
             .order_by(WritingNudge.due_at)
             .limit(100)
             .with_for_update(of=WritingNudge, skip_locked=True)

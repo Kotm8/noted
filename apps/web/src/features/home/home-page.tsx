@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Notice } from "../../components/ui/notice";
+import { isAndroidPilot } from "../../lib/android-pilot";
+import { useMobileLayout } from "../../lib/layout";
 import { liveInterval } from "../../lib/live";
 import { useTracking } from "../time-tracking/use-tracking";
 import { scheduleApi } from "../schedule/api";
@@ -12,12 +14,13 @@ import { HomeNeeds } from "./components/home-needs";
 import { HomeHabits } from "./components/home-habits";
 import { HomeFood } from "./components/home-food";
 import { HomePins } from "./components/home-pins";
+import { PhoneHome } from "./components/phone-home";
 import type { HomeActivity } from "./types";
 import "./home-b.css";
 
 interface HomePageProps {
   onNavigation: () => void;
-  onCalendar: (date?: string) => void;
+  onCalendar: (date?: string, plan?: string) => void;
   onSearch: () => void;
   onActivity: () => void;
   onOpen: (item: HomeActivity) => void;
@@ -26,6 +29,7 @@ interface HomePageProps {
 export function HomePage(props: HomePageProps) {
   const tracking = useTracking();
   const shell = useWorkspaceShell();
+  const mobile = useMobileLayout();
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 30000);
@@ -44,6 +48,23 @@ export function HomePage(props: HomePageProps) {
     enabled: Boolean(preferences),
   });
   const error = tracking.tracker.error ?? board.error;
+  const retry = () => {
+    void tracking.tracker.refetch();
+    void board.refetch();
+  };
+  if (isAndroidPilot && mobile) {
+    return (
+      <PhoneHome
+        {...props}
+        {...{ today, timezone, now, error, retry }}
+        board={board.data}
+        activities={tracking.activities.data ?? []}
+        openHabits={() => shell.openPage("/habits")}
+        openNutrition={() => shell.openPage("/nutrition")}
+        openTracking={() => shell.openTracking("activities")}
+      />
+    );
+  }
   return (
     <div className="home-b">
       <HomeHeader
@@ -57,14 +78,7 @@ export function HomePage(props: HomePageProps) {
         {error && (
           <Notice tone="error">
             {error.message}
-            <button
-              onClick={() => {
-                void tracking.tracker.refetch();
-                void board.refetch();
-              }}
-            >
-              Retry
-            </button>
+            <button onClick={retry}>Retry</button>
           </Notice>
         )}
         {board.data && preferences ? (

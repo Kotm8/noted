@@ -8,21 +8,23 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.core.config import Settings
 from app.core.security import utc_now
-from app.notifications.routing import deliver
+from app.notifications.routing import deliver, pending_delivery
 from app.notifications.schemas import NotificationSettings
 from app.publishing.models import WritingDelivery, WritingPrompt
 from app.workspaces.models import Channel, Workspace
 
 
-def dispatch_writing(engine: Engine, settings: Settings, started: datetime) -> None:
+def dispatch_writing(engine: Engine, settings: Settings, _started: datetime) -> None:
     now = utc_now()
     with Session(engine) as db:
         prompts = db.scalars(
             select(WritingPrompt)
             .where(
                 WritingPrompt.enabled.is_(True),
-                WritingPrompt.due_at >= max(started, now - timedelta(minutes=5)),
+                WritingPrompt.due_at >= now - timedelta(hours=24),
                 WritingPrompt.due_at <= now,
+                WritingPrompt.read_revision < WritingPrompt.revision,
+                pending_delivery(WritingDelivery, WritingPrompt, WritingPrompt.owner_id, 4),
             )
             .limit(50)
             .with_for_update(skip_locked=True)
@@ -59,6 +61,6 @@ def dispatch_writing(engine: Engine, settings: Settings, started: datetime) -> N
                 origin=settings.app_origin,
                 settings=settings,
                 max_attempts=4,
-                ttl=300,
+                ttl=3600,
             )
         db.commit()

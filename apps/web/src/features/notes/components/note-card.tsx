@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Bell,
   AlarmClock,
   Check,
   Copy,
+  History,
   Image as ImageIcon,
 } from "lucide-react";
 import { ContextMenu } from "../../../components/ui/context-menu";
@@ -68,6 +69,7 @@ export function NoteCard({
   preview,
 }: NoteCardProps) {
   const element = useRef<HTMLElement>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const remind = useNoteReminder(note, channelName);
   const createdAt = new Date(note.created_at);
   const hasText = Boolean(note.content.trim());
@@ -144,6 +146,12 @@ export function NoteCard({
         <Pencil size={14} />
         Edit note
       </MenuItem>
+      {wasEdited && (
+        <MenuItem onSelect={() => setHistoryOpen(true)}>
+          <History size={14} />
+          Edit history
+        </MenuItem>
+      )}
       {!note.thread_root_id && (
         <MenuItem onSelect={remind.open}>
           <Bell size={14} />
@@ -204,12 +212,14 @@ export function NoteCard({
         disabled={editing || Boolean(preview)}
         label="Message actions"
         menu={actions}
+        touch
       >
         <article
           ref={element}
           className={`note ${editing ? "note-editing" : ""}`}
           id={`note-${note.id}`}
           aria-label={`Note from ${createdAt.toLocaleString()}`}
+          data-hold-actions={!editing && !preview ? "" : undefined}
           tabIndex={0}
         >
           <time
@@ -332,6 +342,9 @@ export function NoteCard({
         </article>
       </ContextMenu>
       {remind.dialog}
+      {historyOpen && (
+        <EditHistory note={note} onClose={() => setHistoryOpen(false)} />
+      )}
     </>
   );
 }

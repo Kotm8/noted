@@ -10,12 +10,15 @@ export function Ring({
   eaten,
   target,
   size = 168,
+  showEaten = false,
+  stroke = 12,
 }: {
   eaten: number;
   target: number;
   size?: number;
+  showEaten?: boolean;
+  stroke?: number;
 }) {
-  const stroke = 12;
   const radius = (size - stroke) / 2;
   const length = 2 * Math.PI * radius;
   const over = eaten > target;
@@ -30,20 +33,30 @@ export function Ring({
           className="ring-track"
           strokeWidth={stroke}
         />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          className={`ring-fill${over ? " over" : ""}`}
-          strokeWidth={stroke}
-          strokeDasharray={length}
-          strokeDashoffset={length * (1 - share)}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
+        {share > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            className={`ring-fill${over ? " over" : ""}`}
+            strokeWidth={stroke}
+            strokeDasharray={length}
+            strokeDashoffset={length * (1 - share)}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        )}
       </svg>
       <div className="ring-label">
-        <strong>{kcal(Math.abs(target - eaten))}</strong>
-        <span>{over ? "kcal over" : "kcal left"}</span>
+        <strong>{kcal(showEaten ? eaten : Math.abs(target - eaten))}</strong>
+        <span>
+          {showEaten
+            ? target
+              ? `of ${kcal(target)}`
+              : "kcal"
+            : over
+              ? "kcal over"
+              : "kcal left"}
+        </span>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 export function ScheduleRoute() {
   const shell = useWorkspaceShell();
   const [params] = useSearchParams();
+  const plan = params.get("plan") ?? undefined;
   const candidate = params.get("date") ?? "";
   const parsed = new Date(`${candidate}T12:00:00Z`);
   const date =
@@ -15,8 +16,9 @@ export function ScheduleRoute() {
       : undefined;
   return (
     <ScheduleBoard
-      key={date ?? "today"}
+      key={`${date ?? "today"}:${plan ?? ""}`}
       initialDate={date}
+      initialPlanId={plan}
       onNavigation={shell.openNavigation}
       onSettings={() => shell.openTracking("schedule")}
       onReminder={(flag) =>

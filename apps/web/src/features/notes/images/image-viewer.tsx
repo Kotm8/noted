@@ -18,6 +18,7 @@ import { useAndroidBackLayer } from "../../../lib/android-navigation";
 import { copyImage } from "../../../lib/copy-image";
 import { formatFileSize } from "../../../lib/format";
 import type { Attachment } from "../types";
+import { downloadOnAndroid } from "../share";
 import { useImageTransform } from "./use-image-transform";
 import "./images.css";
 
@@ -147,6 +148,7 @@ function ViewerImage({
           className="icon-button"
           href={file.download_url}
           download={file.original_filename}
+          onClick={(event) => downloadOnAndroid(event, file)}
           aria-label="Download original image"
           title="Download original"
         >

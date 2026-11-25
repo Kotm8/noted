@@ -32,13 +32,13 @@ export function useSidebarSwipe(
         return;
       const target = event.target;
       if (
-        !(target instanceof HTMLElement) ||
+        !(target instanceof Element) ||
         target.closest(
-          'input, textarea, select, video, audio, pre, [contenteditable="true"], .schedule-grid',
+          'input, textarea, select, video, audio, pre, [contenteditable="true"], .composer-area, .phone-navigation, .schedule-timeline-scroll, .schedule-day-strip, .schedule-grid',
         )
       )
         return;
-      if (target.closest("button, a")) return;
+      if (!open && target.closest("button, a")) return;
       const touch = event.touches[0];
       if (!open && (touch.clientX < 24 || touch.clientX > 112)) return;
       if (

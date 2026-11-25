@@ -52,11 +52,12 @@ def dispatch_due(engine: Engine, origin: str, settings: Settings | None = None) 
             .join(Message)
             .where(
                 Reminder.status == "active",
+                Reminder.read_revision < Reminder.revision,
                 Reminder.due_at <= utc_now(),
                 Message.deleted_at.is_(None),
                 pending_subscription,
             )
-            .order_by(Reminder.due_at)
+            .order_by(Reminder.urgent.desc(), Reminder.due_at)
             .limit(50)
             .with_for_update(of=Reminder, skip_locked=True)
         ).all()

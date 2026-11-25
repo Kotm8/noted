@@ -291,7 +291,7 @@ def test_delivery_respects_quiet_hours_and_does_not_repeat(
     dispatch_nudges(engine, app.state.settings)
     dispatch_nudges(engine, app.state.settings)
     assert send.call_count == 1
-    payload = json.loads(send.call_args.args[3])
+    payload = json.loads(send.call_args.args[2])
     assert payload["kind"] == "writing" and payload["url"].endswith(f"/c/{channel['id']}?write=1")
     assert payload["title"].endswith(f"/ #{channel['name']}")
 
@@ -321,7 +321,7 @@ def test_dismiss_checks_revision_and_writing_dismisses_native_notification(
     )
     owner.post(f"{API}/channels/{channel['id']}/messages", json={"content": "Update"})
     dispatch_dismissals(engine, app.state.settings.app_origin, app.state.settings)
-    assert any(json.loads(call.args[3]).get("target") == "writing" for call in send.call_args_list)
+    assert any(json.loads(call.args[2]).get("target") == "writing" for call in send.call_args_list)
 
 
 def test_backup_remaps_channel_targets_and_does_not_restart_timer(owner, channel, clock, db):

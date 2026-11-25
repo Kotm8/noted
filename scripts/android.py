@@ -174,6 +174,25 @@ def main() -> None:
         print(f"Prepared the two private Actions secret values in {directory}.")
         return
     wrapper = ANDROID / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    npm = "npm.cmd" if os.name == "nt" else "npm"
+    web = ROOT / "apps/web"
+    subprocess.run([npm, "ci"], cwd=web, env=values, check=True)
+    subprocess.run(
+        [
+            npm,
+            "run",
+            "build",
+            "--",
+            "--mode",
+            "android",
+            "--outDir",
+            "../android/app/build/noted-phone-web",
+            "--emptyOutDir",
+        ],
+        cwd=web,
+        env=values,
+        check=True,
+    )
     tasks = [
         ":app:assembleDebug",
         ":app:testDebugUnitTest",

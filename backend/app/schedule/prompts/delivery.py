@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.core.config import Settings
 from app.core.security import utc_now
-from app.notifications.routing import deliver
+from app.notifications.routing import deliver, pending_delivery
 from app.notifications.schemas import NotificationSettings
 from app.schedule.models import SchedulePlan
 from app.schedule.prompts.models import PlanPrompt, PlanPromptDelivery
@@ -25,7 +25,12 @@ def dispatch_plan_prompts(engine: Engine, origin: str, settings: Settings | None
             db.commit()
         prompts = db.scalars(
             select(PlanPrompt)
-            .where(PlanPrompt.status == "pending", PlanPrompt.notify_at <= utc_now())
+            .where(
+                PlanPrompt.status == "pending",
+                PlanPrompt.notify_at <= utc_now(),
+                PlanPrompt.read_revision < PlanPrompt.revision,
+                pending_delivery(PlanPromptDelivery, PlanPrompt, PlanPrompt.owner_id),
+            )
             .order_by(PlanPrompt.notify_at)
             .limit(50)
             .with_for_update(skip_locked=True)
@@ -71,22 +76,26 @@ def deliver_group(
                 "promptId": str(other.id),
                 "revision": other.revision,
                 "activityId": str(other_activity.id),
-                "activityName": other_activity.name,
-                "title": other.title,
+                "activityName": other_activity.name[:40],
+                "title": other.title[:60],
             }
         )
+        if len(alternatives) == 3:
+            break
     switch = db.get(Activity, prompt.switch_activity_id) if prompt.switch_activity_id else None
-    names = [activity.name, *(str(item["activityName"]) for item in alternatives)]
+    activity_name = activity.name[:60]
+    switch_name = switch.name[:60] if switch else None
+    names = [activity_name, *(str(item["activityName"]) for item in alternatives)]
     if prompt.phase == "end":
-        title = f"{activity.name} has ended"
+        title = f"{activity_name} has ended"
         body = (
-            f"{prompt.title}. Switch to {switch.name}, stop tracking, or snooze."
+            f"{prompt.title[:100]}. Switch to {switch_name}, stop tracking, or snooze."
             if switch
-            else f"{prompt.title}. Stop tracking or snooze to keep going."
+            else f"{prompt.title[:100]}. Stop tracking or snooze to keep going."
         )
     else:
         title = f"Time for {either(names)}"
-        body = " · ".join([prompt.title, *(str(item["title"]) for item in alternatives)])
+        body = " · ".join([prompt.title[:100], *(str(item["title"]) for item in alternatives)])
     payload = json.dumps(
         {
             "kind": "plan",
@@ -97,13 +106,13 @@ def deliver_group(
             "promptId": str(prompt.id),
             "revision": prompt.revision,
             "activityId": str(activity.id),
-            "activityName": activity.name,
-            "title": title,
-            "body": body,
+            "activityName": activity_name,
+            "title": title[:160],
+            "body": body[:200],
             "alternatives": alternatives,
             "switchActivityId": str(switch.id) if switch else None,
-            "switchActivityName": switch.name if switch else None,
-            "switchTitle": prompt.switch_title if switch else None,
+            "switchActivityName": switch_name,
+            "switchTitle": prompt.switch_title[:60] if switch and prompt.switch_title else None,
             "plannedStart": prompt.planned_start.isoformat(),
             "plannedEnd": prompt.planned_end.isoformat() if prompt.planned_end else None,
             "timezone": plan.timezone if plan else "UTC",
@@ -111,7 +120,7 @@ def deliver_group(
         },
         ensure_ascii=False,
     )
-    deliver(
+    accepted = deliver(
         db,
         PlanPromptDelivery,
         prompt.id,
@@ -122,7 +131,8 @@ def deliver_group(
         origin=origin,
         settings=settings,
     )
-    for other in others:
+    included = {item["promptId"] for item in alternatives}
+    for other in (item for item in others if str(item.id) in included):
         deliver(
             db,
             PlanPromptDelivery,
@@ -133,5 +143,5 @@ def deliver_group(
             "",
             origin=origin,
             settings=settings,
-            silent=True,
+            covered=accepted,
         )

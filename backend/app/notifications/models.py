@@ -10,12 +10,6 @@ from app.core.security import utc_now
 from app.db.base import Base
 
 
-class NotificationKey(Base):
-    __tablename__ = "notification_keys"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    private_key: Mapped[str] = mapped_column(Text)
-
-
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)

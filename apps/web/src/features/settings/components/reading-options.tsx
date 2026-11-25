@@ -57,21 +57,21 @@ export function ReadingOptions() {
           onChange={(e) => update({ readingWidth: Number(e.target.value) })}
         />
       </label>
-      <label className="checkbox-label">
+      <label className="appearance-setting appearance-toggle">
+        <span>Reduce motion</span>
         <input
           type="checkbox"
           checked={p.reducedMotion}
           onChange={(e) => update({ reducedMotion: e.target.checked })}
         />
-        Reduce motion
       </label>
-      <label className="checkbox-label">
+      <label className="appearance-setting appearance-toggle">
+        <span>Stronger borders and focus</span>
         <input
           type="checkbox"
           checked={p.highContrast}
           onChange={(e) => update({ highContrast: e.target.checked })}
         />
-        Stronger borders and focus
       </label>
       <button
         type="button"

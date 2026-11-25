@@ -122,10 +122,11 @@ export function DayTemplatePicker({
       type="button"
       className="day-use-template"
       aria-label={`Use template on ${date}`}
+      title="Use template"
       onClick={isMobileLayout() ? () => setOpen(true) : undefined}
     >
       <Layers size={12} />
-      Use template
+      <span>Use template</span>
     </button>
   );
   if (isMobileLayout())

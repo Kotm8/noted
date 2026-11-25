@@ -364,9 +364,10 @@ test.describe("touch context handling", () => {
   test.use({
     hasTouch: true,
     isMobile: true,
-    viewport: { width: 390, height: 844 },
+    viewport: { width: 320, height: 640 },
   });
-  test("touch long presses keep navigation and notes unchanged", async ({
+  test("a touch hold opens message actions while taps and swipes do not", async ({
+    context,
     page,
   }) => {
     await login(page);
@@ -385,25 +386,61 @@ test.describe("touch context handling", () => {
       "POST",
       { content: "Keep this message" },
     );
+    const editedText = "Keep this edited message";
+    await api(page, `/messages/${message.id}`, "PUT", {
+      content: editedText,
+      expected_content: "Keep this message",
+    });
     await page.goto(`/w/${project.id}/c/${channel.id}`);
     const note = page.locator(`#note-${message.id}`);
-    await note.dispatchEvent("pointerdown", {
-      pointerType: "touch",
-      button: 0,
+    await note.getByText(editedText).tap();
+    const menu = page.getByRole("menu", { name: "Message actions" });
+    await expect(menu).toHaveCount(0);
+    await expect(note.locator(".note-actions")).toBeHidden();
+
+    const touch = await context.newCDPSession(page);
+    const bounds = await note.getByText(editedText).boundingBox();
+    if (!bounds) throw new Error("The touch target is missing.");
+    const point = {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height / 2,
+    };
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [point],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ ...point, y: point.y + 50 }],
     });
     await page.waitForTimeout(800);
-    await note.dispatchEvent("pointerup", { pointerType: "touch", button: 0 });
-    await expect(page.getByRole("menu")).toHaveCount(0);
-    const prevented = await note.evaluate((element) => {
-      const event = new MouseEvent("contextmenu", {
-        bubbles: true,
-        cancelable: true,
-      });
-      element.dispatchEvent(event);
-      return event.defaultPrevented;
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
     });
-    expect(prevented).toBe(false);
-    await expect(page.getByRole("menu")).toHaveCount(0);
-    await expect(note).toContainText("Keep this message");
+    await expect(menu).toHaveCount(0);
+
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [point],
+    });
+    await expect(menu).toBeVisible();
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(
+      menu.getByRole("menuitem", { name: "Reply in thread" }),
+    ).toBeVisible();
+    expect(
+      await menu.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.right <= innerWidth;
+      }),
+    ).toBe(true);
+    await menu.getByRole("menuitem", { name: "Edit history" }).tap();
+    const history = page.getByRole("dialog", { name: "Edit history" });
+    await expect(history).toContainText(editedText);
+    await expect(history).toContainText("Keep this message");
   });
 });

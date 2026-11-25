@@ -15,12 +15,14 @@ export function DatePicker({
   label = "Choose date",
   optional = false,
   displayLabel,
+  maxDate,
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
   optional?: boolean;
   displayLabel?: string;
+  maxDate?: string;
 }) {
   const [open, setOpen] = useState(false);
   useAndroidBackLayer(open, () => setOpen(false));
@@ -124,6 +126,7 @@ export function DatePicker({
                   key={date}
                   aria-label={`Choose ${date}`}
                   aria-pressed={value === date}
+                  disabled={maxDate !== undefined && date > maxDate}
                   onClick={() => {
                     onChange(date);
                     setOpen(false);

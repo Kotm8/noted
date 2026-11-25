@@ -3,6 +3,22 @@ import { useQuery } from "@tanstack/react-query";
 import { useMatch, useNavigate } from "react-router-dom";
 import { readStoredValue, writeStoredValue } from "../../../lib/storage";
 import { categoryApi, channelApi, workspaceApi } from "../api";
+import type { Workspace } from "../types";
+
+export function useWorkspaceChannels(workspace?: Workspace) {
+  const workspaceId = workspace?.id ?? "";
+  const categories = useQuery({
+    queryKey: ["categories", workspaceId],
+    queryFn: () => categoryApi.list(workspaceId),
+    enabled: Boolean(workspace),
+  });
+  const channels = useQuery({
+    queryKey: ["channels", workspaceId],
+    queryFn: () => channelApi.list(workspaceId),
+    enabled: Boolean(workspace),
+  });
+  return { categories, channels };
+}
 
 export function useWorkspaceNavigation() {
   const navigate = useNavigate();
@@ -32,18 +48,8 @@ export function useWorkspaceNavigation() {
         (item) => item.id === rememberedWorkspaceId,
       ) ?? workspacesQuery.data?.[0])
     : workspacesQuery.data?.find((item) => item.id === workspaceId);
-  const selectedWorkspaceId = workspace?.id ?? "";
-
-  const categoriesQuery = useQuery({
-    queryKey: ["categories", selectedWorkspaceId],
-    queryFn: () => categoryApi.list(selectedWorkspaceId),
-    enabled: Boolean(workspace),
-  });
-  const channelsQuery = useQuery({
-    queryKey: ["channels", selectedWorkspaceId],
-    queryFn: () => channelApi.list(selectedWorkspaceId),
-    enabled: Boolean(workspace),
-  });
+  const { categories: categoriesQuery, channels: channelsQuery } =
+    useWorkspaceChannels(workspace);
   const channel = channelsQuery.data?.find((item) => item.id === channelId);
 
   useEffect(() => {

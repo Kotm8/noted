@@ -1,5 +1,4 @@
 import { isAndroidApp } from "../notifications/android";
-import { supportsPush } from "../notifications/browser";
 import { request } from "../../lib/http";
 
 export interface DiagnosticCheck {
@@ -38,66 +37,11 @@ async function serverCheck(
   }
 }
 
-async function notificationChecks(): Promise<DiagnosticCheck[]> {
-  const permission =
-    "Notification" in window ? Notification.permission : "unavailable";
-  const checks: DiagnosticCheck[] = [
-    {
-      label: "Web Push",
-      value: supportsPush() ? "Supported" : "Unavailable in this client",
-      state: supportsPush() ? "ok" : "warning",
-    },
-    {
-      label: "Notification permission",
-      value: permission,
-      state: permission === "granted" ? "ok" : "warning",
-    },
-    {
-      label: "Device notifications",
-      value:
-        localStorage.getItem("noted.push-disabled") === "yes"
-          ? "Disabled in Noted"
-          : "Not disabled",
-      state:
-        localStorage.getItem("noted.push-disabled") === "yes"
-          ? "warning"
-          : "ok",
-    },
-  ];
-  if (!("serviceWorker" in navigator)) return checks;
-  try {
-    const registration = await navigator.serviceWorker.getRegistration("/");
-    const subscribed = Boolean(
-      await registration?.pushManager?.getSubscription(),
-    );
-    checks.push(
-      {
-        label: "Notification service worker",
-        value: registration?.active ? "Active" : "Not active",
-        state: registration?.active ? "ok" : "warning",
-      },
-      {
-        label: "Push subscription",
-        value: subscribed ? "Present on this device" : "Not subscribed",
-        state: subscribed ? "ok" : "warning",
-      },
-    );
-  } catch {
-    checks.push({
-      label: "Push subscription",
-      value: "Could not inspect",
-      state: "error",
-    });
-  }
-  return checks;
-}
-
 export async function collectDiagnostics(): Promise<DiagnosticReport> {
-  const [live, ready, version, notifications] = await Promise.all([
+  const [live, ready, version] = await Promise.all([
     serverCheck("/health/live", "Server connection"),
     serverCheck("/health/ready", "Database readiness"),
     serverCheck("/version", "Server version"),
-    notificationChecks(),
   ]);
   return {
     capturedAt: new Date().toISOString(),
@@ -121,25 +65,8 @@ export async function collectDiagnostics(): Promise<DiagnosticReport> {
         value: window.isSecureContext ? "Yes" : "No",
         state: window.isSecureContext ? "ok" : "warning",
       },
-      ...notifications,
     ],
   };
-}
-
-export async function testDeviceNotification() {
-  if (!supportsPush() || Notification.permission !== "granted") {
-    throw new Error("Enable notifications in Settings first.");
-  }
-  const registration = await navigator.serviceWorker.getRegistration("/");
-  if (!registration?.active)
-    throw new Error(
-      "Enable notifications in Settings to register this device.",
-    );
-  await registration.showNotification("Noted diagnostic test", {
-    body: "Notifications can display on this device. This is a local test, not a server delivery test.",
-    icon: "/noted-icon.svg",
-    tag: "noted-debug-test",
-  });
 }
 
 export async function testPhoneNotification(): Promise<string> {

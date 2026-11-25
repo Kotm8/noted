@@ -1,4 +1,6 @@
 import { toast } from "sonner";
+import type { MouseEvent } from "react";
+import { androidPilot, isAndroidPilot } from "../../lib/android-pilot";
 import { formatFileSize } from "../../lib/format";
 import { plainText } from "../../lib/plain-text";
 import type { Attachment, Note } from "./types";
@@ -9,7 +11,7 @@ export type ShareContent = "all" | "text" | "files";
 const SHARE_LIMIT = 100 * 1024 * 1024;
 
 export function canShare(): boolean {
-  return typeof navigator.share === "function";
+  return isAndroidPilot || typeof navigator.share === "function";
 }
 
 async function fetchFile(
@@ -39,6 +41,18 @@ async function fetchFile(
 export async function shareNote(note: Note, content: ShareContent) {
   const text = content === "files" ? "" : plainText(note.content);
   const attachments = content === "text" ? [] : note.attachments;
+  if (isAndroidPilot) {
+    if (attachments.length) {
+      toast.error("Download the attachments to share them from another app.");
+      return;
+    }
+    try {
+      await androidPilot.shareText({ text });
+    } catch {
+      toast.error("Couldn't open the share menu.");
+    }
+    return;
+  }
   const total = attachments.reduce((sum, file) => sum + file.size, 0);
   if (total > SHARE_LIMIT) {
     toast.error(
@@ -97,6 +111,16 @@ export async function shareNote(note: Note, content: ShareContent) {
 
 /** Saves each file through the browser, which puts them in the device's Downloads folder. */
 export function downloadAttachments(attachments: Attachment[]) {
+  if (isAndroidPilot) {
+    void (async () => {
+      for (const file of attachments)
+        await androidPilot.downloadAttachment({
+          asset: file.id,
+          name: file.original_filename,
+        });
+    })().catch((error: Error) => toast.error(error.message));
+    return;
+  }
   attachments.forEach((file, index) =>
     window.setTimeout(() => {
       const link = document.createElement("a");
@@ -108,4 +132,13 @@ export function downloadAttachments(attachments: Attachment[]) {
       link.remove();
     }, index * 400),
   );
+}
+
+export function downloadOnAndroid(
+  event: MouseEvent<HTMLAnchorElement>,
+  file: Attachment,
+) {
+  if (!isAndroidPilot) return;
+  event.preventDefault();
+  downloadAttachments([file]);
 }

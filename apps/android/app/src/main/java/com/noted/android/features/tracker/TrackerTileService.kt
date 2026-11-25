@@ -2,68 +2,96 @@ package com.noted.android.features.tracker
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import android.widget.Toast
 import com.noted.android.MainActivity
-import com.noted.android.NotedApplication
-import com.noted.android.R
+import com.noted.android.pilot.PilotTracker
+import com.noted.android.connection.ConnectionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/** Tapping stops what's running; with nothing running it opens the activity picker in the app. */
 class TrackerTileService : TileService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val repository get() = (application as NotedApplication).repository
+    private var busy = false
 
     override fun onStartListening() {
         super.onStartListening()
-        scope.launch { draw(withContext(Dispatchers.IO) { TrackerNotification.snapshot(repository) }) }
+        if (!busy) scope.launch { draw(runCatching { PilotTracker.state(this@TrackerTileService) }) }
     }
 
     override fun onClick() {
         super.onClick()
+        if (busy || isLocked) return
+        busy = true
         scope.launch {
-            val snapshot = withContext(Dispatchers.IO) { TrackerNotification.snapshot(repository) }
-            if (repository.session.value != null && snapshot.active != null) {
-                qsTile?.apply { state = Tile.STATE_UNAVAILABLE; updateTile() }
-                val stopped = withContext(Dispatchers.IO) {
-                    runCatching { TrackerNotification.act(this@TrackerTileService, repository, "stop") }.isSuccess
+            try {
+                val state = PilotTracker.state(this@TrackerTileService)
+                if (state?.tracker?.active == null) {
+                    openPicker(state?.origin ?: ConnectionStore(this@TrackerTileService).origin)
+                } else {
+                    val revision = state.tracker.state?.optInt("revision") ?: return@launch
+                    PilotTracker.sync(this@TrackerTileService, "stop", state.binding, revision)
                 }
-                if (!stopped) TrackerNotification.refresh(this@TrackerTileService, repository)
-                draw(withContext(Dispatchers.IO) { TrackerNotification.snapshot(repository) })
-            } else openPicker()
+            } catch (_: Exception) {
+                Toast.makeText(this@TrackerTileService, "Couldn't reach your server.", Toast.LENGTH_SHORT).show()
+            } finally {
+                busy = false
+                draw(runCatching { PilotTracker.state(this@TrackerTileService) })
+            }
         }
     }
 
-    override fun onDestroy() { scope.cancel(); super.onDestroy() }
-
-    @SuppressLint("StartActivityAndCollapseDeprecated")
-    private fun openPicker() {
-        val intent = Intent(this, MainActivity::class.java).setData(TrackerNotification.openTracker)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        if (Build.VERSION.SDK_INT >= 34) startActivityAndCollapse(PendingIntent.getActivity(this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-        else @Suppress("DEPRECATION") startActivityAndCollapse(intent)
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 
-    private fun draw(snapshot: TrackerSnapshot) {
+    @SuppressLint("StartActivityAndCollapseDeprecated")
+    private fun openPicker(origin: String?) {
+        val intent = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        if (origin != null) intent.data = Uri.parse("$origin/?track=1")
+        if (Build.VERSION.SDK_INT >= 34) {
+            startActivityAndCollapse(PendingIntent.getActivity(this, 2, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+        } else {
+            @Suppress("DEPRECATION")
+            startActivityAndCollapse(intent)
+        }
+    }
+
+    private fun draw(result: Result<PilotTracker.State?>) {
         val tile = qsTile ?: return
-        val running = snapshot.current
-        tile.icon = Icon.createWithResource(this, R.drawable.noted_timer)
-        tile.label = running?.optString("name")?.takeIf { it.isNotBlank() } ?: if (snapshot.active != null) "Tracking" else "Track time"
-        tile.state = if (snapshot.active != null) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        val tracker = result.getOrNull()?.tracker
+        tile.label = tracker?.current?.optString("name")?.takeIf { it.isNotBlank() } ?: "Track time"
+        tile.state = when {
+            tracker?.active != null -> Tile.STATE_ACTIVE
+            result.isFailure -> Tile.STATE_UNAVAILABLE
+            else -> Tile.STATE_INACTIVE
+        }
         if (Build.VERSION.SDK_INT >= 29) tile.subtitle = when {
-            snapshot.active != null -> "Tap to stop"
-            snapshot.paused != null -> "${snapshot.paused!!.optString("name")} paused"
+            tracker?.active != null -> "Tap to stop"
+            result.isFailure -> "Reconnect to track"
+            result.getOrNull() == null -> "Open Noted"
             else -> "Choose an activity"
         }
         tile.updateTile()
+    }
+
+    companion object {
+        internal fun refresh(context: Context) {
+            runCatching {
+                requestListeningState(context, ComponentName(context, TrackerTileService::class.java))
+            }
+        }
     }
 }

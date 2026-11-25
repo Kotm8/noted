@@ -59,7 +59,10 @@ def dispatch_habits(engine: Engine, settings: Settings, now: datetime) -> None:
             select(HabitReminder, Habit, User)
             .join(Habit, Habit.id == HabitReminder.habit_id)
             .join(User, User.id == HabitReminder.owner_id)
-            .where(HabitReminder.completed_at.is_(None))
+            .where(
+                HabitReminder.completed_at.is_(None),
+                HabitReminder.read_revision < HabitReminder.revision,
+            )
             .order_by(HabitReminder.due_at)
             .limit(100)
             .with_for_update(of=HabitReminder, skip_locked=True)

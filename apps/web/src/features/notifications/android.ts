@@ -1,4 +1,5 @@
 import { ApiError, request } from "../../lib/http";
+import { androidPilot, isAndroidPilot } from "../../lib/android-pilot";
 
 export function initializeAndroidClient() {
   const url = new URL(window.location.href);
@@ -14,6 +15,7 @@ export function initializeAndroidClient() {
 }
 
 export const isAndroidApp = () =>
+  isAndroidPilot ||
   sessionStorage.getItem("noted.android-client") === "browser";
 
 export const supportsNativePush = () =>
@@ -23,12 +25,22 @@ export interface AndroidPushStatus {
   configured: boolean;
   subscribed: boolean;
   project_id: string | null;
+  packageName?: string;
 }
 
-export async function androidPushStatus(deviceId?: string) {
-  return request<AndroidPushStatus>(
-    `/notifications/android/status${deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : ""}`,
+export async function androidPushStatus(
+  deviceId?: string,
+): Promise<AndroidPushStatus> {
+  const params = new URLSearchParams();
+  if (deviceId) params.set("device_id", deviceId);
+  const packageName = isAndroidPilot
+    ? (await androidPilot.profile()).packageName
+    : undefined;
+  if (packageName) params.set("package_name", packageName);
+  const status = await request<AndroidPushStatus>(
+    `/notifications/android/status${params.size ? `?${params}` : ""}`,
   );
+  return packageName ? { ...status, packageName } : status;
 }
 
 export async function androidPairingLink(deviceId: string): Promise<string> {
@@ -56,8 +68,6 @@ export async function disconnectAndroid() {
       if (!(error instanceof ApiError) || error.status !== 401) throw error;
     }
   }
-  const registration = await navigator.serviceWorker?.getRegistration("/");
-  await (await registration?.pushManager.getSubscription())?.unsubscribe();
   try {
     await request("/auth/logout", "POST");
   } catch (error) {

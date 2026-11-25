@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -67,33 +68,21 @@ def other_server(database_url, tmp_path):
         administrator.dispose()
 
 
-def test_servers_have_independent_push_keys_devices_and_presence(
+def test_servers_have_independent_devices_and_presence(
     owner, channel, db, other_server, monkeypatch
 ):
-    other, other_engine = other_server
-    first_key = owner.get(f"{API}/notifications/config").json()
-    second_key = other.get(f"{API}/notifications/config").json()
-    assert set(first_key) == set(second_key) == {"public_key"}
-    assert first_key != second_key
-    assert owner.get(f"{API}/notifications/config").json() == first_key
+    from app.notifications import routing
 
-    desktop = subscribe(owner)
-    first_phone = subscribe(owner, "mobile")
-    phone = subscribe(other, "mobile")
+    other, other_engine = other_server
+    first_phone = subscribe(owner)
+    phone = subscribe(other)
     owner.post(
         f"{API}/notifications/presence",
-        json={
-            "device_id": desktop["device_id"],
-            "kind": "desktop",
-            "focused": True,
-        },
+        json={"device_id": str(uuid4()), "kind": "desktop", "focused": True},
     )
     project = other.post(f"{API}/workspaces", json={"name": "Other server"}).json()
     other_channel = other.post(
-        f"{API}/workspaces/{project['id']}/channels",
-        json={
-            "name": "private-reminders",
-        },
+        f"{API}/workspaces/{project['id']}/channels", json={"name": "private-reminders"}
     ).json()
     first_note = create(owner, channel)
     second_note = create(other, other_channel)
@@ -105,28 +94,28 @@ def test_servers_have_independent_push_keys_devices_and_presence(
 
     deliveries = []
 
-    def send(**values):
-        deliveries.append(values)
+    def capture(subscription, origin, payload, **kwargs):
+        deliveries.append((subscription.endpoint, origin, payload))
+        return "accepted"
 
-    monkeypatch.setattr("pywebpush.webpush", send)
+    send = Mock(side_effect=capture)
+    monkeypatch.setattr(routing, "send_push", send)
     dispatch_due(db.get_bind(), "https://first.example.com")
-    assert len(deliveries) == 1
-    assert deliveries[0]["subscription_info"]["endpoint"] == desktop["endpoint"]
-    assert first_note["id"] in deliveries[0]["data"]
-    assert second_note["id"] not in deliveries[0]["data"]
+    send.assert_called_once()
+    assert deliveries[-1][0] == first_phone["endpoint"]
+    assert first_note["id"] in deliveries[-1][2]
+    assert second_note["id"] not in deliveries[-1][2]
     dispatch_due(other_engine, "https://second.example.com")
-    assert len(deliveries) == 2
-    assert deliveries[1]["subscription_info"]["endpoint"] == phone["endpoint"]
-    assert second_note["id"] in deliveries[1]["data"]
-    assert first_note["id"] not in deliveries[1]["data"]
-    assert deliveries[0]["vapid_private_key"] != deliveries[1]["vapid_private_key"]
+    assert send.call_count == 2
+    assert deliveries[-1][0] == phone["endpoint"]
+    assert second_note["id"] in deliveries[-1][2]
+    assert first_note["id"] not in deliveries[-1][2]
     dispatch_due(db.get_bind(), "https://first.example.com")
     dispatch_due(other_engine, "https://second.example.com")
-    assert len(deliveries) == 2
-    deliveries.clear()
+    assert send.call_count == 2
+
+    monkeypatch.setattr("app.notifications.diagnostics.send_push", send)
     assert owner.post(f"{API}/notifications/test").json()["accepted"] == 1
-    assert len(deliveries) == 1
-    assert deliveries[0]["subscription_info"]["endpoint"] == first_phone["endpoint"]
+    assert deliveries[-1][0] == first_phone["endpoint"]
     assert other.post(f"{API}/notifications/test").json()["accepted"] == 1
-    assert len(deliveries) == 2
-    assert deliveries[1]["subscription_info"]["endpoint"] == phone["endpoint"]
+    assert deliveries[-1][0] == phone["endpoint"]

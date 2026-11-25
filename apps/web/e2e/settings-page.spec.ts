@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { clientVersion, expect, test, type Page } from "./fixtures";
 
 async function login(page: Page) {
   await page.goto("/");
@@ -283,7 +283,7 @@ test("theme imports validate before saving and reading controls persist", async 
   ).toEqual(still);
   await page.getByRole("button", { name: "Modern", exact: true }).click();
   await page.screenshot({
-    path: "../../.local/release-0.4.4/settings-modern-dark.png",
+    path: `../../.local/release-${clientVersion}/settings-modern-dark.png`,
   });
   await page.getByRole("button", { name: "Light", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute(
@@ -291,7 +291,7 @@ test("theme imports validate before saving and reading controls persist", async 
     "light",
   );
   await page.screenshot({
-    path: "../../.local/release-0.4.4/settings-modern-light.png",
+    path: `../../.local/release-${clientVersion}/settings-modern-light.png`,
   });
 });
 
@@ -318,7 +318,7 @@ test("server details distinguish the client build and refresh when reopened", as
     details
       .locator("div")
       .filter({ has: page.getByText("Client version", { exact: true }) }),
-  ).toContainText("0.4.4");
+  ).toContainText(clientVersion);
   await page
     .getByRole("button", { name: "Close settings", exact: true })
     .click();

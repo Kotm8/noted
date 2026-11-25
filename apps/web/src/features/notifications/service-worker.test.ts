@@ -1,261 +1,36 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 
-function worker() {
+it("retires installed notification workers without handling or displaying pushes", async () => {
   const handlers: Record<string, (event: unknown) => void> = {};
-  const showNotification = vi.fn().mockResolvedValue(undefined);
-  const openWindow = vi.fn().mockResolvedValue(undefined);
-  const navigate = vi.fn().mockResolvedValue(undefined);
-  const focus = vi.fn().mockResolvedValue(undefined);
+  const unsubscribe = vi.fn().mockResolvedValue(true);
+  const close = vi.fn();
+  const unregister = vi.fn().mockResolvedValue(true);
   const skipWaiting = vi.fn().mockResolvedValue(undefined);
-  const claim = vi.fn().mockResolvedValue(undefined);
-  const getNotifications = vi.fn().mockResolvedValue([]);
-  const fetch = vi
-    .fn()
-    .mockResolvedValue({ ok: true, json: async () => ({ stale: [] }) });
   const self = {
     skipWaiting,
     addEventListener: (name: string, handler: (event: unknown) => void) => {
       handlers[name] = handler;
     },
-    registration: { showNotification, getNotifications },
-    location: { origin: "https://notes.example.com" },
-    clients: {
-      claim,
-      matchAll: vi
-        .fn()
-        .mockResolvedValue([
-          { url: "https://notes.example.com/", navigate, focus },
-        ]),
-      openWindow,
+    registration: {
+      pushManager: { getSubscription: async () => ({ unsubscribe }) },
+      getNotifications: async () => [{ close }],
+      unregister,
     },
   };
   runInNewContext(readFileSync(resolve("public/notifications-sw.js"), "utf8"), {
     self,
-    URL,
-    URLSearchParams,
-    fetch,
   });
-  return {
-    handlers,
-    showNotification,
-    openWindow,
-    navigate,
-    focus,
-    skipWaiting,
-    claim,
-    fetch,
-    getNotifications,
-  };
-}
-
-describe("notification service worker", () => {
-  it("clears only notifications whose revision is stale after reconnecting", async () => {
-    const test = worker();
-    const stale = { kind: "plan", promptId: "old", revision: 2 };
-    const current = { kind: "plan", promptId: "current", revision: 3 };
-    const close = vi.fn(),
-      keep = vi.fn();
-    test.getNotifications.mockResolvedValue([
-      { data: stale, close },
-      { data: current, close: keep },
-    ]);
-    test.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ stale: ["plan:old:2"] }),
-    });
-    const waitUntil = vi.fn();
-    test.handlers.message({
-      data: { type: "noted:reconcile-notifications" },
-      waitUntil,
-    });
-    await waitUntil.mock.calls[0][0];
-    expect(close).toHaveBeenCalledOnce();
-    expect(keep).not.toHaveBeenCalled();
-  });
-  it("does not replay an obsolete queued push", async () => {
-    const test = worker();
-    test.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ stale: ["plan:old:2"] }),
-    });
-    const waitUntil = vi.fn();
-    test.handlers.push({
-      data: {
-        json: () => ({
-          kind: "plan",
-          promptId: "old",
-          revision: 2,
-          title: "Old task",
-        }),
-      },
-      waitUntil,
-    });
-    await waitUntil.mock.calls[0][0];
-    expect(test.showNotification).not.toHaveBeenCalled();
-  });
-  it("opens a habit notification without message reminder actions", async () => {
-    const test = worker();
-    const data = {
-      kind: "habit",
-      habitReminderId: "occurrence-1",
-      habitId: "habit-1",
-      title: "Read",
-      body: "10 / 20 min",
-      url: "/habits?habit=habit-1",
-      revision: 1,
-    };
-    const waitUntil = vi.fn();
-    test.handlers.push({ data: { json: () => data }, waitUntil });
-    await waitUntil.mock.calls[0][0];
-    expect(test.showNotification).toHaveBeenCalledWith(
-      "Read",
-      expect.objectContaining({
-        tag: "habit-occurrence-1",
-        actions: [{ action: "open-habit", title: "View habit" }],
-      }),
-    );
-    test.handlers.notificationclick({
-      notification: { data, close: vi.fn() },
-      action: "done",
-      waitUntil,
-    });
-    await waitUntil.mock.calls[1][0];
-    expect(test.navigate).toHaveBeenCalledWith(
-      "https://notes.example.com/habits?habit=habit-1",
-    );
-  });
-  it("opens writing prompts in their channel without applying reminder actions", async () => {
-    const test = worker();
-    const data = {
-      kind: "writing",
-      writingPromptId: "writing-1",
-      title: "Study / #daily",
-      body: "Write a note",
-      url: "/w/project/c/daily",
-      revision: 2,
-    };
-    const waitUntil = vi.fn();
-    test.handlers.push({ data: { json: () => data }, waitUntil });
-    await waitUntil.mock.calls[0][0];
-    expect(test.showNotification).toHaveBeenCalledWith(
-      data.title,
-      expect.objectContaining({
-        tag: "writing-writing-1",
-        actions: [{ action: "open-channel", title: "Write in channel" }],
-      }),
-    );
-    test.handlers.notificationclick({
-      notification: { data, close: vi.fn() },
-      action: "done",
-      waitUntil,
-    });
-    await waitUntil.mock.calls[1][0];
-    expect(test.navigate).toHaveBeenCalledWith(
-      "https://notes.example.com/w/project/c/daily",
-    );
-  });
-  it("activates notification fixes for already open clients", async () => {
-    const test = worker();
-    const waitUntil = vi.fn();
-    test.handlers.install({ waitUntil });
-    test.handlers.activate({ waitUntil });
-    await Promise.all(waitUntil.mock.calls.map(([pending]) => pending));
-    expect(test.skipWaiting).toHaveBeenCalled();
-    expect(test.claim).toHaveBeenCalled();
-  });
-
-  it("displays server diagnostic pushes without reminder actions", async () => {
-    const test = worker();
-    const data = {
-      kind: "diagnostic",
-      testId: "test-1",
-      title: "Noted / Push test",
-      body: "Server test",
-      url: "/",
-    };
-    const waitUntil = vi.fn();
-    test.handlers.push({ data: { json: () => data }, waitUntil });
-    await waitUntil.mock.calls[0][0];
-    expect(test.showNotification).toHaveBeenCalledWith(
-      data.title,
-      expect.objectContaining({ tag: "noted-test-test-1", actions: [] }),
-    );
-  });
-
-  it("opens the home page when a local diagnostic notification has no data", async () => {
-    const test = worker();
-    const waitUntil = vi.fn();
-    test.handlers.notificationclick({
-      notification: { close: vi.fn() },
-      action: "",
-      waitUntil,
-    });
-    await waitUntil.mock.calls[0][0];
-    expect(test.navigate).toHaveBeenCalledWith("https://notes.example.com/");
-  });
-
-  it("shows project, channel and content with Done and configured Snooze", async () => {
-    const test = worker();
-    const data = {
-      title: "Work / #reminders",
-      body: "Take a break",
-      messageId: "message",
-      revision: 2,
-      snoozeMinutes: 25,
-    };
-    const waitUntil = vi.fn();
-    test.handlers.push({ data: { json: () => data }, waitUntil });
-    await waitUntil.mock.calls[0][0];
-    expect(test.showNotification).toHaveBeenCalledWith(
-      data.title,
-      expect.objectContaining({
-        body: data.body,
-        tag: "reminder-message",
-        actions: [
-          { action: "done", title: "Done" },
-          { action: "snooze", title: "Snooze 25m" },
-        ],
-      }),
-    );
-  });
-
-  it("opens the authenticated app to apply an action to the correct revision", async () => {
-    const test = worker();
-    const waitUntil = vi.fn();
-    test.handlers.notificationclick({
-      notification: {
-        close: vi.fn(),
-        data: {
-          url: "/w/project/c/channel?note=message",
-          revision: 3,
-          snoozeMinutes: 25,
-        },
-      },
-      action: "snooze",
-      waitUntil,
-    });
-    await waitUntil.mock.calls[0][0];
-    expect(test.navigate).toHaveBeenCalledWith(
-      "https://notes.example.com/w/project/c/channel?note=message&reminderAction=snooze&revision=3&snoozeMinutes=25",
-    );
-    expect(test.focus).toHaveBeenCalled();
-    expect(test.openWindow).not.toHaveBeenCalled();
-  });
-
-  it("rejects notification links to another origin", () => {
-    const test = worker();
-    const waitUntil = vi.fn();
-    test.handlers.notificationclick({
-      notification: {
-        close: vi.fn(),
-        data: { url: "https://other.example.com/" },
-      },
-      action: "",
-      waitUntil,
-    });
-    expect(waitUntil).not.toHaveBeenCalled();
-  });
+  expect(handlers.push).toBeUndefined();
+  expect(handlers.notificationclick).toBeUndefined();
+  const waitUntil = vi.fn();
+  handlers.install({ waitUntil });
+  handlers.activate({ waitUntil });
+  await Promise.all(waitUntil.mock.calls.map(([pending]) => pending));
+  expect(skipWaiting).toHaveBeenCalledOnce();
+  expect(unsubscribe).toHaveBeenCalledOnce();
+  expect(close).toHaveBeenCalledOnce();
+  expect(unregister).toHaveBeenCalledOnce();
 });

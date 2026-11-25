@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "../../../components/ui/button";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { Notice } from "../../../components/ui/notice";
+import { androidPilot, isAndroidPilot } from "../../../lib/android-pilot";
 import {
   aiApi,
   type AiPreferences,
@@ -109,7 +110,20 @@ function ConnectCard({ onDone }: { onDone?: () => void }) {
             target="_blank"
             rel="noreferrer"
             aria-disabled={!start.data}
-            onClick={() => setStarted(true)}
+            onClick={(event) => {
+              if (!isAndroidPilot) {
+                setStarted(true);
+                return;
+              }
+              event.preventDefault();
+              const url = start.data?.url;
+              if (url) {
+                void androidPilot.openAiSignIn({ url }).then(
+                  () => setStarted(true),
+                  (error: Error) => toast.error(error.message),
+                );
+              }
+            }}
           >
             <Sparkles size={15} />
             {started ? "Open the sign-in again" : "Sign in with ChatGPT"}

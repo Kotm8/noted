@@ -4,8 +4,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <queries>
         <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.APP_BROWSER" />
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
     </queries>
     <application
@@ -17,40 +16,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Noted"
         android:usesCleartextTraffic="false">
-        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.files"
+        <provider android:name=".PhoneCameraProvider" android:authorities="${applicationId}.fileprovider"
             android:exported="false" android:grantUriPermissions="true">
-            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/meal_photos" />
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/phone_camera_paths" />
         </provider>
         <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
         <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
-        <activity android:name=".watch.WatchPairingActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@style/Theme.Noted.Permission">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="noted" android:host="watch" android:path="/connect" />
-            </intent-filter>
-        </activity>
-        <activity android:name=".notifications.NotificationSetupActivity" android:exported="true" android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize" android:excludeFromRecents="true" android:theme="@style/Theme.Noted.Permission">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="noted" android:host="notifications" android:path="/connect" />
-            </intent-filter>
-        </activity>
         <service android:name=".notifications.NotedMessagingService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
         <receiver android:name=".notifications.PushActionReceiver" android:exported="false" />
-        <receiver android:name=".features.tracker.TrackerActionReceiver" android:exported="false" />
+        <receiver android:name=".pilot.PilotTrackerReceiver" android:exported="false" />
         <service android:name=".features.tracker.TrackerTileService" android:exported="true" android:label="Track time"
             android:icon="@drawable/noted_timer" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
             <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true" />
         </service>
-        <activity android:name=".notifications.PlanPromptActivity" android:exported="false" android:excludeFromRecents="true" android:configChanges="orientation|screenSize" android:theme="@style/Theme.Noted.Permission" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode"
@@ -78,7 +59,10 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="noted" android:host="log-meal" />
                 <data android:scheme="noted" android:host="connection" />
+                <data android:scheme="noted" android:host="notifications" />
+                <data android:scheme="noted" android:host="watch" />
             </intent-filter>
         </activity>
     </application>

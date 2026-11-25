@@ -441,6 +441,25 @@
   font-size: var(--font-xs);
   margin-top: 6px;
 }
+
+.shared-ai-panel[data-phone-height] {
+  top: auto;
+  width: 100%;
+  height: 54dvh;
+  z-index: 65;
+  border-left: 0;
+  border-top: 1px solid var(--border-default);
+  border-radius: 14px 14px 0 0;
+}
+
+.shared-ai-panel[data-phone-height="full"],
+.shared-ai-panel[data-phone-height]:has(textarea:focus) {
+  height: 100dvh;
+}
+
+.shared-ai-panel[data-phone-height] .shared-ai-resize {
+  display: none;
+}
 .shared-ai-fields summary {
   cursor: pointer;
   color: var(--text-secondary);

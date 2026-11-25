@@ -33,7 +33,17 @@ impl ProfileStore {
 }
 
 pub fn server_url(value: &str) -> Result<Url, &'static str> {
-    let mut url = Url::parse(value.trim()).map_err(|_| "Enter a complete HTTPS server address.")?;
+    let value = value.trim();
+    let mut url = if value.contains("://") {
+        Url::parse(value)
+    } else {
+        let host = value.strip_suffix('/').unwrap_or(value);
+        if host.contains(['/', '\\']) || host.ends_with(':') {
+            return Err("Enter a server hostname or HTTPS address.");
+        }
+        Url::parse(&format!("https://{host}"))
+    }
+    .map_err(|_| "Enter a server hostname or HTTPS address.")?;
     let loopback = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
     if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
         return Err("Use HTTPS. HTTP is allowed only for localhost development.");
@@ -256,6 +266,11 @@ mod tests {
     fn origins_require_https_and_reject_credentials_and_paths() {
         for value in [
             "http://example.com",
+            "ftp://example.com",
+            "//example.com",
+            "example.com:",
+            "example.com/path",
+            "example.com/path/..",
             "https://owner:password@example.com",
             "https://example.com/api",
             "https://example.com/?secret=x",
@@ -270,6 +285,22 @@ mod tests {
         );
         assert!(server_url("http://localhost:8080").is_ok());
         assert!(server_url("http://127.0.0.1:8080").is_ok());
+    }
+
+    #[test]
+    fn bare_server_addresses_default_to_https() {
+        assert_eq!(
+            server_url(" Notes.Example.com/ ").unwrap().as_str(),
+            "https://notes.example.com/"
+        );
+        assert_eq!(
+            server_url("notes.example.com:8443").unwrap().as_str(),
+            "https://notes.example.com:8443/"
+        );
+        assert_eq!(
+            server_url("localhost:8080").unwrap().as_str(),
+            "https://localhost:8080/"
+        );
     }
 
     #[test]

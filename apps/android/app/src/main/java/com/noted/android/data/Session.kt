@@ -28,12 +28,14 @@ data class NativeSession(val origin: String, val userId: String, val username: S
 }
 
 class SessionCookies(private val origin: HttpUrl, initial: List<Cookie>,
+    private val acceptsResponse: (String) -> Boolean = { true },
     private val changed: (List<Cookie>) -> Unit) : CookieJar {
     private val cookies = initial.toMutableList()
 
     @Synchronized
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         if (url.scheme != origin.scheme || url.host != origin.host || url.port != origin.port) return
+        if (!acceptsResponse(url.encodedPath)) return
         cookies.forEach { incoming ->
             this.cookies.removeAll { it.name == incoming.name && it.path == incoming.path }
             if (incoming.expiresAt > System.currentTimeMillis()) this.cookies.add(incoming)
@@ -48,4 +50,11 @@ class SessionCookies(private val origin: HttpUrl, initial: List<Cookie>,
 
     @Synchronized
     fun csrf(): String = cookies.firstOrNull { it.name == "noted_csrf" }?.value.orEmpty()
+
+    @Synchronized
+    fun clear() {
+        if (cookies.isEmpty()) return
+        cookies.clear()
+        changed(emptyList())
+    }
 }

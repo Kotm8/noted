@@ -413,8 +413,58 @@ test("Home B matches the chosen two-row layout with real data and responsive con
   await expect(
     page.getByRole("dialog", { name: "Log meal", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Close (dialog|settings)/ }).click();
+  const mealDialog = page.getByRole("dialog", {
+    name: "Log meal",
+    exact: true,
+  });
+  const description = mealDialog.getByRole("textbox", {
+    name: "Describe your meal",
+  });
+  await description.fill("Coffee with milk");
+  await page.mouse.click(5, 5);
+  const confirmation = page.getByRole("dialog", { name: "Discard this meal?" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Keep editing" }).click();
+  await expect(description).toHaveValue("Coffee with milk");
+  await page.route("**/api/v1/ai/nutrition/estimate", (route) =>
+    route.fulfill({
+      contentType: "application/x-ndjson",
+      body:
+        JSON.stringify({
+          type: "done",
+          thought_seconds: 10,
+          sources: [],
+          output: {
+            name: "Coffee with milk",
+            items: [
+              {
+                name: "Coffee with milk",
+                amount: "1 cup, about 30 mL milk",
+                kcal: 17,
+                protein: 1,
+                carbs: 1,
+                fat: 1,
+                confidence: "low",
+              },
+            ],
+            saved_meal: null,
+            note: "Based on your recent coffee logs.",
+          },
+        }) + "\n",
+    }),
+  );
+  await mealDialog.getByRole("button", { name: "Estimate" }).click();
+  await expect(
+    mealDialog.getByRole("button", { name: "Save meal" }),
+  ).toBeVisible();
+  const fits = () =>
+    mealDialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
+  expect(await fits()).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
+  expect(await fits()).toBe(true);
+  await mealDialog.getByRole("button", { name: "Close dialog" }).click();
+  await confirmation.getByRole("button", { name: "Discard meal" }).click();
+  await expect(mealDialog).toHaveCount(0);
   await expect(page.locator(".home-b-food")).toBeVisible();
   expect(
     await page.evaluate(

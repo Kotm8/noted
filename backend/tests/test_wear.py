@@ -197,5 +197,5 @@ def test_watch_test_notification_goes_only_to_this_watch(owner, db, monkeypatch)
     response = owner.post(f"{API}/wear/push/test", headers=headers)
     assert response.status_code == 200, response.text
     assert response.json()["outcome"] == "accepted"
-    assert response.json()["test_id"] in send.call_args.args[3]
+    assert response.json()["test_id"] in send.call_args.args[2]
     assert endpoints == ["fcm:noted-fixture:watch-token-" + "c" * 64]

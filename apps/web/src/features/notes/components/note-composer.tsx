@@ -27,7 +27,7 @@ import { ScheduleDialog } from "../../reminders/components/schedule-dialog";
 import { noteCommands, parseNoteCommand } from "../../reminders/commands";
 import type { ReminderSchedule } from "../../reminders/types";
 import { ScheduleMessageDialog } from "../../publishing/schedule-message-dialog";
-import { applyEdit, inList } from "../../../lib/list-editing";
+import { applyEdit } from "../../../lib/list-editing";
 import { Menu, MenuItem } from "../../../components/ui/menu";
 import {
   useFormatting,
@@ -36,6 +36,7 @@ import {
 import { chatEnter } from "../chat-enter";
 import { toStored } from "../mentions";
 import { useMentionPicker } from "./mention-picker";
+import { isAndroidPilot } from "../../../lib/android-pilot";
 
 interface NoteComposerProps {
   /** Floats just above the composer, whatever its current height. */
@@ -62,7 +63,9 @@ export function NoteComposer({
   onSent,
   insert,
 }: NoteComposerProps) {
-  const { draft, setDraft, clearSentDraft } = useDraft(channel.id);
+  const { draft, setDraft, clearSentDraft, ready, draftSaved } = useDraft(
+    channel.id,
+  );
   const inputRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (!insert) return;
@@ -77,7 +80,9 @@ export function NoteComposer({
       inputRef.current?.focus();
   }, [location.key, location.search]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { files, setFiles, addFiles } = useComposerFiles();
+  const { files, setFiles, addFiles, filesLoading } = useComposerFiles(
+    channel.id,
+  );
   const [scheduledDraft, setScheduledDraft] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState<{
     content: string;
@@ -102,7 +107,10 @@ export function NoteComposer({
 
   async function sendNote() {
     if (
+      !ready ||
+      filesLoading ||
       (!draft.trim() && !files.length) ||
+      (isAndroidPilot && submitting.current) ||
       (files.length > 0 && (isSending || submitting.current)) ||
       scheduling ||
       scheduledDraft !== null
@@ -129,16 +137,18 @@ export function NoteComposer({
     // Clear at once so typing during the request starts a new message instead
     // of being appended to the one already on its way. Messages sent meanwhile
     // wait their turn, so they arrive in the order they were written.
-    setDraft("");
+    if (!isAndroidPilot) setDraft("");
     const send = queue.current.then(() => onSend(stored(sentContent), files));
     queue.current = send.catch(() => undefined);
     try {
       await send;
+      if (isAndroidPilot) clearSentDraft(sentContent);
       setFiles([]);
       onSent?.();
-      inputRef.current?.focus();
+      if (!isAndroidPilot) inputRef.current?.focus();
     } catch {
-      setDraft((typed) => (typed ? `${sentContent}\n${typed}` : sentContent));
+      if (!isAndroidPilot)
+        setDraft((typed) => (typed ? `${sentContent}\n${typed}` : sentContent));
     } finally {
       submitting.current = false;
     }
@@ -161,7 +171,8 @@ export function NoteComposer({
         if (event.dataTransfer.types.includes("Files")) event.preventDefault();
       }}
       onDrop={(event) => {
-        if (isSending || !event.dataTransfer.files.length) return;
+        if (isSending || filesLoading || !event.dataTransfer.files.length)
+          return;
         event.preventDefault();
         addFiles(Array.from(event.dataTransfer.files));
       }}
@@ -169,7 +180,7 @@ export function NoteComposer({
       {above}
       <PendingFiles
         files={files}
-        disabled={isSending}
+        disabled={isSending || filesLoading}
         onRemove={(index) =>
           setFiles((current) =>
             current.filter((_, position) => position !== index),
@@ -182,7 +193,7 @@ export function NoteComposer({
         type="file"
         multiple
         aria-label="Attach files"
-        disabled={isSending}
+        disabled={isSending || filesLoading}
         onChange={(event) => {
           addFiles(Array.from(event.target.files ?? []));
           event.target.value = "";
@@ -202,6 +213,7 @@ export function NoteComposer({
           aria-label={`Message ${channel.name}`}
           placeholder={`Message #${channel.name}`}
           value={draft}
+          readOnly={!ready}
           maxLength={40000}
           rows={1}
           onChange={(event) => setDraft(event.target.value)}
@@ -209,7 +221,7 @@ export function NoteComposer({
           onSelect={mentions.onSelect}
           onPaste={(event) => {
             const pasted = Array.from(event.clipboardData.files);
-            if (pasted.length && !isSending) {
+            if (pasted.length && !isSending && !filesLoading) {
               event.preventDefault();
               addFiles(pasted);
             }
@@ -221,7 +233,7 @@ export function NoteComposer({
             type="button"
             aria-label="Add files"
             title="Add files"
-            disabled={isSending}
+            disabled={isSending || filesLoading}
             onClick={() => fileInputRef.current?.click()}
           >
             <Plus size={19} />
@@ -295,6 +307,8 @@ export function NoteComposer({
               className="send-button"
               aria-label="Send note"
               disabled={
+                !ready ||
+                filesLoading ||
                 (!draft.trim() && !files.length) ||
                 (files.length > 0 && isSending)
               }
@@ -348,13 +362,7 @@ export function NoteComposer({
                 {command.description}
               </button>
             ))}
-        {inList(draft, draft.length) && (
-          <span className="draft-status">
-            Enter adds an item · Enter on an empty item ends the list ·
-            Ctrl+Enter sends
-          </span>
-        )}
-        {draft && (
+        {draft && draftSaved && (
           <span className="draft-status">Draft saved on this device</span>
         )}
       </div>

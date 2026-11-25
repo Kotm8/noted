@@ -608,13 +608,9 @@
   color: var(--text-primary);
   font: inherit;
 }
-.home-meal-dialog {
+.modal-content.home-meal-dialog {
   max-width: 680px;
   width: min(680px, calc(100vw - 32px));
-}
-.home-meal-dialog .nutrition-dock {
-  position: static;
-  margin: 0;
 }
 @media (max-width: 1200px) {
   .home-b-header {

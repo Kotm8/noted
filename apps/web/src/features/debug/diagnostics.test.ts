@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { collectDiagnostics, testDeviceNotification } from "./diagnostics";
+import { collectDiagnostics } from "./diagnostics";
 
 const originalServiceWorker = Object.getOwnPropertyDescriptor(
   navigator,
@@ -45,9 +45,7 @@ describe("diagnostic reports", () => {
       },
     });
     const report = await collectDiagnostics();
-    expect(
-      report.checks.find((check) => check.label === "Push subscription")?.value,
-    ).toBe("Present on this device");
+    expect(navigator.serviceWorker.getRegistration).not.toHaveBeenCalled();
     const json = JSON.stringify(report);
     expect(json).toContain("v0.2.0 / API 1");
     for (const secret of [
@@ -90,12 +88,11 @@ describe("diagnostic reports", () => {
     );
   });
 
-  it("never requests notification permission as a side effect of testing", async () => {
+  it("never requests browser notification permission during checks", async () => {
     const requestPermission = vi.fn();
     vi.stubGlobal("Notification", { permission: "default", requestPermission });
-    await expect(testDeviceNotification()).rejects.toThrow(
-      "Enable notifications in Settings first.",
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await collectDiagnostics();
     expect(requestPermission).not.toHaveBeenCalled();
   });
 });

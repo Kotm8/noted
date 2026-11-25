@@ -85,10 +85,14 @@ export function duration(seconds: number): string {
     : `${Math.floor(minute / 60)}h${minute % 60 ? ` ${minute % 60}m` : ""}`;
 }
 
-export function dateRangeLabel(first: string, last: string): string {
+export function dateRangeLabel(
+  first: string,
+  last: string,
+  month: "short" | "long" = "long",
+): string {
   return new Intl.DateTimeFormat(undefined, {
     day: "numeric",
-    month: "long",
+    month,
     year: "numeric",
     timeZone: "UTC",
   }).formatRange(new Date(`${first}T12:00:00Z`), new Date(`${last}T12:00:00Z`));
